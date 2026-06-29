@@ -66,9 +66,7 @@
                             @endif
                         </td>
                     </tr>
-                </tbody>
-                <tfoot class="data-foot">
-                    <tr>
+                    <tr class="recipe-cost-total">
                         <td>製造コスト合計</td>
                         <td class="num mono" data-profit-total>
                             @if ($profit?->unit_cost !== null)
@@ -78,28 +76,13 @@
                             @endif
                         </td>
                     </tr>
-                    <tr>
-                        <td>粗利</td>
-                        <td class="num mono {{ ($profit?->profit ?? 0) < 0 ? 'text-danger' : '' }}" data-profit-amount>
-                            @if ($profit?->profit !== null)
-                                {{ number_format($profit->profit) }} 円/m
-                            @else
-                                <span class="t-muted">算出不可</span>
-                            @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>粗利率</td>
-                        <td class="num mono {{ ($profit?->profit ?? 0) < 0 ? 'text-danger' : '' }}" data-profit-margin>
-                            @if ($profit?->margin_percent !== null)
-                                {{ $profit->margin_percent }} %
-                            @else
-                                <span class="t-muted">—</span>
-                            @endif
-                        </td>
-                    </tr>
-                </tfoot>
+                </tbody>
             </table>
         </div>
+        @include('partials.recipe-outcome-strip', [
+            'profit' => $profit,
+            'price' => $priceValue,
+            'dynamic' => true,
+        ])
     </div>
 </div>

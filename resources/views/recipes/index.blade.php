@@ -201,9 +201,7 @@
                                         <td>染色加工料</td>
                                         <td class="num mono">{{ number_format($breakdown->processing_cost) }} 円/m</td>
                                     </tr>
-                                </tbody>
-                                <tfoot class="data-foot">
-                                    <tr>
+                                    <tr class="recipe-cost-total">
                                         <td>製造コスト合計</td>
                                         <td class="num mono">
                                             @if ($breakdown->total !== null)
@@ -213,33 +211,10 @@
                                             @endif
                                         </td>
                                     </tr>
-                                    <tr>
-                                        <td>販売価格</td>
-                                        <td class="num mono">{{ number_format($profit->price) }} 円/m</td>
-                                    </tr>
-                                    <tr>
-                                        <td>粗利</td>
-                                        <td class="num mono {{ ($profit->profit ?? 0) < 0 ? 'text-danger' : '' }}">
-                                            @if ($profit->profit !== null)
-                                                {{ number_format($profit->profit) }} 円/m
-                                            @else
-                                                <span class="t-muted">算出不可</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>粗利率</td>
-                                        <td class="num mono {{ ($profit->profit ?? 0) < 0 ? 'text-danger' : '' }}">
-                                            @if ($profit->margin_percent !== null)
-                                                {{ $profit->margin_percent }} %
-                                            @else
-                                                <span class="t-muted">—</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                </tfoot>
+                                </tbody>
                             </table>
                         </div>
+                        @include('partials.recipe-outcome-strip', ['profit' => $profit])
                     </div>
                 </div>
             @endforeach

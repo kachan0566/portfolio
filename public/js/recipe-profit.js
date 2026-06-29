@@ -11,12 +11,26 @@
         greige: panel.querySelector('[data-profit-greige]'),
         processing: panel.querySelector('[data-profit-processing]'),
         total: panel.querySelector('[data-profit-total]'),
+        price: panel.querySelector('[data-profit-price]'),
         profit: panel.querySelector('[data-profit-amount]'),
         margin: panel.querySelector('[data-profit-margin]'),
+        profitBox: panel.querySelector('[data-profit-row="profit"]'),
     };
 
     function formatYen(value) {
         return Math.round(value).toLocaleString('ja-JP') + ' 円/m';
+    }
+
+    function setProfitTone(profit) {
+        if (!els.profitBox) {
+            return;
+        }
+
+        const positive = profit !== null && profit >= 0;
+        const negative = profit !== null && profit < 0;
+
+        els.profitBox.classList.toggle('is-positive', positive);
+        els.profitBox.classList.toggle('is-negative', negative);
     }
 
     function setUncalculable() {
@@ -25,12 +39,11 @@
         }
         if (els.profit) {
             els.profit.innerHTML = '<span class="t-muted">算出不可</span>';
-            els.profit.classList.remove('text-danger');
         }
         if (els.margin) {
-            els.margin.innerHTML = '<span class="t-muted">—</span>';
-            els.margin.classList.remove('text-danger');
+            els.margin.innerHTML = '<span class="t-muted">粗利率 —</span>';
         }
+        setProfitTone(null);
     }
 
     function recalc() {
@@ -55,19 +68,20 @@
         if (els.total) {
             els.total.textContent = formatYen(total);
         }
+        if (els.price) {
+            els.price.textContent = formatYen(price);
+        }
         if (els.profit) {
             els.profit.textContent = formatYen(profit);
-            els.profit.classList.toggle('text-danger', profit < 0);
         }
         if (els.margin) {
             if (margin === null) {
-                els.margin.innerHTML = '<span class="t-muted">—</span>';
-                els.margin.classList.remove('text-danger');
+                els.margin.innerHTML = '<span class="t-muted">粗利率 —</span>';
             } else {
-                els.margin.textContent = margin + ' %';
-                els.margin.classList.toggle('text-danger', profit < 0);
+                els.margin.textContent = '粗利率 ' + margin + ' %';
             }
         }
+        setProfitTone(profit);
     }
 
     window.recipeProfitSyncProduct = function (option) {

@@ -251,6 +251,73 @@ tfoot.data-foot td {
     border-top: 2px solid var(--border-strong);
 }
 
+/* 商品レシピ コスト・粗利 */
+table.data tbody tr.recipe-cost-total td {
+    background: var(--primary-soft);
+    border-top: 2px solid var(--primary);
+    font-weight: 700;
+    font-size: 13.5px;
+    padding-top: 13px;
+}
+
+.recipe-outcome-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    padding: 14px 16px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+}
+
+.recipe-outcome-strip__item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+}
+
+.recipe-outcome-strip__label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.recipe-outcome-strip__value {
+    font-size: 16px;
+    font-weight: 800;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+.recipe-outcome-strip__sub {
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 5px;
+    line-height: 1.3;
+}
+
+.recipe-outcome-strip__item--profit.is-positive {
+    background: var(--success-soft);
+    border-color: #a7f3d0;
+    color: var(--success);
+}
+
+.recipe-outcome-strip__item--profit.is-positive .recipe-outcome-strip__label,
+.recipe-outcome-strip__item--profit.is-positive .recipe-outcome-strip__sub {
+    color: var(--success);
+}
+
+.recipe-outcome-strip__item--profit.is-negative {
+    background: var(--danger-soft);
+    border-color: #fecaca;
+    color: var(--danger);
+}
+
+.recipe-outcome-strip__item--profit.is-negative .recipe-outcome-strip__label,
+.recipe-outcome-strip__item--profit.is-negative .recipe-outcome-strip__sub {
+    color: var(--danger);
+}
+
 /* ---------- バッジ ---------- */
 .badge {
     display: inline-flex; align-items: center; gap: 5px;
