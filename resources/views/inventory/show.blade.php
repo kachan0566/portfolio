@@ -14,6 +14,8 @@
         </a>
     </div>
 
+    @include('partials.cost-warning', ['warnings' => $costWarnings])
+
     <div class="kpi-grid">
         <div class="kpi">
             <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'archive'])</div>
@@ -38,8 +40,20 @@
         <div class="kpi">
             <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'yen'])</div>
             <div class="kpi__label">在庫金額（コストベース）</div>
-            <div class="kpi__value">{{ number_format($unitCost * $effectiveStock) }}<span style="font-size:14px;font-weight:600;"> 円</span></div>
-            <div class="kpi__sub">製造コスト単価 {{ number_format($unitCost) }} 円</div>
+            <div class="kpi__value">
+                @if ($costCalculable)
+                    {{ number_format($unitCost * $effectiveStock) }}<span style="font-size:14px;font-weight:600;"> 円</span>
+                @else
+                    <span class="t-muted">算出不可</span>
+                @endif
+            </div>
+            <div class="kpi__sub">
+                @if ($costCalculable)
+                    製造コスト単価 {{ number_format($unitCost) }} 円/m
+                @else
+                    対象月の糸単価が未登録です
+                @endif
+            </div>
         </div>
     </div>
 
@@ -125,13 +139,13 @@
                         @endphp
                         <div class="po-usage-item">
                             <div class="po-usage-item__code">
-                                <a href="{{ route('purchases.edit', $po->id) }}" class="link-strong">{{ $po->code }}</a>
+                                <a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a>
                             </div>
                             <div class="po-usage-item__nums mono" style="font-size:12px;">
-                                <span class="t-muted">入荷済 {{ $received }}m</span>
-                                <span class="{{ $stockUsed > 0 ? 't-strong' : 't-muted' }}">在庫引当 {{ $stockUsed }}m</span>
-                                <span class="{{ $poUsed > 0 ? 't-strong' : 't-muted' }}">発注引当 {{ $poUsed }}m</span>
-                                <span class="t-muted">残 {{ $poRem }}m</span>
+                                <span class="t-muted">入荷済 @include('partials.qty', ['qty' => $received, 'productId' => $product->id])</span>
+                                <span class="{{ $stockUsed > 0 ? 't-strong' : 't-muted' }}">在庫引当 @include('partials.qty', ['qty' => $stockUsed, 'productId' => $product->id])</span>
+                                <span class="{{ $poUsed > 0 ? 't-strong' : 't-muted' }}">発注引当 @include('partials.qty', ['qty' => $poUsed, 'productId' => $product->id])</span>
+                                <span class="t-muted">残 @include('partials.qty', ['qty' => $poRem, 'productId' => $product->id])</span>
                             </div>
                         </div>
                     @endforeach
@@ -140,6 +154,7 @@
 
             <form action="{{ route('inventory.allocate', $product->id) }}" method="POST" id="allocation-form">
                 @csrf
+                @include('partials.qty-unit-toggle', ['pageKey' => 'allocation'])
                 <script id="alloc-meta" type="application/json">
                     {!! json_encode(['stock' => $effectiveStock, 'currentOrderId' => 0, 'metersPerTan' => $product->meters_per_tan ?? 50], JSON_UNESCAPED_UNICODE) !!}
                 </script>
@@ -180,6 +195,7 @@
                                     'stockPoOptions' => $stockPoOptions,
                                     'poPoOptions' => $poPoOptions,
                                     'highlightOrderId' => null,
+                                    'allocMetersPerTan' => $product->meters_per_tan ?? 50,
                                 ])
                             </tbody>
                         </table>
@@ -207,7 +223,7 @@
                                         <td>{{ $ev['receiving_code'] ?? '' }}</td>
                                         <td>{{ $evOrder?->code ?? '' }}</td>
                                         <td>{{ $evPo?->code ?? '' }}</td>
-                                        <td class="num mono">{{ $ev['qty'] ?? 0 }}m</td>
+                                        <td class="num mono">@include('partials.qty', ['qty' => $ev['qty'] ?? 0, 'productId' => $product->id])</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -270,7 +286,7 @@
                             @forelse ($purchases as $po)
                                 <tr>
                                     <td class="code-cell">
-                                        <a href="{{ route('purchases.edit', $po->id) }}" class="link-strong">{{ $po->code }}</a>
+                                        <a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a>
                                     </td>
                                     <td>{{ $po->customer }}</td>
                                     <td class="num mono">@include('partials.qty', ['qty' => $po->qty, 'productId' => $product->id])</td>

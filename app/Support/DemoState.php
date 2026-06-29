@@ -16,6 +16,10 @@ class DemoState
 
     private const RECEIVINGS_FILE = 'receivings_state.json';
 
+    private const PO_STAGE_FILE = 'po_stage_state.json';
+
+    private const DYE_TRANSFER_FILE = 'po_dye_transfer_state.json';
+
     /** @return array<int, int> */
     private static function readIntMap(string $file): array
     {
@@ -54,24 +58,91 @@ class DemoState
 
     public static function effectiveReceived(int $poId): int
     {
-        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
-        if (! $po) {
-            return 0;
-        }
-
-        $overlay = self::readIntMap(self::RECEIVED_FILE);
-
-        return (int) $po->received + ($overlay[$poId] ?? 0);
+        return (int) floor(self::effectiveReceivedQty($poId));
     }
 
-    public static function poRemaining(int $poId): int
+    public static function effectiveReceivedQty(int $poId, ?object $po = null): float
     {
-        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
+        $po ??= self::findBasePurchase($poId);
+        if (! $po) {
+            return 0.0;
+        }
+
+        $base = DemoData::purchaseOrderReceivedQty($po);
+
+        return $base + self::receivedOverlayQty($poId);
+    }
+
+    public static function receivedOverlayQty(int $poId): float
+    {
+        $overlay = self::readFloatMap(self::RECEIVED_FILE);
+
+        return (float) ($overlay[$poId] ?? 0);
+    }
+
+    /** @return array<int, float> */
+    private static function readFloatMap(string $file): array
+    {
+        $path = storage_path('app/'.$file);
+        if (! is_file($path)) {
+            return [];
+        }
+
+        $data = json_decode((string) file_get_contents($path), true);
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($data as $id => $value) {
+            $result[(int) $id] = (float) $value;
+        }
+
+        return $result;
+    }
+
+    /** @param array<int, float> $map */
+    private static function writeFloatMap(string $file, array $map): void
+    {
+        $path = storage_path('app/'.$file);
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents(
+            $path,
+            json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    private static function findBasePurchase(int $poId): ?object
+    {
+        $row = DemoData::basePurchaseOrderRows()->firstWhere('id', $poId);
+        if ($row) {
+            $merged = array_merge($row, PurchaseOrderOverlay::overrides($poId));
+
+            return DemoData::enrichPurchaseOrder($merged);
+        }
+        foreach (PurchaseOrderOverlay::additions() as $addition) {
+            if ((int) ($addition['id'] ?? 0) === $poId) {
+                return DemoData::enrichPurchaseOrder($addition);
+            }
+        }
+
+        return null;
+    }
+
+    public static function poRemaining(int $poId): float
+    {
+        $po = self::findBasePurchase($poId);
         if (! $po) {
             return 0;
         }
 
-        return max(0, (int) $po->qty - self::effectiveReceived($poId));
+        $ordered = DemoData::purchaseOrderOrderedQty($po);
+
+        return max(0.0, $ordered - self::effectiveReceivedQty($poId, $po));
     }
 
     public static function effectiveStock(int $productId): int
@@ -124,25 +195,30 @@ class DemoState
     }
 
     /**
-     * @param  array{po_id: int, product_id: int, qty: int, code: string, date: string, supplier?: string}  $receiving
+     * @param  array<string, mixed>  $receiving
      */
     public static function applyReceiving(array $receiving): void
     {
         $poId = (int) $receiving['po_id'];
-        $productId = (int) $receiving['product_id'];
-        $qty = (int) $receiving['qty'];
+        $poType = (string) ($receiving['po_type'] ?? PurchaseOrderType::PRODUCT);
+        $qty = (float) ($receiving['qty'] ?? $receiving['qty_kg'] ?? $receiving['qty_meters'] ?? 0);
 
         if ($qty <= 0) {
             return;
         }
 
-        $receivedOverlay = self::readIntMap(self::RECEIVED_FILE);
+        $receivedOverlay = self::readFloatMap(self::RECEIVED_FILE);
         $receivedOverlay[$poId] = ($receivedOverlay[$poId] ?? 0) + $qty;
-        self::writeIntMap(self::RECEIVED_FILE, $receivedOverlay);
+        self::writeFloatMap(self::RECEIVED_FILE, $receivedOverlay);
 
-        $stockOverlay = self::readIntMap(self::STOCK_FILE);
-        $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0) + $qty;
-        self::writeIntMap(self::STOCK_FILE, $stockOverlay);
+        if ($poType === PurchaseOrderType::YARN) {
+            YarnInventory::addStockKg((int) $receiving['material_id'], $qty);
+        } elseif ($poType === PurchaseOrderType::PRODUCT) {
+            $productId = (int) $receiving['product_id'];
+            $stockOverlay = self::readIntMap(self::STOCK_FILE);
+            $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0) + (int) floor($qty);
+            self::writeIntMap(self::STOCK_FILE, $stockOverlay);
+        }
 
         $receivings = self::extraReceivings();
         $receivings[] = $receiving;
@@ -182,5 +258,80 @@ class DemoState
     public static function poHasRemaining(int $poId): bool
     {
         return self::poRemaining($poId) > 0;
+    }
+
+    /** @return array<int, string> */
+    private static function readStringMap(string $file): array
+    {
+        $path = storage_path('app/'.$file);
+        if (! is_file($path)) {
+            return [];
+        }
+
+        $data = json_decode((string) file_get_contents($path), true);
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($data as $id => $value) {
+            $result[(int) $id] = (string) $value;
+        }
+
+        return $result;
+    }
+
+    /** @param array<int, string> $map */
+    private static function writeStringMap(string $file, array $map): void
+    {
+        $path = storage_path('app/'.$file);
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents(
+            $path,
+            json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    public static function effectivePoStage(int $poId): string
+    {
+        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
+        if ($po === null) {
+            return '';
+        }
+
+        $overlay = self::readStringMap(self::PO_STAGE_FILE);
+
+        return $overlay[$poId] ?? $po->stage;
+    }
+
+    public static function setPoStage(int $poId, string $stage): void
+    {
+        $overlay = self::readStringMap(self::PO_STAGE_FILE);
+        $overlay[$poId] = $stage;
+        self::writeStringMap(self::PO_STAGE_FILE, $overlay);
+    }
+
+    /** 染機投入済：生機在庫から製品在庫へ移動（同一メートル、反数は換算） */
+    public static function applyDyeTransfer(int $poId, int $productId, int $meters): void
+    {
+        if ($meters <= 0) {
+            return;
+        }
+
+        $transferred = self::readIntMap(self::DYE_TRANSFER_FILE);
+        if (($transferred[$poId] ?? 0) > 0) {
+            return;
+        }
+
+        $transferred[$poId] = $meters;
+        self::writeIntMap(self::DYE_TRANSFER_FILE, $transferred);
+
+        $stockOverlay = self::readIntMap(self::STOCK_FILE);
+        $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0) + $meters;
+        self::writeIntMap(self::STOCK_FILE, $stockOverlay);
     }
 }

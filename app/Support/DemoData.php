@@ -65,7 +65,7 @@ class DemoData
     /** 製品品番（子品番）一覧。1つの生機品番に複数の製品品番（カラー違い）がぶら下がる */
     public static function products(): Collection
     {
-        return collect([
+        $rows = [
             (object) ['id' => 1, 'sku' => 'FAB-A-BK', 'greige_sku' => 'KB-A', 'greige_name' => '生機A',       'color' => 'ブラック',   'price' => 1200, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 40,  'stock_min' => 100],
             (object) ['id' => 2, 'sku' => 'FAB-B-NV', 'greige_sku' => 'KB-B', 'greige_name' => '生機B',       'color' => 'ネイビー',   'price' => 1500, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 100],
             (object) ['id' => 3, 'sku' => 'FAB-T-WH', 'greige_sku' => 'KB-T', 'greige_name' => 'Tシャツ生機', 'color' => 'ホワイト',   'price' => 900,  'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 70,  'stock_min' => 150],
@@ -73,7 +73,22 @@ class DemoData
             (object) ['id' => 5, 'sku' => 'DEN-D-IN', 'greige_sku' => 'KB-D', 'greige_name' => 'デニム生機',   'color' => 'インディゴ', 'price' => 1800, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 100],
             (object) ['id' => 6, 'sku' => 'FAB-A-WH', 'greige_sku' => 'KB-A', 'greige_name' => '生機A',       'color' => 'ホワイト',   'price' => 1250, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 80],
             (object) ['id' => 7, 'sku' => 'FAB-T-BK', 'greige_sku' => 'KB-T', 'greige_name' => 'Tシャツ生機', 'color' => 'ブラック',   'price' => 950,  'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 120,  'stock_min' => 150],
-        ]);
+        ];
+
+        $priceUpdates = DemoOverlay::productPriceUpdates();
+
+        return collect($rows)->map(function ($p) use ($priceUpdates) {
+            if (isset($priceUpdates[$p->id])) {
+                $p->price = $priceUpdates[$p->id];
+            }
+
+            $perTan = $p->meters_per_tan ?? self::METERS_PER_TAN_PRODUCT;
+            $p->stock_min_tan = $perTan > 0
+                ? round($p->stock_min / $perTan, QtyHelper::TAN_DECIMALS)
+                : 0.0;
+
+            return $p;
+        });
     }
 
     public static function findProduct(int $id): ?object
@@ -81,14 +96,26 @@ class DemoData
         return self::products()->firstWhere('id', $id);
     }
 
+    public static function findGreige(string $sku): ?object
+    {
+        return self::greiges()->firstWhere('sku', $sku);
+    }
+
+    public static function findGreigeByProductId(int $productId): ?object
+    {
+        $product = self::findProduct($productId);
+
+        return $product !== null ? self::findGreige($product->greige_sku) : null;
+    }
+
     /** 原材料一覧 */
     public static function materials(): Collection
     {
         return collect([
-            (object) ['id' => 1, 'sku' => 'RM-001', 'name' => '綿糸',         'unit' => 'kg'],
-            (object) ['id' => 2, 'sku' => 'RM-002', 'name' => 'ポリエステル糸', 'unit' => 'kg'],
-            (object) ['id' => 3, 'sku' => 'RM-003', 'name' => '染料',         'unit' => 'kg'],
-            (object) ['id' => 4, 'sku' => 'RM-004', 'name' => '仕上げ剤',      'unit' => 'L'],
+            (object) ['id' => 1, 'sku' => 'RM-001', 'name' => '綿糸',         'unit' => 'kg', 'type' => 'yarn'],
+            (object) ['id' => 2, 'sku' => 'RM-002', 'name' => 'ポリエステル糸', 'unit' => 'kg', 'type' => 'yarn'],
+            (object) ['id' => 3, 'sku' => 'RM-003', 'name' => '染料',         'unit' => 'kg', 'type' => 'dye'],
+            (object) ['id' => 4, 'sku' => 'RM-004', 'name' => '仕上げ剤',      'unit' => 'L',  'type' => 'finishing'],
         ]);
     }
 
@@ -97,88 +124,492 @@ class DemoData
         return self::materials()->firstWhere('id', $id);
     }
 
-    /** 月別原材料価格 */
+    /** 糸のみの原材料一覧 */
+    public static function yarnMaterials(): Collection
+    {
+        return self::materials()->where('type', 'yarn')->values();
+    }
+
+    public static function isYarnMaterial(int $materialId): bool
+    {
+        $material = self::findMaterial($materialId);
+
+        return $material?->type === 'yarn';
+    }
+
+    /** @return array<int, array{processing_cost: int}> */
+    private static function baseRecipeData(): array
+    {
+        return [
+            1 => ['processing_cost' => 475],
+            2 => ['processing_cost' => 520],
+            3 => ['processing_cost' => 170],
+            4 => ['processing_cost' => 260],
+            5 => ['processing_cost' => 778],
+            6 => ['processing_cost' => 475],
+            7 => ['processing_cost' => 170],
+        ];
+    }
+
+    /** @return array<int, array{processing_cost: int}> */
+    public static function recipeData(): array
+    {
+        return array_replace_recursive(self::baseRecipeData(), DemoOverlay::recipeOverrides());
+    }
+
+    public static function processingCost(int $productId): int
+    {
+        return self::recipeData()[$productId]['processing_cost'] ?? 0;
+    }
+
+    public static function hasRecipe(int $productId): bool
+    {
+        return array_key_exists($productId, self::recipeData());
+    }
+
+    /** @return array<string, array{lines: list<array{0: int, 1: float}>, loss_rate: float, weaving_cost: int}> */
+    private static function baseGreigeRecipeData(): array
+    {
+        return [
+            'KB-A' => ['lines' => [[1, 2.0]], 'loss_rate' => 0.03, 'weaving_cost' => 120],
+            'KB-B' => ['lines' => [[1, 1.5], [2, 1.0]], 'loss_rate' => 0.05, 'weaving_cost' => 150],
+            'KB-T' => ['lines' => [[1, 1.8]], 'loss_rate' => 0.03, 'weaving_cost' => 100],
+            'KB-D' => ['lines' => [[1, 2.5]], 'loss_rate' => 0.04, 'weaving_cost' => 180],
+        ];
+    }
+
+    /** @return array<string, array{lines: list<array{0: int, 1: float}>, loss_rate: float, weaving_cost: int}> */
+    public static function greigeRecipeData(): array
+    {
+        return array_replace_recursive(self::baseGreigeRecipeData(), DemoOverlay::greigeRecipeOverrides());
+    }
+
+    public static function hasGreigeRecipe(string $greigeSku): bool
+    {
+        return array_key_exists($greigeSku, self::greigeRecipeData());
+    }
+
+    public static function greigeLossRate(string $greigeSku): float
+    {
+        return (float) (self::greigeRecipeData()[$greigeSku]['loss_rate'] ?? 0.0);
+    }
+
+    /**
+     * 生機発注向け：総m数から必要糸量（kg）を算出（ロス率込み）。
+     *
+     * @return list<object{material_id: int, material_sku: string, material: string, qty_per_m: float, required_kg: float}>
+     */
+    public static function greigeYarnRequirements(string $greigeSku, float|int $qtyMeters): array
+    {
+        $recipe = self::greigeRecipeData()[$greigeSku] ?? null;
+        if ($recipe === null || $qtyMeters <= 0) {
+            return [];
+        }
+
+        $lossMultiplier = 1.0 + self::greigeLossRate($greigeSku);
+        $meters = (float) $qtyMeters;
+        $result = [];
+
+        foreach ($recipe['lines'] as [$materialId, $qtyPerM]) {
+            $material = self::findMaterial($materialId);
+            if ($material === null) {
+                continue;
+            }
+            $result[] = (object) [
+                'material_id' => $materialId,
+                'material_sku' => $material->sku,
+                'material' => $material->name,
+                'qty_per_m' => (float) $qtyPerM,
+                'required_kg' => round((float) $qtyPerM * $meters * $lossMultiplier, 2),
+            ];
+        }
+
+        return $result;
+    }
+
+    /** 生機レシピ一覧（画面表示用） */
+    public static function greigeRecipes(): Collection
+    {
+        $result = collect();
+        foreach (self::greigeRecipeData() as $greigeSku => $recipe) {
+            $greige = self::findGreige($greigeSku);
+            if ($greige === null) {
+                continue;
+            }
+            $yarnLines = [];
+            foreach ($recipe['lines'] as [$materialId, $qty]) {
+                $material = self::findMaterial($materialId);
+                $yarnLines[] = (object) [
+                    'material_id' => $materialId,
+                    'material_sku' => $material->sku,
+                    'material' => $material->name,
+                    'qty' => $qty,
+                    'unit' => 'kg/m',
+                ];
+            }
+            $result->push((object) [
+                'greige_sku' => $greigeSku,
+                'greige_name' => $greige->name,
+                'loss_rate' => $recipe['loss_rate'],
+                'weaving_cost' => (int) ($recipe['weaving_cost'] ?? 0),
+                'yarn_lines' => $yarnLines,
+            ]);
+        }
+
+        return $result->sortBy('greige_sku')->values();
+    }
+
+    /** 生機1mあたりの単価内訳（糸原価はロス率込み） */
+    public static function greigeUnitCostBreakdown(string $greigeSku, string $ym): object
+    {
+        $recipe = self::greigeRecipeData()[$greigeSku] ?? null;
+        if ($recipe === null) {
+            return (object) [
+                'calculable' => false,
+                'yarn_lines' => [],
+                'yarn_cost' => null,
+                'weaving_cost' => 0.0,
+                'loss_rate' => 0.0,
+                'total' => null,
+                'missing_yarns' => [],
+            ];
+        }
+
+        $lossRate = (float) ($recipe['loss_rate'] ?? 0);
+        $lossMultiplier = 1.0 + $lossRate;
+        $weavingCost = (float) ($recipe['weaving_cost'] ?? 0);
+        $yarnLines = [];
+        $missingYarns = [];
+        $yarnCost = 0.0;
+        $calculable = true;
+
+        foreach ($recipe['lines'] as [$materialId, $qty]) {
+            $material = self::findMaterial($materialId);
+            $price = self::yarnPrice($materialId, $ym);
+            $missing = $price === null;
+            $effectiveQty = (float) $qty * $lossMultiplier;
+
+            if ($missing) {
+                $calculable = false;
+                $missingYarns[] = (object) [
+                    'material_id' => $materialId,
+                    'material_sku' => $material->sku,
+                    'material' => $material->name,
+                    'ym' => $ym,
+                ];
+            } else {
+                $yarnCost += $effectiveQty * $price;
+            }
+
+            $yarnLines[] = (object) [
+                'label' => $material->sku,
+                'sub' => $material->name,
+                'qty' => (float) $qty,
+                'effective_qty' => $effectiveQty,
+                'unit' => 'kg/m',
+                'price' => $price,
+                'amount' => $missing ? null : $effectiveQty * $price,
+                'missing' => $missing,
+            ];
+        }
+
+        return (object) [
+            'calculable' => $calculable,
+            'yarn_lines' => $yarnLines,
+            'yarn_cost' => $calculable ? $yarnCost : null,
+            'weaving_cost' => $weavingCost,
+            'loss_rate' => $lossRate,
+            'total' => $calculable ? $yarnCost + $weavingCost : null,
+            'missing_yarns' => $missingYarns,
+        ];
+    }
+
+    public static function greigeUnitCost(string $greigeSku, string $ym): ?float
+    {
+        $breakdown = self::greigeUnitCostBreakdown($greigeSku, $ym);
+
+        return $breakdown->calculable ? $breakdown->total : null;
+    }
+
+    /** @return list<string> */
+    public static function greigeCostWarningMessages(string $greigeSku, string $ym): array
+    {
+        $breakdown = self::greigeUnitCostBreakdown($greigeSku, $ym);
+        $messages = [];
+
+        foreach ($breakdown->missing_yarns as $yarn) {
+            $messages[] = "{$yarn->material}（{$yarn->material_sku}）の {$ym} 単価が未登録のため、生機単価を算出できません。";
+        }
+
+        return $messages;
+    }
+
+    /** @return list<string> */
+    public static function collectGreigeCostWarnings(iterable $greigeSkus, string $ym): array
+    {
+        $messages = [];
+        foreach ($greigeSkus as $greigeSku) {
+            foreach (self::greigeCostWarningMessages((string) $greigeSku, $ym) as $message) {
+                if (! in_array($message, $messages, true)) {
+                    $messages[] = $message;
+                }
+            }
+        }
+
+        return $messages;
+    }
+
+    /** 糸の初期在庫（kg）。Phase B 以降で DemoState と連動 */
+    public static function yarnStockBase(): array
+    {
+        return [
+            1 => 800.0,
+            2 => 500.0,
+        ];
+    }
+
+    public static function yarnStockKg(int $materialId): float
+    {
+        return (float) (self::yarnStockBase()[$materialId] ?? 0.0);
+    }
+
+    /** 出荷先マスタ */
+    public static function shipTos(): Collection
+    {
+        return collect([
+            (object) ['id' => 1, 'name' => '第一織工場',     'type' => ShipToType::WEAVING],
+            (object) ['id' => 2, 'name' => '中央染工場',     'type' => ShipToType::DYEING],
+            (object) ['id' => 3, 'name' => '第二織工場',     'type' => ShipToType::WEAVING],
+            (object) ['id' => 4, 'name' => '本社倉庫',       'type' => ShipToType::WAREHOUSE],
+            (object) ['id' => 5, 'name' => '関西染工場',     'type' => ShipToType::DYEING],
+        ]);
+    }
+
+    public static function findShipTo(int $id): ?object
+    {
+        return self::shipTos()->firstWhere('id', $id);
+    }
+
+    /** @return Collection<int, object> */
+    public static function shipTosForPurchaseType(string $type): Collection
+    {
+        $allowed = PurchaseOrderType::shipToTypesFor($type);
+
+        return self::shipTos()->whereIn('type', $allowed)->values();
+    }
+
+    /** 月別糸価格 */
     public static function materialPrices(): Collection
     {
         $rows = [
-            ['material_id' => 1, 'prices' => ['2026-04' => 480,  '2026-05' => 500,  '2026-06' => 550]],
-            ['material_id' => 2, 'prices' => ['2026-04' => 300,  '2026-05' => 320,  '2026-06' => 310]],
-            ['material_id' => 3, 'prices' => ['2026-04' => 1200, '2026-05' => 1250, '2026-06' => 1300]],
-            ['material_id' => 4, 'prices' => ['2026-04' => 800,  '2026-05' => 820,  '2026-06' => 850]],
+            ['material_id' => 1, 'prices' => ['2026-04' => 480, '2026-05' => 500, '2026-06' => 550]],
+            ['material_id' => 2, 'prices' => ['2026-04' => 300, '2026-05' => 320, '2026-06' => 310]],
         ];
 
-        $result = collect();
-        $id = 1;
+        $priceMap = [];
         foreach ($rows as $row) {
-            $material = self::findMaterial($row['material_id']);
             foreach ($row['prices'] as $ym => $price) {
-                $result->push((object) [
-                    'id' => $id++,
-                    'material_sku' => $material->sku,
-                    'material' => $material->name,
-                    'unit' => $material->unit,
-                    'ym' => $ym,
-                    'price' => $price,
-                ]);
+                $priceMap[DemoOverlay::yarnPriceKey($row['material_id'], $ym)] = $price;
             }
         }
 
-        return $result;
+        foreach (DemoOverlay::yarnPriceUpdates() as $key => $price) {
+            $priceMap[$key] = $price;
+        }
+
+        foreach (DemoOverlay::yarnPriceAdditions() as $addition) {
+            $priceMap[DemoOverlay::yarnPriceKey($addition['material_id'], $addition['ym'])] = $addition['price'];
+        }
+
+        $result = collect();
+        $id = 1;
+        foreach ($priceMap as $key => $price) {
+            [$materialId, $ym] = explode('|', $key, 2);
+            $material = self::findMaterial((int) $materialId);
+            if (! $material || ! self::isYarnMaterial((int) $materialId)) {
+                continue;
+            }
+            $result->push((object) [
+                'id' => $id++,
+                'material_id' => (int) $materialId,
+                'material_sku' => $material->sku,
+                'material' => $material->name,
+                'unit' => 'kg',
+                'ym' => $ym,
+                'price' => $price,
+            ]);
+        }
+
+        return $result->sortBy(['material_id', 'ym'])->values()->map(function ($row, $index) {
+            $row->id = $index + 1;
+
+            return $row;
+        });
     }
 
-    /** 指定原材料・年月の単価を取得 */
-    public static function materialPrice(int $materialId, string $ym): int
+    public static function findYarnPrice(int $id): ?object
     {
-        $material = self::findMaterial($materialId);
+        return self::materialPrices()->firstWhere('id', $id);
+    }
+
+    public static function hasYarnPrice(int $materialId, string $ym): bool
+    {
+        return self::yarnPrice($materialId, $ym) !== null;
+    }
+
+    /** 指定糸・年月の単価を取得（未登録時は null） */
+    public static function yarnPrice(int $materialId, string $ym): ?int
+    {
+        if (! self::isYarnMaterial($materialId)) {
+            return null;
+        }
+
         $row = self::materialPrices()
-            ->where('material', $material->name)
+            ->where('material_id', $materialId)
             ->firstWhere('ym', $ym);
 
-        return $row?->price ?? 0;
+        return $row?->price;
     }
 
-    /** 商品レシピ（商品ごとの原材料使用量） */
+    /** 商品レシピ一覧（染色加工料のみ） */
     public static function recipes(): Collection
     {
-        $data = [
-            1 => [[1, 2.0], [3, 0.3], [4, 0.1]],
-            2 => [[1, 1.5], [2, 1.0], [3, 0.4]],
-            3 => [[1, 1.8], [4, 0.2]],
-            4 => [[2, 2.0], [3, 0.2]],
-            5 => [[1, 2.5], [3, 0.5], [4, 0.15]],
-            6 => [[1, 2.0], [3, 0.3], [4, 0.1]],
-            7 => [[1, 1.8], [4, 0.2]],
-        ];
-
         $result = collect();
-        $id = 1;
-        foreach ($data as $productId => $items) {
+        foreach (self::recipeData() as $productId => $recipe) {
             $product = self::findProduct($productId);
-            foreach ($items as [$materialId, $qty]) {
-                $material = self::findMaterial($materialId);
-                $result->push((object) [
-                    'id' => $id++,
-                    'product_id' => $productId,
-                    'product' => $product->sku,
-                    'sku' => $product->sku,
-                    'material_id' => $materialId,
-                    'material' => $material->name,
-                    'material_sku' => $material->sku,
-                    'unit' => $material->unit,
-                    'qty' => $qty,
-                ]);
+            if ($product === null) {
+                continue;
             }
+            $result->push((object) [
+                'product_id' => $productId,
+                'product' => $product->sku,
+                'sku' => $product->sku,
+                'greige_sku' => $product->greige_sku,
+                'processing_cost' => $recipe['processing_cost'],
+            ]);
         }
 
         return $result;
     }
 
-    /** 商品1単位あたりの製造コスト（指定年月の原材料単価で計算） */
-    public static function unitCost(int $productId, string $ym): float
+    /** 商品1mあたりの製造コスト内訳（生機単価＋染色加工料） */
+    public static function unitCostBreakdown(int $productId, string $ym): object
     {
-        return self::recipes()
-            ->where('product_id', $productId)
-            ->sum(fn ($r) => $r->qty * self::materialPrice($r->material_id, $ym));
+        $recipe = self::recipeData()[$productId] ?? null;
+        $product = self::findProduct($productId);
+        $processingCost = (float) ($recipe['processing_cost'] ?? 0);
+        $greigeSku = $product->greige_sku ?? null;
+        $greige = $greigeSku !== null ? self::findGreige($greigeSku) : null;
+        $missingGreigeRecipe = $greigeSku === null || ! self::hasGreigeRecipe($greigeSku);
+
+        $greigeBreakdown = (! $missingGreigeRecipe && $greigeSku !== null)
+            ? self::greigeUnitCostBreakdown($greigeSku, $ym)
+            : null;
+
+        $greigeCost = ($greigeBreakdown !== null && $greigeBreakdown->calculable)
+            ? $greigeBreakdown->total
+            : null;
+
+        $calculable = $greigeCost !== null;
+
+        return (object) [
+            'calculable' => $calculable,
+            'greige_sku' => $greigeSku,
+            'greige_name' => $greige->name ?? null,
+            'greige_cost' => $greigeCost,
+            'processing_cost' => $processingCost,
+            'total' => $calculable ? $greigeCost + $processingCost : null,
+            'missing_greige_recipe' => $missingGreigeRecipe,
+            'missing_yarns' => $greigeBreakdown->missing_yarns ?? [],
+        ];
+    }
+
+    /** 商品1単位あたりの製造コスト（算出不可時は null） */
+    public static function unitCost(int $productId, string $ym): ?float
+    {
+        $breakdown = self::unitCostBreakdown($productId, $ym);
+
+        return $breakdown->calculable ? $breakdown->total : null;
+    }
+
+    /**
+     * 1mあたりの粗利サマリー（販売価格・染色加工料の上書きに対応）。
+     *
+     * @return object{
+     *     calculable: bool,
+     *     unit_cost: ?float,
+     *     price: int,
+     *     profit: ?int,
+     *     margin_percent: ?float,
+     *     greige_cost: ?float,
+     *     processing_cost: float,
+     * }
+     */
+    public static function unitProfitSummary(
+        int $productId,
+        string $ym,
+        ?int $priceOverride = null,
+        ?int $processingCostOverride = null,
+    ): object {
+        $breakdown = self::unitCostBreakdown($productId, $ym);
+        $processingCost = $processingCostOverride !== null
+            ? (float) $processingCostOverride
+            : $breakdown->processing_cost;
+        $unitCost = $breakdown->calculable && $breakdown->greige_cost !== null
+            ? $breakdown->greige_cost + $processingCost
+            : null;
+
+        $product = self::findProduct($productId);
+        $price = $priceOverride ?? (int) ($product->price ?? 0);
+        $profit = $unitCost !== null ? $price - $unitCost : null;
+        $marginPercent = ($profit !== null && $price > 0)
+            ? round($profit / $price * 100, 1)
+            : null;
+
+        return (object) [
+            'calculable' => $breakdown->calculable,
+            'unit_cost' => $unitCost,
+            'price' => $price,
+            'profit' => $profit !== null ? (int) round($profit) : null,
+            'margin_percent' => $marginPercent,
+            'greige_cost' => $breakdown->greige_cost,
+            'processing_cost' => $processingCost,
+        ];
+    }
+
+    /** 製造コスト算出不可の警告メッセージ一覧 */
+    public static function costWarningMessages(int $productId, string $ym): array
+    {
+        $breakdown = self::unitCostBreakdown($productId, $ym);
+        $messages = [];
+
+        if ($breakdown->missing_greige_recipe && $breakdown->greige_sku !== null) {
+            $label = $breakdown->greige_name !== null
+                ? "{$breakdown->greige_name}（{$breakdown->greige_sku}）"
+                : $breakdown->greige_sku;
+            $messages[] = "{$label} の生機レシピが未登録のため、製造コストを算出できません。生機レシピタブから登録してください。";
+        }
+
+        foreach ($breakdown->missing_yarns as $yarn) {
+            $messages[] = "{$yarn->material}（{$yarn->material_sku}）の {$ym} 単価が未登録のため、製造コストを算出できません。";
+        }
+
+        return $messages;
+    }
+
+    /** 複数品番の製造コスト警告をまとめて返す */
+    public static function collectCostWarnings(iterable $productIds, string $ym): array
+    {
+        $messages = [];
+        foreach ($productIds as $productId) {
+            foreach (self::costWarningMessages((int) $productId, $ym) as $message) {
+                if (! in_array($message, $messages, true)) {
+                    $messages[] = $message;
+                }
+            }
+        }
+
+        return $messages;
     }
 
     /** 得意先 */
@@ -196,10 +627,27 @@ class DemoData
     public static function suppliers(): Collection
     {
         return collect([
-            (object) ['id' => 1, 'name' => '紡績ワークス',    'contact' => '伊藤 健', 'tel' => '03-9999-0000'],
-            (object) ['id' => 2, 'name' => 'ケミカル商会',    'contact' => '渡辺 茜', 'tel' => '06-1212-3434'],
-            (object) ['id' => 3, 'name' => '染料センター',    'contact' => '山本 武', 'tel' => '075-5656-7878'],
+            (object) ['id' => 1, 'name' => '紡績ワークス',    'contact' => '伊藤 健', 'tel' => '03-9999-0000', 'type' => SupplierType::SPINNING],
+            (object) ['id' => 2, 'name' => 'ケミカル商会',    'contact' => '渡辺 茜', 'tel' => '06-1212-3434', 'type' => SupplierType::CHEMICAL],
+            (object) ['id' => 3, 'name' => '染料センター',    'contact' => '山本 武', 'tel' => '075-5656-7878', 'type' => SupplierType::DYE],
+            (object) ['id' => 4, 'name' => '東日本織編',      'contact' => '中村 誠', 'tel' => '03-8888-1111', 'type' => SupplierType::WEAVING],
+            (object) ['id' => 5, 'name' => '関西織編工業',    'contact' => '小林 美咲', 'tel' => '06-7777-2222', 'type' => SupplierType::WEAVING],
+            (object) ['id' => 6, 'name' => '中央染色加工',    'contact' => '加藤 翔', 'tel' => '052-6666-3333', 'type' => SupplierType::DYEING],
+            (object) ['id' => 7, 'name' => '関西染色加工',    'contact' => '松本 優', 'tel' => '06-5555-4444', 'type' => SupplierType::DYEING],
         ]);
+    }
+
+    public static function findSupplier(int $id): ?object
+    {
+        return self::suppliers()->firstWhere('id', $id);
+    }
+
+    /** @return Collection<int, object> */
+    public static function suppliersForPurchaseType(string $type): Collection
+    {
+        $allowed = PurchaseOrderType::supplierTypesFor($type);
+
+        return self::suppliers()->whereIn('type', $allowed)->values();
     }
 
     /** 受注一覧 */
@@ -215,6 +663,7 @@ class DemoData
             ['id' => 7, 'code' => 'SO-2606-007', 'customer' => '西日本繊維',      'product_id' => 6, 'qty' => 180, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-03', 'ship_memo' => '本日受付。在庫140mを引当予定。不足40mは PO-2606-007 で追加発注済み'],
             ['id' => 8, 'code' => 'SO-2606-008', 'customer' => 'アパレル東京',    'product_id' => 7, 'qty' => 80,  'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-08', 'ship_memo' => '本日受付。在庫不足のため PO-2606-008 を追加手配済み'],
             ['id' => 9, 'code' => 'SO-2606-009', 'customer' => '東レ商事',        'product_id' => 7, 'qty' => 500, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-20', 'ship_memo' => '本日受付。大型案件500m。在庫不足のため PO-2606-009 を追加手配済み'],
+            ['id' => 10, 'code' => 'SO-2606-010', 'customer' => 'ユニフォーム製作所', 'product_id' => 3, 'qty' => 50, 'shipped' => 0, 'order_date' => '2026-06-25', 'due_date' => '2026-07-05', 'ship_memo' => '本日受付。在庫70mから全量引当可能'],
         ];
 
         return collect($rows)->map(function ($r) {
@@ -225,6 +674,7 @@ class DemoData
             $r['unit'] = $product->unit;
             $r['status'] = self::progressStatus($r['shipped'], $r['qty'], '受注');
             $r['is_new_today'] = $r['order_date'] === self::today();
+
             return (object) $r;
         });
     }
@@ -247,14 +697,17 @@ class DemoData
             ->values();
     }
 
-    /** 発注（生産）一覧 */
-    public static function purchaseOrders(): Collection
+    /** @return Collection<int, array<string, mixed>> */
+    public static function basePurchaseOrderRows(): Collection
     {
-        $rows = [
+        return collect([
+            // --- 製品発注（既存デモを移行。工程 stage は Phase C まで互換用に維持） ---
             [
-                'id' => 1, 'code' => 'PO-2606-001', 'order_id' => 1, 'supplier' => '紡績ワークス', 'customer' => '東レ商事',
-                'product_id' => 1, 'qty' => 200, 'received' => 200,
-                'order_date' => '2026-06-01', 'eta' => '2026-06-08',
+                'id' => 1, 'code' => 'PO-2606-001', 'type' => PurchaseOrderType::PRODUCT,
+                'status' => PurchaseOrderStatus::RECEIVED, 'order_id' => 1,
+                'supplier_id' => 6, 'ship_to_id' => 4,
+                'product_id' => 1, 'qty_meters' => 200, 'received' => 200,
+                'order_date' => '2026-06-01', 'due_date' => '2026-06-08',
                 'stage' => '製品出荷済', 'finish_date' => '2026-06-07', 'contact_date' => '2026-06-06',
                 'schedule' => [
                     '原材料未発注' => '2026-06-01', '原材料発注済' => '2026-06-02', '原材料出荷済' => '2026-06-03',
@@ -263,9 +716,11 @@ class DemoData
                 ],
             ],
             [
-                'id' => 2, 'code' => 'PO-2606-002', 'order_id' => 2, 'supplier' => 'ケミカル商会', 'customer' => 'アパレル東京',
-                'product_id' => 3, 'qty' => 300, 'received' => 150,
-                'order_date' => '2026-06-03', 'eta' => '2026-06-14',
+                'id' => 2, 'code' => 'PO-2606-002', 'type' => PurchaseOrderType::PRODUCT,
+                'status' => PurchaseOrderStatus::PARTIAL, 'order_id' => 2,
+                'supplier_id' => 6, 'ship_to_id' => 4,
+                'product_id' => 3, 'qty_meters' => 300, 'received' => 150,
+                'order_date' => '2026-06-03', 'due_date' => '2026-06-14',
                 'stage' => '染機投入済', 'finish_date' => '2026-06-16', 'contact_date' => '2026-06-15',
                 'schedule' => [
                     '原材料未発注' => '2026-06-03', '原材料発注済' => '2026-06-05', '原材料出荷済' => '2026-06-07',
@@ -274,20 +729,50 @@ class DemoData
                 ],
             ],
             [
-                'id' => 3, 'code' => 'PO-2606-003', 'order_id' => 3, 'supplier' => '染料センター', 'customer' => '西日本繊維',
-                'product_id' => 5, 'qty' => 120, 'received' => 0,
-                'order_date' => '2026-06-05', 'eta' => '2026-06-19',
-                'stage' => '原材料発注済', 'finish_date' => '2026-06-22', 'contact_date' => '2026-06-20',
+                'id' => 3, 'code' => 'PO-2606-003', 'type' => PurchaseOrderType::PRODUCT,
+                'status' => PurchaseOrderStatus::ORDERED, 'order_id' => 3,
+                'supplier_id' => 7, 'ship_to_id' => 4,
+                'product_id' => 5, 'qty_meters' => 120, 'received' => 0,
+                'order_date' => '2026-06-05', 'due_date' => '2026-06-19',
+                'stage' => '生機出荷済', 'finish_date' => '2026-06-22', 'contact_date' => '2026-06-20',
                 'schedule' => [
                     '原材料未発注' => '2026-06-05', '原材料発注済' => '2026-06-08', '原材料出荷済' => '2026-06-11',
                     '織編機投入済' => '2026-06-14', '生機出荷済' => '2026-06-16', '染機投入済' => '2026-06-19',
                     '製品在庫中' => '2026-06-21', '製品出荷済' => '2026-06-22',
                 ],
             ],
+            // --- 生機発注 ---
             [
-                'id' => 7, 'code' => 'PO-2606-007', 'order_id' => 7, 'supplier' => '染料センター', 'customer' => '西日本繊維',
-                'product_id' => 6, 'qty' => 40, 'received' => 0,
-                'order_date' => '2026-06-25', 'eta' => '2026-07-01',
+                'id' => 4, 'code' => 'PO-G-2606-001', 'type' => PurchaseOrderType::GREIGE,
+                'status' => PurchaseOrderStatus::ORDERED, 'order_id' => null,
+                'supplier_id' => 4, 'ship_to_id' => 2,
+                'greige_sku' => 'KB-A', 'qty_tan' => 5.0, 'meters_per_tan' => 100, 'qty_meters' => 500,
+                'received' => 0,
+                'order_date' => '2026-06-18', 'due_date' => '2026-06-28',
+            ],
+            [
+                'id' => 5, 'code' => 'PO-G-2606-002', 'type' => PurchaseOrderType::GREIGE,
+                'status' => PurchaseOrderStatus::PARTIAL, 'order_id' => null,
+                'supplier_id' => 5, 'ship_to_id' => 5,
+                'greige_sku' => 'KB-T', 'qty_tan' => 4.0, 'meters_per_tan' => 100, 'qty_meters' => 400,
+                'received' => 200,
+                'order_date' => '2026-06-10', 'due_date' => '2026-06-22',
+            ],
+            [
+                'id' => 6, 'code' => 'PO-G-2606-003', 'type' => PurchaseOrderType::GREIGE,
+                'status' => PurchaseOrderStatus::DRAFT, 'order_id' => null,
+                'supplier_id' => 4, 'ship_to_id' => 2,
+                'greige_sku' => 'KB-B', 'qty_tan' => 3.5, 'meters_per_tan' => 100, 'qty_meters' => 350,
+                'received' => 0,
+                'order_date' => '2026-06-25', 'due_date' => '2026-07-05',
+            ],
+            // --- 製品発注（受注連動） ---
+            [
+                'id' => 7, 'code' => 'PO-2606-007', 'type' => PurchaseOrderType::PRODUCT,
+                'status' => PurchaseOrderStatus::ORDERED, 'order_id' => 7,
+                'supplier_id' => 6, 'ship_to_id' => 4,
+                'product_id' => 6, 'qty_meters' => 40, 'received' => 0,
+                'order_date' => '2026-06-25', 'due_date' => '2026-07-01',
                 'stage' => '原材料発注済', 'finish_date' => '2026-07-02', 'contact_date' => '2026-06-30',
                 'schedule' => [
                     '原材料未発注' => '2026-06-25', '原材料発注済' => '2026-06-25', '原材料出荷済' => '2026-06-27',
@@ -296,9 +781,11 @@ class DemoData
                 ],
             ],
             [
-                'id' => 8, 'code' => 'PO-2606-008', 'order_id' => 8, 'supplier' => '紡績ワークス', 'customer' => 'アパレル東京',
-                'product_id' => 7, 'qty' => 200, 'received' => 120,
-                'order_date' => '2026-06-25', 'eta' => '2026-07-05',
+                'id' => 8, 'code' => 'PO-2606-008', 'type' => PurchaseOrderType::PRODUCT,
+                'status' => PurchaseOrderStatus::PARTIAL, 'order_id' => 8,
+                'supplier_id' => 6, 'ship_to_id' => 4,
+                'product_id' => 7, 'qty_meters' => 200, 'received' => 120,
+                'order_date' => '2026-06-25', 'due_date' => '2026-07-05',
                 'stage' => '原材料発注済', 'finish_date' => '2026-07-06', 'contact_date' => '2026-07-04',
                 'schedule' => [
                     '原材料未発注' => '2026-06-25', '原材料発注済' => '2026-06-25', '原材料出荷済' => '2026-06-28',
@@ -307,9 +794,11 @@ class DemoData
                 ],
             ],
             [
-                'id' => 9, 'code' => 'PO-2606-009', 'order_id' => 9, 'supplier' => '紡績ワークス', 'customer' => '東レ商事',
-                'product_id' => 7, 'qty' => 500, 'received' => 0,
-                'order_date' => '2026-06-25', 'eta' => '2026-07-18',
+                'id' => 9, 'code' => 'PO-2606-009', 'type' => PurchaseOrderType::PRODUCT,
+                'status' => PurchaseOrderStatus::ORDERED, 'order_id' => 9,
+                'supplier_id' => 6, 'ship_to_id' => 4,
+                'product_id' => 7, 'qty_meters' => 500, 'received' => 0,
+                'order_date' => '2026-06-25', 'due_date' => '2026-07-18',
                 'stage' => '原材料発注済', 'finish_date' => '2026-07-19', 'contact_date' => '2026-07-17',
                 'schedule' => [
                     '原材料未発注' => '2026-06-25', '原材料発注済' => '2026-06-25', '原材料出荷済' => '2026-06-28',
@@ -317,22 +806,139 @@ class DemoData
                     '製品在庫中' => '2026-07-19', '製品出荷済' => '2026-07-20',
                 ],
             ],
-        ];
+            // --- 糸発注 ---
+            [
+                'id' => 10, 'code' => 'PO-Y-2606-001', 'type' => PurchaseOrderType::YARN,
+                'status' => PurchaseOrderStatus::ORDERED, 'order_id' => null,
+                'supplier_id' => 1, 'ship_to_id' => 1,
+                'material_id' => 1, 'qty_kg' => 500.0, 'received_kg' => 0.0,
+                'order_date' => '2026-06-20', 'due_date' => '2026-06-28',
+            ],
+            [
+                'id' => 11, 'code' => 'PO-Y-2606-002', 'type' => PurchaseOrderType::YARN,
+                'status' => PurchaseOrderStatus::PARTIAL, 'order_id' => null,
+                'supplier_id' => 1, 'ship_to_id' => 3,
+                'material_id' => 2, 'qty_kg' => 300.0, 'received_kg' => 150.0,
+                'order_date' => '2026-06-12', 'due_date' => '2026-06-20',
+            ],
+        ]);
+    }
+
+    /** 発注一覧（糸・生機・製品の3種別） */
+    public static function purchaseOrders(): Collection
+    {
+        $rows = self::basePurchaseOrderRows()->all();
+
+        foreach (PurchaseOrderOverlay::additions() as $addition) {
+            $rows[] = $addition;
+        }
 
         return collect($rows)->map(function ($r) {
-            $product = self::findProduct($r['product_id']);
-            $r['product'] = $product->sku;
-            $r['sku'] = $product->sku;
-            $r['unit'] = $product->unit;
-            $idx = array_search($r['stage'], self::PO_STAGES, true);
-            $r['progress'] = (int) round(($idx + 1) / count(self::PO_STAGES) * 100);
-            $linkedOrderId = PurchaseOrderLink::orderIdForPurchase($r['id'], $r['order_id'] ?? null);
-            $r['order_id'] = $linkedOrderId;
-            $r['order_code'] = $linkedOrderId
-                ? (self::orders()->firstWhere('id', $linkedOrderId)?->code ?? null)
-                : null;
-            return (object) $r;
+            $overrides = PurchaseOrderOverlay::overrides((int) $r['id']);
+            if (! empty($overrides)) {
+                $r = array_merge($r, $overrides);
+            }
+
+            return self::enrichPurchaseOrder($r);
         });
+    }
+
+    public static function purchaseOrdersOfType(string $type): Collection
+    {
+        return self::purchaseOrders()->where('type', $type)->values();
+    }
+
+    /** @param  array<string, mixed>  $row */
+    public static function enrichPurchaseOrder(array $row): object
+    {
+        $type = $row['type'] ?? PurchaseOrderType::PRODUCT;
+        $status = $row['status'] ?? PurchaseOrderStatus::ORDERED;
+        $supplier = self::findSupplier((int) ($row['supplier_id'] ?? 0));
+        $shipTo = self::findShipTo((int) ($row['ship_to_id'] ?? 0));
+
+        $row['type'] = $type;
+        $row['type_label'] = PurchaseOrderType::label($type);
+        $row['status'] = $status;
+        $row['status_label'] = PurchaseOrderStatus::label($type, $status);
+        $row['supplier'] = $supplier?->name ?? '—';
+        $row['supplier_type'] = $supplier?->type;
+        $row['ship_to'] = $shipTo?->name ?? '—';
+        $row['ship_to_type'] = $shipTo?->type;
+        $row['eta'] = $row['due_date'] ?? $row['eta'] ?? null;
+
+        $linkedOrderId = PurchaseOrderLink::orderIdForPurchase((int) $row['id'], $row['order_id'] ?? null);
+        $row['order_id'] = $linkedOrderId;
+        $linkedOrder = $linkedOrderId ? self::orders()->firstWhere('id', $linkedOrderId) : null;
+        $row['order_code'] = $linkedOrder?->code;
+        $row['customer'] = $linkedOrder?->customer;
+
+        if ($type === PurchaseOrderType::YARN) {
+            $material = self::findMaterial((int) ($row['material_id'] ?? 0));
+            $row['sku'] = $material?->sku ?? '—';
+            $row['product'] = $material?->name ?? '—';
+            $row['unit'] = 'kg';
+            $row['qty'] = (float) ($row['qty_kg'] ?? 0);
+            $row['received'] = (float) ($row['received_kg'] ?? 0);
+            $row['stage'] = $row['status_label'];
+            $row['progress'] = self::statusProgress($status);
+        } elseif ($type === PurchaseOrderType::GREIGE) {
+            $greige = self::findGreige((string) ($row['greige_sku'] ?? ''));
+            $row['sku'] = $greige?->sku ?? ($row['greige_sku'] ?? '—');
+            $row['product'] = $greige?->name ?? '—';
+            $row['unit'] = 'm';
+            $row['qty_meters'] = (int) ($row['qty_meters'] ?? 0);
+            $row['qty'] = $row['qty_meters'];
+            $row['qty_tan'] = (float) ($row['qty_tan'] ?? 0);
+            $row['meters_per_tan'] = (int) ($row['meters_per_tan'] ?? self::METERS_PER_TAN_GREIGE);
+            $row['received'] = (int) ($row['received'] ?? 0);
+            $row['stage'] = $row['status_label'];
+            $row['progress'] = self::statusProgress($status);
+            $row['yarn_requirements'] = self::greigeYarnRequirements($row['sku'], $row['qty_meters']);
+        } else {
+            $product = self::findProduct((int) ($row['product_id'] ?? 0));
+            $row['product_id'] = (int) ($row['product_id'] ?? 0);
+            $row['product'] = $product?->sku ?? '—';
+            $row['sku'] = $product?->sku ?? '—';
+            $row['unit'] = $product?->unit ?? 'm';
+            $row['qty_meters'] = (int) ($row['qty_meters'] ?? $row['qty'] ?? 0);
+            $row['qty'] = $row['qty_meters'];
+            $row['received'] = (int) ($row['received'] ?? 0);
+            $row['stage'] = $row['stage'] ?? $row['status_label'];
+            $idx = array_search($row['stage'], self::PO_STAGES, true);
+            $row['progress'] = $idx === false
+                ? self::statusProgress($status)
+                : (int) round(($idx + 1) / count(self::PO_STAGES) * 100);
+        }
+
+        return (object) $row;
+    }
+
+    public static function purchaseOrderOrderedQty(object $po): float
+    {
+        return match ($po->type ?? PurchaseOrderType::PRODUCT) {
+            PurchaseOrderType::YARN => (float) ($po->qty_kg ?? $po->qty ?? 0),
+            default => (float) (int) ($po->qty_meters ?? $po->qty ?? 0),
+        };
+    }
+
+    public static function purchaseOrderReceivedQty(object $po): float
+    {
+        return match ($po->type ?? PurchaseOrderType::PRODUCT) {
+            PurchaseOrderType::YARN => (float) ($po->received_kg ?? $po->received ?? 0),
+            default => (float) (int) ($po->received ?? 0),
+        };
+    }
+
+    private static function statusProgress(string $status): int
+    {
+        return match ($status) {
+            PurchaseOrderStatus::DRAFT => 10,
+            PurchaseOrderStatus::ORDERED => 40,
+            PurchaseOrderStatus::PARTIAL => 70,
+            PurchaseOrderStatus::RECEIVED => 100,
+            PurchaseOrderStatus::CANCELLED => 0,
+            default => 0,
+        };
     }
 
     /** 出荷一覧 */
@@ -353,6 +959,7 @@ class DemoData
             $r['unit'] = $product->unit;
             $r['price'] = $product->price;
             $r['amount'] = $product->price * $r['qty'];
+
             return (object) $r;
         });
     }
@@ -361,16 +968,32 @@ class DemoData
     public static function receivings(): Collection
     {
         $rows = [
-            ['id' => 1, 'code' => 'RC-2606-001', 'po_code' => 'PO-2606-001', 'supplier' => '紡績ワークス', 'product_id' => 1, 'qty' => 200, 'date' => '2026-06-08'],
-            ['id' => 3, 'code' => 'RC-2606-003', 'po_code' => 'PO-2606-002', 'supplier' => 'ケミカル商会', 'product_id' => 3, 'qty' => 150, 'date' => '2026-06-14'],
-            ['id' => 4, 'code' => 'RC-2606-004', 'po_code' => 'PO-2606-008', 'supplier' => '紡績ワークス', 'product_id' => 7, 'qty' => 120, 'date' => '2026-06-25'],
+            ['id' => 1, 'code' => 'RC-2606-001', 'po_code' => 'PO-2606-001', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => '紡績ワークス', 'product_id' => 1, 'qty' => 200, 'date' => '2026-06-08'],
+            ['id' => 2, 'code' => 'RC-2606-002', 'po_code' => 'PO-G-2606-002', 'po_type' => PurchaseOrderType::GREIGE, 'supplier' => '東洋織物', 'greige_sku' => 'KB-T', 'qty_meters' => 200, 'date' => '2026-06-18'],
+            ['id' => 3, 'code' => 'RC-2606-003', 'po_code' => 'PO-2606-002', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => 'ケミカル商会', 'product_id' => 3, 'qty' => 150, 'date' => '2026-06-14'],
+            ['id' => 4, 'code' => 'RC-2606-004', 'po_code' => 'PO-2606-008', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => '紡績ワークス', 'product_id' => 7, 'qty' => 120, 'date' => '2026-06-25'],
+            ['id' => 5, 'code' => 'RC-2606-005', 'po_code' => 'PO-Y-2606-002', 'po_type' => PurchaseOrderType::YARN, 'supplier' => '紡績ワークス', 'material_id' => 2, 'qty_kg' => 150.0, 'date' => '2026-06-16'],
         ];
 
         return collect($rows)->map(function ($r) {
-            $product = self::findProduct($r['product_id']);
-            $r['product'] = $product->sku;
-            $r['sku'] = $product->sku;
-            $r['unit'] = $product->unit;
+            $r['po_type'] = $r['po_type'] ?? PurchaseOrderType::PRODUCT;
+
+            if ($r['po_type'] === PurchaseOrderType::YARN) {
+                $material = self::findMaterial((int) $r['material_id']);
+                $r['sku'] = $material->sku;
+                $r['unit'] = 'kg';
+                $r['qty'] = $r['qty_kg'];
+            } elseif ($r['po_type'] === PurchaseOrderType::GREIGE) {
+                $r['sku'] = $r['greige_sku'];
+                $r['unit'] = 'm';
+                $r['qty'] = $r['qty_meters'];
+            } else {
+                $product = self::findProduct((int) $r['product_id']);
+                $r['product'] = $product->sku;
+                $r['sku'] = $product->sku;
+                $r['unit'] = $product->unit;
+            }
+
             return (object) $r;
         });
     }
@@ -393,6 +1016,7 @@ class DemoData
             $r['product'] = $product->sku;
             $r['sku'] = $product->sku;
             $r['unit'] = $product->unit;
+
             return (object) $r;
         })->sortByDesc('date')->values();
     }
@@ -407,31 +1031,129 @@ class DemoData
         if ($done < $total) {
             return $shipped ? '一部出荷' : '一部入荷';
         }
+
         return $shipped ? '出荷済み' : '入荷済み';
     }
 
-    /** 今月の売上・製造コスト・粗利を商品別に集計 */
-    public static function monthlySalesByProduct(): Collection
+    /** 売上・粗利画面で選べる対象月の一覧 */
+    public static function salesMonthOptions(): Collection
     {
-        $ym = self::CURRENT_YM;
+        $fromShipments = self::shipments()->map(fn ($s) => substr($s->date, 0, 7));
+        $fromPrices = self::materialPrices()->pluck('ym');
+
+        return $fromShipments->merge($fromPrices)
+            ->unique()
+            ->sortDesc()
+            ->values();
+    }
+
+    /** 指定年月が売上画面の対象月として有効か */
+    public static function isValidSalesMonth(string $ym): bool
+    {
+        return self::salesMonthOptions()->contains($ym);
+    }
+
+    /**
+     * 推移グラフ用の直近 N か月（古い順）。
+     *
+     * @return list<string>
+     */
+    public static function salesTrendMonths(string $endYm, int $count = 6): array
+    {
+        $end = \DateTimeImmutable::createFromFormat('Y-m', $endYm) ?: new \DateTimeImmutable(self::CURRENT_YM.'-01');
+        $months = [];
+        for ($i = $count - 1; $i >= 0; $i--) {
+            $months[] = $end->modify("-{$i} months")->format('Y-m');
+        }
+
+        return $months;
+    }
+
+    /**
+     * 出荷実績から月別の売上・製造コスト・粗利を集計する。
+     *
+     * @return Collection<int, object{ym: string, sales: int, cost: int, profit: int, has_uncalculable_cost: bool}>
+     */
+    public static function salesTrend(string $endYm, ?int $productId = null, int $months = 6): Collection
+    {
+        return collect(self::salesTrendMonths($endYm, $months))->map(function (string $ym) use ($productId) {
+            $shipments = self::shipments()
+                ->filter(fn ($s) => str_starts_with($s->date, $ym))
+                ->when($productId !== null, fn ($rows) => $rows->where('product_id', $productId));
+
+            $summary = self::summarizeShipmentSales($shipments, $ym);
+
+            return (object) [
+                'ym' => $ym,
+                'sales' => $summary->sales,
+                'cost' => $summary->cost,
+                'profit' => $summary->profit,
+                'has_uncalculable_cost' => $summary->has_uncalculable_cost,
+            ];
+        });
+    }
+
+    /**
+     * 出荷コレクションを売上・コスト・粗利に集計する。
+     *
+     * @return object{sales: int, cost: int, profit: int, has_uncalculable_cost: bool}
+     */
+    public static function summarizeShipmentSales(Collection $shipments, string $ym): object
+    {
+        $sales = (int) round($shipments->sum('amount'));
+        $cost = 0;
+        $profit = 0;
+        $hasUncalculableCost = false;
+
+        foreach ($shipments->groupBy('product_id') as $productId => $group) {
+            $unitCost = self::unitCost((int) $productId, $ym);
+            if ($unitCost === null) {
+                $hasUncalculableCost = true;
+
+                continue;
+            }
+
+            $groupCost = (int) round($unitCost * $group->sum('qty'));
+            $groupSales = (int) round($group->sum('amount'));
+            $cost += $groupCost;
+            $profit += $groupSales - $groupCost;
+        }
+
+        return (object) [
+            'sales' => $sales,
+            'cost' => $cost,
+            'profit' => $profit,
+            'has_uncalculable_cost' => $hasUncalculableCost,
+        ];
+    }
+
+    /** 指定月の売上・製造コスト・粗利を商品別に集計 */
+    public static function monthlySalesByProduct(?string $ym = null): Collection
+    {
+        $ym = $ym ?? self::CURRENT_YM;
 
         return self::shipments()
             ->filter(fn ($s) => str_starts_with($s->date, $ym))
             ->groupBy('product_id')
             ->map(function ($group) use ($ym) {
                 $first = $group->first();
+                $product = self::findProduct($first->product_id);
                 $qty = $group->sum('qty');
                 $sales = $group->sum('amount');
-                $cost = self::unitCost($first->product_id, $ym) * $qty;
+                $unitCost = self::unitCost($first->product_id, $ym);
+                $cost = $unitCost !== null ? (int) round($unitCost * $qty) : null;
+
                 return (object) [
                     'product_id' => $first->product_id,
                     'product' => $first->product,
                     'sku' => $first->sku,
                     'unit' => $first->unit,
+                    'price' => (int) ($product->price ?? 0),
                     'qty' => $qty,
                     'sales' => (int) round($sales),
-                    'cost' => (int) round($cost),
-                    'profit' => (int) round($sales - $cost),
+                    'cost' => $cost,
+                    'profit' => $cost !== null ? (int) round($sales - $cost) : null,
+                    'cost_calculable' => $unitCost !== null,
                 ];
             })
             ->values();
@@ -441,18 +1163,27 @@ class DemoData
     public static function dashboard(): array
     {
         $salesByProduct = self::monthlySalesByProduct();
+        $calculableRows = $salesByProduct->where('cost_calculable', true);
 
         $orders = self::orders();
         $purchaseOrders = self::purchaseOrders();
         $lowStock = self::products()->filter(fn ($p) => $p->stock < $p->stock_min)->values();
+        $hasUncalculableCost = $salesByProduct->contains(fn ($row) => ! $row->cost_calculable);
 
         return [
             'sales' => $salesByProduct->sum('sales'),
             'shippedQty' => $salesByProduct->sum('qty'),
-            'profit' => $salesByProduct->sum('profit'),
-            'cost' => $salesByProduct->sum('cost'),
+            'profit' => $calculableRows->sum('profit'),
+            'cost' => $calculableRows->sum('cost'),
+            'hasUncalculableCost' => $hasUncalculableCost,
+            'costWarnings' => self::collectCostWarnings(
+                $salesByProduct->where('cost_calculable', false)->pluck('product_id'),
+                self::CURRENT_YM
+            ),
             'unshippedOrders' => $orders->whereIn('status', ['未出荷', '一部出荷'])->count(),
-            'unreceivedPurchaseOrders' => $purchaseOrders->where('stage', '!=', '製品出荷済')->count(),
+            'unreceivedPurchaseOrders' => $purchaseOrders
+                ->filter(fn ($po) => PurchaseOrderStatus::isActive($po->status))
+                ->count(),
             'lowStock' => $lowStock,
             'salesByProduct' => $salesByProduct,
             // 売上・粗利の推移（過去6か月のデモ値）
@@ -462,7 +1193,7 @@ class DemoData
                 ['ym' => '2026-03', 'sales' => 1040000, 'profit' => 335000],
                 ['ym' => '2026-04', 'sales' => 1260000, 'profit' => 410000],
                 ['ym' => '2026-05', 'sales' => 1180000, 'profit' => 388000],
-                ['ym' => '2026-06', 'sales' => $salesByProduct->sum('sales'), 'profit' => $salesByProduct->sum('profit')],
+                ['ym' => '2026-06', 'sales' => $salesByProduct->sum('sales'), 'profit' => $calculableRows->sum('profit')],
             ]),
         ];
     }

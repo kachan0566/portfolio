@@ -2,6 +2,8 @@
     use App\Support\StockAllocation;
     $stockType = StockAllocation::TYPE_STOCK;
     $poType = StockAllocation::TYPE_PO;
+    $allocPageKey = $allocPageKey ?? 'allocation';
+    $allocMetersPerTan = $allocMetersPerTan ?? 50;
 @endphp
 
 @foreach ($orders as $sOrder)
@@ -62,16 +64,27 @@
                     @php $safePoId = ($poId !== '') ? $poId : '__NEW__'; @endphp
                     <div class="po-line">
                         <select class="po-line__select input" data-order-id="{{ $sOrder->id }}" data-alloc-type="{{ $stockType }}">
-                            <option value="">— 入荷済み発注 —</option>
+                            <option value="">— 発注を選択 —</option>
                             @foreach ($stockPoOptions as $po)
                                 <option value="{{ $po->id }}" data-qty="{{ $po->qty }}" @selected((int) $poId === $po->id)>{{ $po->label }}</option>
                             @endforeach
                         </select>
-                        <div class="input-group po-line__input-group">
-                            <input class="input mono po-line__qty" type="number"
-                                name="allocations[{{ $sOrder->id }}][{{ $stockType }}][{{ $safePoId }}]"
-                                value="{{ $qty }}" min="0" max="{{ $sOrder->remaining }}" placeholder="0">
-                            <span class="input-group__suffix">m</span>
+                        <div class="po-line__qty-wrap">
+                            <div class="qty-unit-field po-line__qty-field"
+                                 data-qty-unit-field
+                                 data-page-key="{{ $allocPageKey }}"
+                                 data-meters-per-tan="{{ $allocMetersPerTan }}"
+                                 data-max-meters="{{ $sOrder->remaining }}">
+                                <input type="hidden"
+                                       name="allocations[{{ $sOrder->id }}][{{ $stockType }}][{{ $safePoId }}]"
+                                       value="{{ $qty }}"
+                                       data-qty-meters-hidden>
+                                <div class="input-group po-line__input-group">
+                                    <input class="input mono" type="number" data-qty-display min="0" step="0.01" placeholder="0">
+                                    <span class="input-group__suffix" data-qty-suffix>反</span>
+                                </div>
+                                <p class="field-hint qty-unit-field__hint" data-qty-hint></p>
+                            </div>
                         </div>
                         <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.icon', ['name' => 'close'])</button>
                     </div>
@@ -81,7 +94,7 @@
                 <button type="button" class="btn btn-ghost btn-sm po-lines__add" data-order-id="{{ $sOrder->id }}" data-alloc-type="{{ $stockType }}">
                     @include('partials.icon', ['name' => 'plus']) 行を追加
                 </button>
-                <span class="mono t-muted alloc-stock-total" data-order-id="{{ $sOrder->id }}">{{ $stockAlloc }}m</span>
+                <span class="mono t-muted alloc-stock-total" data-order-id="{{ $sOrder->id }}">@include('partials.qty', ['qty' => $stockAlloc, 'productId' => $productId])</span>
             </div>
         </td>
 
@@ -93,16 +106,27 @@
                     @php $safePoId = ($poId !== '') ? $poId : '__NEW__'; @endphp
                     <div class="po-line">
                         <select class="po-line__select input" data-order-id="{{ $sOrder->id }}" data-alloc-type="{{ $poType }}">
-                            <option value="">— 発注残あり —</option>
+                            <option value="">— 発注を選択 —</option>
                             @foreach ($poPoOptions as $po)
                                 <option value="{{ $po->id }}" data-qty="{{ $po->qty }}" @selected((int) $poId === $po->id)>{{ $po->label }}</option>
                             @endforeach
                         </select>
-                        <div class="input-group po-line__input-group">
-                            <input class="input mono po-line__qty" type="number"
-                                name="allocations[{{ $sOrder->id }}][{{ $poType }}][{{ $safePoId }}]"
-                                value="{{ $qty }}" min="0" max="{{ $sOrder->remaining }}" placeholder="0">
-                            <span class="input-group__suffix">m</span>
+                        <div class="po-line__qty-wrap">
+                            <div class="qty-unit-field po-line__qty-field"
+                                 data-qty-unit-field
+                                 data-page-key="{{ $allocPageKey }}"
+                                 data-meters-per-tan="{{ $allocMetersPerTan }}"
+                                 data-max-meters="{{ $sOrder->remaining }}">
+                                <input type="hidden"
+                                       name="allocations[{{ $sOrder->id }}][{{ $poType }}][{{ $safePoId }}]"
+                                       value="{{ $qty }}"
+                                       data-qty-meters-hidden>
+                                <div class="input-group po-line__input-group">
+                                    <input class="input mono" type="number" data-qty-display min="0" step="0.01" placeholder="0">
+                                    <span class="input-group__suffix" data-qty-suffix>反</span>
+                                </div>
+                                <p class="field-hint qty-unit-field__hint" data-qty-hint></p>
+                            </div>
                         </div>
                         <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.icon', ['name' => 'close'])</button>
                     </div>
@@ -112,7 +136,7 @@
                 <button type="button" class="btn btn-ghost btn-sm po-lines__add" data-order-id="{{ $sOrder->id }}" data-alloc-type="{{ $poType }}">
                     @include('partials.icon', ['name' => 'plus']) 行を追加
                 </button>
-                <span class="mono t-muted alloc-po-total" data-order-id="{{ $sOrder->id }}">{{ $poAlloc }}m</span>
+                <span class="mono t-muted alloc-po-total" data-order-id="{{ $sOrder->id }}">@include('partials.qty', ['qty' => $poAlloc, 'productId' => $productId])</span>
             </div>
         </td>
 
@@ -127,7 +151,7 @@
                 </span>
             </div>
             <div class="alloc-progress__detail">
-                在庫 {{ $stockAlloc }}m + 発注 {{ $poAlloc }}m
+                在庫 @include('partials.qty', ['qty' => $stockAlloc, 'productId' => $productId]) + 発注 @include('partials.qty', ['qty' => $poAlloc, 'productId' => $productId])
             </div>
         </td>
         <td class="col-status">

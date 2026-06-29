@@ -1,4 +1,5 @@
 @php
+    $showProcessingCost = $showProcessingCost ?? true;
     $normalizeLine = function ($line) {
         if (is_object($line)) {
             return ['material_id' => $line->material_id, 'qty' => $line->qty];
@@ -19,13 +20,13 @@
 @endphp
 
 <div class="field">
-    <label class="label">原材料と使用量<span class="req">*</span></label>
+    <label class="label">糸と使用量<span class="req">*</span></label>
     <div class="table-wrap">
         <table class="data" data-recipe-lines>
             <thead>
                 <tr>
-                    <th>原材料</th>
-                    <th class="num" style="width:200px;">使用量</th>
+                    <th>糸</th>
+                    <th class="num" style="width:200px;">使用量（kg/m）</th>
                     <th style="width:80px;"></th>
                 </tr>
             </thead>
@@ -36,7 +37,7 @@
                             <select class="select" data-field="material_id" name="lines[{{ $i }}][material_id]">
                                 @foreach ($materials as $m)
                                     <option value="{{ $m->id }}" @selected((string) $m->id === (string) ($line['material_id'] ?? ''))>
-                                        {{ $m->name }}（{{ $m->unit }}）
+                                        {{ $m->sku }}（{{ $m->name }}）
                                     </option>
                                 @endforeach
                             </select>
@@ -64,15 +65,34 @@
     <button type="button" class="btn btn-secondary btn-sm" data-recipe-line-add style="margin-top:8px;">
         @include('partials.icon', ['name' => 'plus']) 行を追加
     </button>
-    <p class="field-hint">1単位を作るのに必要な量を入力します。染料・仕上げ剤は一覧画面で加工料としてまとめて表示されます。</p>
+    @error('lines')<p class="field-error">{{ $message }}</p>@enderror
+    <p class="field-hint">1mを作るのに必要な糸の量（kg/m）を入力します。</p>
 </div>
+
+@if ($showProcessingCost)
+<div class="field">
+    <label class="label" for="processing_cost">加工料（円/m）<span class="req">*</span></label>
+    <input
+        class="input"
+        type="number"
+        id="processing_cost"
+        name="processing_cost"
+        min="0"
+        step="1"
+        value="{{ old('processing_cost', $processingCost ?? 0) }}"
+        style="max-width:200px;"
+    >
+    @error('processing_cost')<p class="field-error">{{ $message }}</p>@enderror
+    <p class="field-hint">染色・仕上げなどの加工費用を1mあたりの金額で入力します。</p>
+</div>
+@endif
 
 <template id="recipe-line-template">
     <tr>
         <td>
             <select class="select" data-field="material_id">
                 @foreach ($materials as $m)
-                    <option value="{{ $m->id }}">{{ $m->name }}（{{ $m->unit }}）</option>
+                    <option value="{{ $m->id }}">{{ $m->sku }}（{{ $m->name }}）</option>
                 @endforeach
             </select>
         </td>

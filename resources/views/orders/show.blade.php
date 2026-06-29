@@ -132,15 +132,16 @@
                         <div id="budget-bar-free" style="height:100%;background:#d1fae5;width:{{ $freePct }}%;transition:width 0.2s;" title="未配分"></div>
                     </div>
                     <div style="display:flex;gap:20px;font-size:12px;margin-top:8px;">
-                        <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>他の受注 <strong class="mono" id="budget-other-text">{{ $otherOrdersStockAllocated }}m</strong></span>
-                        <span><span style="display:inline-block;width:10px;height:10px;background:#3b82f6;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>この受注 <strong class="mono" id="budget-this-text">{{ $order->stock_allocated }}m</strong></span>
-                        <span style="color:var(--text-faint);"><span style="display:inline-block;width:10px;height:10px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>未配分 <strong class="mono" id="budget-free-text">{{ $freeStock }}m</strong></span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>他の受注 <strong class="mono" id="budget-other-text">@include('partials.qty', ['qty' => $otherOrdersStockAllocated, 'productId' => $product->id])</strong></span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#3b82f6;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>この受注 <strong class="mono" id="budget-this-text">@include('partials.qty', ['qty' => $order->stock_allocated, 'productId' => $product->id])</strong></span>
+                        <span style="color:var(--text-faint);"><span style="display:inline-block;width:10px;height:10px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>未配分 <strong class="mono" id="budget-free-text">@include('partials.qty', ['qty' => $freeStock, 'productId' => $product->id])</strong></span>
                         <span id="budget-over-warning" style="color:#ef4444;font-weight:600;display:none;">@include('partials.icon', ['name' => 'alert']) 在庫超過！</span>
                     </div>
                 </div>
 
                 <form action="{{ route('orders.save-allocation', $order->id) }}" method="POST" id="allocation-form">
                     @csrf
+                    @include('partials.qty-unit-toggle', ['pageKey' => 'allocation'])
                     <script id="alloc-meta" type="application/json">
                         {!! json_encode([
                             'stock'          => $stockTotal,
@@ -191,11 +192,16 @@
                                         'poPoOptions' => $poPoOptions,
                                         'highlightOrderId' => $order->id,
                                         'mergeOrderInfoInDue' => true,
+                                        'allocMetersPerTan' => $product->meters_per_tan ?? 50,
                                     ])
                                 </tbody>
                             </table>
                         </div>
 
+                    @endif
+                </form>
+
+                @if ($sameProductOrders->isNotEmpty() && ($stockPoOptions->isNotEmpty() || $poPoOptions->isNotEmpty()))
                         @if ($allocationLines->isNotEmpty())
                             <div style="margin-bottom:16px;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;">
                                 <div style="font-size:13px;font-weight:600;margin-bottom:8px;">この受注への引当明細</div>
@@ -211,7 +217,7 @@
                                         </thead>
                                         <tbody>
                                             @foreach ($allocationLines as $line)
-                                                @php $srcPo = \App\Support\DemoData::purchaseOrders()->firstWhere('id', $line->po_id); @endphp
+                                                @php $srcPo = $purchaseOrdersById->get($line->po_id); @endphp
                                                 <tr>
                                                     <td>
                                                         <span class="badge {{ $line->type === 'stock' ? 'badge-blue' : 'badge-indigo' }} badge--plain" style="font-size:11px;">
@@ -250,12 +256,12 @@
                                         </thead>
                                         <tbody>
                                             @foreach ($conversionHistory as $ev)
-                                                @php $evPo = \App\Support\DemoData::purchaseOrders()->firstWhere('id', $ev['po_id']); @endphp
+                                                @php $evPo = $purchaseOrdersById->get($ev['po_id'] ?? 0); @endphp
                                                 <tr>
                                                     <td class="mono" style="font-size:12px;">{{ $ev['at'] ?? '' }}</td>
                                                     <td class="code-cell">{{ $ev['receiving_code'] ?? '' }}</td>
                                                     <td class="code-cell">{{ $evPo?->code ?? '#' . ($ev['po_id'] ?? '') }}</td>
-                                                    <td class="num mono">{{ $ev['qty'] ?? 0 }}m</td>
+                                                    <td class="num mono">@include('partials.qty', ['qty' => $ev['qty'] ?? 0, 'productId' => $product->id])</td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
@@ -265,26 +271,30 @@
                         @endif
 
                         <div style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:16px;font-size:13px;">
-                            <span>現在庫 <strong class="mono">{{ $stockTotal }}m</strong></span>
+                            <span>現在庫 <strong class="mono">@include('partials.qty', ['qty' => $stockTotal, 'productId' => $product->id])</strong></span>
                             <span style="color:var(--text-faint);">|</span>
-                            <span>現在庫引当合計 <strong class="mono" id="total-stock-allocated-text">{{ $otherOrdersStockAllocated + $order->stock_allocated }}m</strong></span>
+                            <span>現在庫引当合計 <strong class="mono" id="total-stock-allocated-text">@include('partials.qty', ['qty' => $otherOrdersStockAllocated + $order->stock_allocated, 'productId' => $product->id])</strong></span>
                             <span style="color:var(--text-faint);">|</span>
-                            <span>未配分 <strong class="mono" id="total-free-text">{{ $freeStock }}m</strong></span>
+                            <span>未配分 <strong class="mono" id="total-free-text">@include('partials.qty', ['qty' => $freeStock, 'productId' => $product->id])</strong></span>
                         </div>
 
-                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
-                            <button type="submit" class="btn btn-primary" id="alloc-submit-btn">
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px;">
+                            <button type="submit" class="btn btn-primary" id="alloc-submit-btn" form="allocation-form">
                                 @include('partials.icon', ['name' => 'check']) 引当を保存する
                             </button>
                             @if ($order->allocated > 0)
-                                <form action="{{ route('orders.clear-allocation', $order->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('この受注の引当をすべて解除します。よろしいですか？');">
-                                    @csrf
-                                    <button type="submit" class="btn btn-secondary">引当を全解除</button>
-                                </form>
+                                <button type="submit" class="btn btn-secondary" form="clear-allocation-form" onclick="return confirm('この受注の引当をすべて解除します。よろしいですか？');">
+                                    引当を全解除
+                                </button>
                             @endif
                         </div>
-                    @endif
-                </form>
+                @endif
+
+                @if ($order->allocated > 0)
+                    <form id="clear-allocation-form" action="{{ route('orders.clear-allocation', $order->id) }}" method="POST" hidden>
+                        @csrf
+                    </form>
+                @endif
 
                 @if ($supplyShortage > 0)
                     <div class="alert alert-warning" style="margin-top:20px;margin-bottom:12px;align-items:flex-start;">
@@ -300,7 +310,7 @@
                     </div>
                 @endif
                 <div style="margin-top:{{ $supplyShortage > 0 ? '0' : '20px' }};">
-                    <a href="{{ route('purchases.create', $supplyShortage > 0 ? ['order_id' => $order->id, 'qty' => $supplyShortage] : ['order_id' => $order->id]) }}" class="btn btn-primary btn-sm">
+                    <a href="{{ route('purchases.create', $supplyShortage > 0 ? ['type' => 'product', 'order_id' => $order->id, 'qty' => $supplyShortage] : ['type' => 'product', 'order_id' => $order->id]) }}" class="btn btn-primary btn-sm">
                         @include('partials.icon', ['name' => 'plus'])
                         @if ($supplyShortage > 0)
                             生産発注を作成（{{ \App\Support\QtyHelper::format($supplyShortage, $product->id) }}）
@@ -356,7 +366,7 @@
         <div class="card__head">
             <h2 class="card__title">発注状況</h2>
             @if ($order->remaining > 0)
-                <a href="{{ route('purchases.create', ['order_id' => $order->id]) }}" class="btn btn-secondary btn-sm">
+                <a href="{{ route('purchases.create', ['type' => 'product', 'order_id' => $order->id]) }}" class="btn btn-secondary btn-sm">
                     @include('partials.icon', ['name' => 'plus']) 生産発注を作成
                 </a>
             @endif
@@ -391,16 +401,11 @@
                                     <td><span class="badge badge-indigo badge--plain" style="font-size:10.5px;">{{ $po->stage }}</span></td>
                                     <td class="mono">{{ $po->eta }}</td>
                                     <td>
-                                        @php
-                                            $relinkTargets = \App\Support\DemoData::orders()
-                                                ->where('product_id', $po->product_id)
-                                                ->where('id', '!=', $order->id);
-                                        @endphp
-                                        @if ($relinkTargets->isNotEmpty())
+                                        @if ($siblingOrders->isNotEmpty())
                                             <form action="{{ route('purchases.relink-order', $po->id) }}" method="POST" style="display:flex;gap:6px;align-items:center;">
                                                 @csrf
                                                 <select class="select" name="new_order_id" style="min-width:120px;font-size:12px;">
-                                                    @foreach ($relinkTargets as $o)
+                                                    @foreach ($siblingOrders as $o)
                                                         <option value="{{ $o->id }}">{{ $o->code }}</option>
                                                     @endforeach
                                                 </select>
@@ -411,7 +416,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <a href="{{ route('purchases.edit', $po->id) }}" class="btn btn-secondary btn-sm">詳細</a>
+                                        <a href="{{ route('purchases.show', $po->id) }}" class="btn btn-secondary btn-sm">詳細</a>
                                     </td>
                                 </tr>
                             @endforeach

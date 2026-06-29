@@ -1,3 +1,4 @@
+@include('partials.qty-unit-loader')
 <script>
 (function () {
     const metaEl = document.getElementById('alloc-meta');
@@ -6,9 +7,11 @@
     const meta = JSON.parse(metaEl.textContent);
     const stockOptions = JSON.parse(document.getElementById('stock-po-options')?.textContent || '[]');
     const poOptions = JSON.parse(document.getElementById('po-po-options')?.textContent || '[]');
+    const PAGE_KEY = 'allocation';
 
     const stock = meta.stock;
     const currentId = meta.currentOrderId;
+    const metersPerTan = meta.metersPerTan || 50;
     const stockQtyById = Object.fromEntries(stockOptions.map(po => [String(po.id), po.qty]));
     const stockCodeById = Object.fromEntries(stockOptions.map(po => [String(po.id), po.code]));
     const poQtyById = Object.fromEntries(poOptions.map(po => [String(po.id), po.qty]));
@@ -16,6 +19,28 @@
     const allocationForm = document.getElementById('allocation-form');
     const TYPE_STOCK = 'stock';
     const TYPE_PO = 'po';
+
+    const qtyUnitApi = QtyUnit.initPage(PAGE_KEY, {
+        onInit(api) {
+            api.setMetersPerTan(metersPerTan);
+        },
+    });
+
+    function formatQty(m) {
+        return QtyUnit.formatQty(m, metersPerTan);
+    }
+
+    function readLineMeters(line) {
+        // 隠しフィールドから直接読む。qtyUnitApi.readMeters() を使うと
+        // qty-meters-changed イベントが発火して updateOrderRow が再帰呼び出しされるため使わない。
+        // フォーム送信時は送信ハンドラ内で readMeters() を一括実行済み。
+        return parseInt(
+            line.querySelector('[data-qty-meters-hidden]')?.value
+            || line.querySelector('.po-line__qty')?.value
+            || '0',
+            10
+        ) || 0;
+    }
 
     function optionsForType(type) {
         return type === TYPE_STOCK ? stockOptions : poOptions;
@@ -38,8 +63,8 @@
         if (pct) pct.textContent = rate + '%';
         const stockTotalEl = document.querySelector('.alloc-stock-total[data-order-id="' + orderId + '"]');
         const poTotalEl = document.querySelector('.alloc-po-total[data-order-id="' + orderId + '"]');
-        if (stockTotalEl) stockTotalEl.textContent = stockSum + 'm';
-        if (poTotalEl) poTotalEl.textContent = poSum + 'm';
+        if (stockTotalEl) stockTotalEl.textContent = formatQty(stockSum);
+        if (poTotalEl) poTotalEl.textContent = formatQty(poSum);
     }
 
     function syncSelectName(select) {
@@ -47,18 +72,25 @@
         const poId = select.value || '__NEW__';
         const orderId = select.dataset.orderId;
         const line = select.closest('.po-line');
-        const qtyInput = line.querySelector('.po-line__qty');
+        const field = line.querySelector('[data-qty-unit-field]');
+        const hidden = line.querySelector('[data-qty-meters-hidden]');
         const row = line.closest('tr');
         const remaining = parseInt(row?.dataset.orderRemaining || '0', 10);
         const poMax = poId ? (qtyById(type)[poId] || 0) : 0;
-        qtyInput.name = `allocations[${orderId}][${type}][${poId}]`;
-        qtyInput.max = poId ? Math.min(remaining, poMax) : remaining;
+        const maxMeters = poId ? Math.min(remaining, poMax) : remaining;
+        if (hidden) {
+            hidden.name = `allocations[${orderId}][${type}][${poId}]`;
+        }
+        if (field) {
+            field.dataset.maxMeters = String(maxMeters);
+            qtyUnitApi.refresh();
+        }
     }
 
     function sumContainer(container) {
         let sum = 0;
-        container.querySelectorAll('.po-line__qty').forEach(input => {
-            sum += parseInt(input.value, 10) || 0;
+        container.querySelectorAll('.po-line').forEach(line => {
+            sum += readLineMeters(line);
         });
         return sum;
     }
@@ -104,11 +136,13 @@
         const barThis = document.getElementById('budget-bar-this');
         if (barThis) barThis.style.background = overBudget ? '#ef4444' : '#3b82f6';
 
-        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val + 'm'; };
+        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatQty(val); };
         setText('budget-other-text', otherStockAlloc);
         setText('budget-this-text', thisStockAlloc);
         setText('budget-free-text', freeStock);
         setText('total-stock-allocated-text', totalStockAlloc);
+        const totalFree = document.getElementById('total-free-text');
+        if (totalFree) totalFree.textContent = formatQty(freeStock);
 
         const warn = document.getElementById('budget-over-warning');
         if (warn) warn.style.display = overBudget ? 'inline-flex' : 'none';
@@ -120,24 +154,38 @@
         const opts = optionsForType(type).map(po =>
             `<option value="${po.id}" data-qty="${po.qty}">${po.label || po.code}</option>`
         ).join('');
-        const placeholder = type === TYPE_STOCK ? '— 入荷済み発注 —' : '— 発注残あり —';
+        const placeholder = '— 発注を選択 —';
         const div = document.createElement('div');
         div.className = 'po-line';
         div.innerHTML = `
             <select class="po-line__select input" data-order-id="${orderId}" data-alloc-type="${type}">
                 <option value="">${placeholder}</option>${opts}
             </select>
-            <div class="input-group po-line__input-group">
-                <input class="input mono po-line__qty" type="number"
-                       name="allocations[${orderId}][${type}][__NEW__]" value="0" min="0" placeholder="0">
-                <span class="input-group__suffix">m</span>
+            <div class="po-line__qty-wrap">
+                <div class="qty-unit-field po-line__qty-field"
+                     data-qty-unit-field
+                     data-page-key="${PAGE_KEY}"
+                     data-meters-per-tan="${metersPerTan}"
+                     data-max-meters="0">
+                    <input type="hidden"
+                           name="allocations[${orderId}][${type}][__NEW__]"
+                           value="0"
+                           data-qty-meters-hidden>
+                    <div class="input-group po-line__input-group">
+                        <input class="input mono" type="number" data-qty-display min="0" step="0.01" placeholder="0">
+                        <span class="input-group__suffix" data-qty-suffix>反</span>
+                    </div>
+                    <p class="field-hint qty-unit-field__hint" data-qty-hint></p>
+                </div>
             </div>
             <button type="button" class="btn-icon po-line__remove" title="削除">×</button>`;
+        const field = div.querySelector('[data-qty-unit-field]');
+        if (field) qtyUnitApi.bindField(field);
+        field?.addEventListener('qty-meters-changed', () => updateOrderRow(orderId));
         div.querySelector('.po-line__select').addEventListener('change', function () {
             syncSelectName(this);
             updateOrderRow(orderId);
         });
-        div.querySelector('.po-line__qty').addEventListener('input', () => updateOrderRow(orderId));
         div.querySelector('.po-line__remove').addEventListener('click', function () {
             div.remove();
             updateOrderRow(orderId);
@@ -147,14 +195,16 @@
 
     function bindLine(line) {
         const select = line.querySelector('.po-line__select');
-        const qtyInput = line.querySelector('.po-line__qty');
+        const field = line.querySelector('[data-qty-unit-field]');
         const removeBtn = line.querySelector('.po-line__remove');
         const orderId = line.closest('.po-lines')?.dataset.orderId;
         if (select) {
             syncSelectName(select);
             select.addEventListener('change', function () { syncSelectName(this); updateOrderRow(orderId); });
         }
-        if (qtyInput) qtyInput.addEventListener('input', () => updateOrderRow(orderId));
+        if (field) {
+            field.addEventListener('qty-meters-changed', () => updateOrderRow(orderId));
+        }
         if (removeBtn) removeBtn.addEventListener('click', function () { line.remove(); updateOrderRow(orderId); });
     }
 
@@ -184,7 +234,7 @@
             row.querySelectorAll('.po-lines').forEach(container => {
                 const type = container.dataset.allocType;
                 container.querySelectorAll('.po-line').forEach(line => {
-                    const qty = parseInt(line.querySelector('.po-line__qty')?.value, 10) || 0;
+                    const qty = readLineMeters(line);
                     const poId = line.querySelector('.po-line__select')?.value || '';
                     if (qty === 0) return;
                     if (!poId) {
@@ -197,10 +247,10 @@
                     const used = (usageMap[poId] || 0) + qty;
                     const typeLabel = type === TYPE_STOCK ? '現在庫引当' : '発注引当';
                     if (qty > poMax) {
-                        firstError ||= `${poCode} への${typeLabel}（${qty}m）が上限（${poMax}m）を超えています。`;
+                        firstError ||= `${poCode} への${typeLabel}（${formatQty(qty)}）が上限（${formatQty(poMax)}）を超えています。`;
                     }
                     if (used > poMax) {
-                        firstError ||= `${poCode} への${typeLabel}合計（${used}m）が上限（${poMax}m）を超えています。`;
+                        firstError ||= `${poCode} への${typeLabel}合計（${formatQty(used)}）が上限（${formatQty(poMax)}）を超えています。`;
                     }
                     usageMap[poId] = used;
                     if (type === TYPE_STOCK) { orderStock += qty; totalStockAlloc += qty; }
@@ -221,6 +271,9 @@
 
     if (allocationForm) {
         allocationForm.addEventListener('submit', function (event) {
+            document.querySelectorAll('[data-qty-unit-field][data-page-key="' + PAGE_KEY + '"]').forEach(field => {
+                qtyUnitApi.readMeters(field);
+            });
             const error = validateAllocationForm();
             if (error) { event.preventDefault(); alert(error); }
         });

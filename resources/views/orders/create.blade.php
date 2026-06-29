@@ -16,7 +16,8 @@
 
     <div class="card form-card">
         <div class="card__body">
-            <form action="{{ route('orders.store') }}" method="POST">
+            @include('partials.qty-unit-toggle', ['pageKey' => 'orders-form'])
+            <form action="{{ route('orders.store') }}" method="POST" id="order-form">
                 @csrf
                 <div class="field">
                     <label class="label" for="customer">得意先<span class="req">*</span></label>
@@ -31,13 +32,20 @@
                         <label class="label" for="product">品番<span class="req">*</span></label>
                         <select class="select" id="product" name="product_id">
                             @foreach ($products as $p)
-                                <option value="{{ $p->id }}">{{ $p->sku }}（{{ $p->color }}）</option>
+                                <option value="{{ $p->id }}" data-meters-per-tan="{{ $p->meters_per_tan }}">{{ $p->sku }}（{{ $p->color }}）</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="field">
-                        <label class="label" for="qty">数量<span class="req">*</span></label>
-                        <input class="input" type="number" id="qty" name="qty" min="1" placeholder="100">
+                        <label class="label" for="qty-display">数量<span class="req">*</span></label>
+                        @include('partials.qty-input', [
+                            'name' => 'qty',
+                            'id' => 'qty-display',
+                            'valueMeters' => 0,
+                            'metersPerTan' => $products->first()->meters_per_tan ?? 50,
+                            'pageKey' => 'orders-form',
+                            'placeholder' => '2',
+                        ])
                     </div>
                 </div>
                 <div class="form-row">
@@ -63,3 +71,24 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    @include('partials.qty-unit-loader')
+    <script>
+    (function () {
+        const productSelect = document.getElementById('product');
+        const qtyField = document.querySelector('[data-qty-unit-field][data-page-key="orders-form"]');
+        const api = QtyUnit.initPage('orders-form');
+
+        function syncMetersPerTan() {
+            const opt = productSelect?.selectedOptions[0];
+            const perTan = parseInt(opt?.dataset.metersPerTan || '50', 10);
+            if (qtyField) qtyField.dataset.metersPerTan = String(perTan);
+            api.setMetersPerTan(perTan);
+        }
+
+        productSelect?.addEventListener('change', syncMetersPerTan);
+        syncMetersPerTan();
+    })();
+    </script>
+@endpush

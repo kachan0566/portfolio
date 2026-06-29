@@ -4,6 +4,9 @@
 @section('breadcrumb', '取引 / 受注管理 / 編集')
 
 @section('content')
+    @php
+        $editProduct = $products->firstWhere('sku', $order->sku) ?? $products->first();
+    @endphp
     <div class="page-header">
         <div>
             <h1>受注編集</h1>
@@ -16,7 +19,8 @@
 
     <div class="card form-card">
         <div class="card__body">
-            <form action="{{ route('orders.update', $order->id) }}" method="POST">
+            @include('partials.qty-unit-toggle', ['pageKey' => 'orders-form'])
+            <form action="{{ route('orders.update', $order->id) }}" method="POST" id="order-form">
                 @csrf
                 @method('PUT')
                 <div class="field">
@@ -32,13 +36,19 @@
                         <label class="label" for="product">品番<span class="req">*</span></label>
                         <select class="select" id="product" name="product_id">
                             @foreach ($products as $p)
-                                <option value="{{ $p->id }}" @selected($p->sku === $order->sku)>{{ $p->sku }}（{{ $p->color }}）</option>
+                                <option value="{{ $p->id }}" data-meters-per-tan="{{ $p->meters_per_tan }}" @selected($p->sku === $order->sku)>{{ $p->sku }}（{{ $p->color }}）</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="field">
-                        <label class="label" for="qty">数量<span class="req">*</span></label>
-                        <input class="input" type="number" id="qty" name="qty" min="1" value="{{ $order->qty }}">
+                        <label class="label" for="qty-display">数量<span class="req">*</span></label>
+                        @include('partials.qty-input', [
+                            'name' => 'qty',
+                            'id' => 'qty-display',
+                            'valueMeters' => $order->qty,
+                            'metersPerTan' => $editProduct->meters_per_tan ?? 50,
+                            'pageKey' => 'orders-form',
+                        ])
                     </div>
                 </div>
                 <div class="form-row">
@@ -72,3 +82,24 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    @include('partials.qty-unit-loader')
+    <script>
+    (function () {
+        const productSelect = document.getElementById('product');
+        const qtyField = document.querySelector('[data-qty-unit-field][data-page-key="orders-form"]');
+        const api = QtyUnit.initPage('orders-form');
+
+        function syncMetersPerTan() {
+            const opt = productSelect?.selectedOptions[0];
+            const perTan = parseInt(opt?.dataset.metersPerTan || '50', 10);
+            if (qtyField) qtyField.dataset.metersPerTan = String(perTan);
+            api.setMetersPerTan(perTan);
+        }
+
+        productSelect?.addEventListener('change', syncMetersPerTan);
+        syncMetersPerTan();
+    })();
+    </script>
+@endpush

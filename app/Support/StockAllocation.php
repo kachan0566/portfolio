@@ -27,26 +27,33 @@ class StockAllocation
 
     private const FILE = 'stock_allocations.json';
 
+    /** @var list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>|null */
+    private static ?array $linesCache = null;
+
     /**
      * @return list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>
      */
     public static function allLines(): array
     {
+        if (self::$linesCache !== null) {
+            return self::$linesCache;
+        }
+
         $path = storage_path('app/'.self::FILE);
         if (! is_file($path)) {
-            return [];
+            return self::$linesCache = [];
         }
 
         $data = json_decode((string) file_get_contents($path), true);
         if (! is_array($data)) {
-            return [];
+            return self::$linesCache = [];
         }
 
         if (isset($data['lines']) && is_array($data['lines'])) {
-            return self::normalizeLines($data['lines']);
+            return self::$linesCache = self::normalizeLines($data['lines']);
         }
 
-        return self::migrateLegacyFormat($data);
+        return self::$linesCache = self::migrateLegacyFormat($data);
     }
 
     /**
@@ -177,10 +184,14 @@ class StockAllocation
             mkdir($dir, 0755, true);
         }
 
+        $lines = array_values($lines);
+
         file_put_contents(
             $path,
-            json_encode(['lines' => array_values($lines)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+            json_encode(['lines' => $lines], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
         );
+
+        self::$linesCache = $lines;
     }
 
     /** @return Collection<int, object> */
@@ -534,7 +545,7 @@ class StockAllocation
                         $received = DemoState::effectiveReceived($poId);
                         $usedFromPo = ($stockUsageByPo[$poId] ?? 0) + $qty;
                         if ($usedFromPo > $received) {
-                            return "発注 {$po->code} の入荷済み数量（{$received}m）を超える現在庫引当（{$usedFromPo}m）はできません。";
+                            return "発注 {$po->code} の入荷済み数量（".QtyHelper::format($received, $productId).'）を超える現在庫引当（'.QtyHelper::format($usedFromPo, $productId).'）はできません。';
                         }
 
                         $stockUsageByPo[$poId] = $usedFromPo;
@@ -548,7 +559,7 @@ class StockAllocation
 
                         $usedFromPo = ($poUsageByPo[$poId] ?? 0) + $qty;
                         if ($usedFromPo > $poRemaining) {
-                            return "発注 {$po->code} の発注残（{$poRemaining}m）を超える発注引当（{$usedFromPo}m）はできません。";
+                            return "発注 {$po->code} の発注残（".QtyHelper::format($poRemaining, $productId).'）を超える発注引当（'.QtyHelper::format($usedFromPo, $productId).'）はできません。';
                         }
 
                         $poUsageByPo[$poId] = $usedFromPo;
@@ -558,12 +569,12 @@ class StockAllocation
             }
 
             if ($orderStockTotal + $orderPoTotal > $remaining) {
-                return "受注 {$order->code} への引当（".($orderStockTotal + $orderPoTotal)."m）が受注残（{$remaining}m）を超えています。";
+                return "受注 {$order->code} への引当（".QtyHelper::format($orderStockTotal + $orderPoTotal, $productId).'）が受注残（'.QtyHelper::format($remaining, $productId).'）を超えています。';
             }
         }
 
         if ($totalStockAlloc > $effectiveStock) {
-            return "現在庫引当合計（{$totalStockAlloc}m）が現在庫（{$effectiveStock}m）を超えています。数量を調整してください。";
+            return '現在庫引当合計（'.QtyHelper::format($totalStockAlloc, $productId).'）が現在庫（'.QtyHelper::format($effectiveStock, $productId).'）を超えています。数量を調整してください。';
         }
 
         return null;
@@ -919,34 +930,81 @@ class StockAllocation
     }
 
     /**
+     * 発注ごとの未割当（現在庫引当用）。入荷済み − 既引当を、品番の未割当在庫で上限。
+     */
+    public static function unallocatedStockFromPo(int $productId, int $poId): int
+    {
+        if (! DemoState::poHasReceived($poId)) {
+            return 0;
+        }
+
+        $stockUsed = self::usageByPoAndType($productId)['stock'][$poId] ?? 0;
+        $perPo = max(0, DemoState::effectiveReceived($poId) - $stockUsed);
+        $globalRoom = self::unallocatedStockForProduct($productId);
+
+        return min($perPo, $globalRoom);
+    }
+
+    /**
+     * 発注ごとの未割当（発注引当用）。発注残 − 既引当。
+     */
+    public static function unallocatedPoFromPo(int $productId, int $poId): int
+    {
+        if (! DemoState::poHasRemaining($poId)) {
+            return 0;
+        }
+
+        $poUsed = self::usageByPoAndType($productId)['po'][$poId] ?? 0;
+
+        return max(0, DemoState::poRemaining($poId) - $poUsed);
+    }
+
+    /**
      * 引当可能な発注オプションを区分別に返す。
      *
      * @return array{stock: Collection, po: Collection}
      */
     public static function poOptionsForProduct(int $productId): array
     {
-        $purchases = DemoData::purchaseOrders()->where('product_id', $productId);
+        return self::poOptionsFromPurchases(
+            DemoData::purchaseOrders()->where('product_id', $productId),
+            $productId
+        );
+    }
 
+    /**
+     * @return array{stock: Collection, po: Collection}
+     */
+    public static function poOptionsFromPurchases(Collection $purchases, int $productId): array
+    {
         $stockOptions = $purchases
             ->filter(fn ($po) => DemoState::poHasReceived($po->id))
-            ->map(fn ($po) => (object) [
-                'id' => $po->id,
-                'code' => $po->code,
-                'qty' => DemoState::effectiveReceived($po->id),
-                'stage' => $po->stage,
-                'label' => $po->code.'（入荷済 '.DemoState::effectiveReceived($po->id).'m / '.$po->stage.'）',
-            ])
+            ->map(function ($po) use ($productId) {
+                $unallocated = self::unallocatedStockFromPo($productId, $po->id);
+
+                return (object) [
+                    'id' => $po->id,
+                    'code' => $po->code,
+                    'qty' => $unallocated,
+                    'stage' => $po->stage,
+                    'label' => $po->code.'（未割当 '.QtyHelper::format($unallocated, $productId).' / '.$po->stage.'）',
+                ];
+            })
             ->values();
 
         $poOptions = $purchases
             ->filter(fn ($po) => DemoState::poHasRemaining($po->id))
-            ->map(fn ($po) => (object) [
-                'id' => $po->id,
-                'code' => $po->code,
-                'qty' => DemoState::poRemaining($po->id),
-                'stage' => $po->stage,
-                'label' => $po->code.'（発注残 '.DemoState::poRemaining($po->id).'m / '.$po->stage.'）',
-            ])
+            ->map(function ($po) use ($productId) {
+                $unallocated = self::unallocatedPoFromPo($productId, $po->id);
+
+                return (object) [
+                    'id' => $po->id,
+                    'code' => $po->code,
+                    'qty' => $unallocated,
+                    'stage' => $po->stage,
+                    'label' => $po->code.'（未割当 '.QtyHelper::format($unallocated, $productId).' / '.$po->stage.'）',
+                ];
+            })
             ->values();
 
         return ['stock' => $stockOptions, 'po' => $poOptions];

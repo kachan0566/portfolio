@@ -4,14 +4,19 @@
 @section('breadcrumb', '取引 / 入荷処理')
 
 @section('content')
+    @php use App\Support\PurchaseOrderType; @endphp
     <div class="page-header">
         <div>
             <h1>入荷処理</h1>
-            <p class="lead">実際に届いたモノを1件ずつ記録する画面です。発注番号と紐付き、入荷すると在庫が増えます。1件の発注に対して複数回の入荷（分納）も記録できます。</p>
+            <p class="lead">糸（kg）・生機（m）・製品（m）の入荷を記録します。発注番号と紐付き、入荷すると在庫が増えます。</p>
         </div>
-        <a href="{{ route('receivings.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'arrow-down']) 入荷を登録
-        </a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="{{ route('receivings.create', ['type' => PurchaseOrderType::YARN]) }}" class="btn btn-secondary btn-sm">糸入荷</a>
+            <a href="{{ route('receivings.create', ['type' => PurchaseOrderType::GREIGE]) }}" class="btn btn-secondary btn-sm">生機入荷</a>
+            <a href="{{ route('receivings.create', ['type' => PurchaseOrderType::PRODUCT]) }}" class="btn btn-primary">
+                @include('partials.icon', ['name' => 'arrow-down']) 入荷を登録
+            </a>
+        </div>
     </div>
 
     <div class="card">
@@ -33,6 +38,7 @@
                     <thead>
                         <tr>
                             <th>入荷番号</th>
+                            <th>種別</th>
                             <th>発注番号</th>
                             <th>仕入先</th>
                             <th>品番</th>
@@ -42,19 +48,33 @@
                     </thead>
                     <tbody>
                         @foreach ($receivings as $r)
+                            @php
+                                $poType = $r->po_type ?? PurchaseOrderType::PRODUCT;
+                                $poId = \App\Support\DemoData::purchaseOrders()->firstWhere('code', $r->po_code)?->id;
+                            @endphp
                             <tr>
                                 <td class="code-cell">{{ $r->code }}</td>
+                                <td><span class="badge badge-indigo badge--plain">{{ PurchaseOrderType::label($poType) }}</span></td>
                                 <td>
-                                    @php $poId = \App\Support\DemoData::purchaseOrders()->firstWhere('code', $r->po_code)?->id; @endphp
                                     @if ($poId)
-                                        <a href="{{ route('purchases.edit', $poId) }}" class="link-strong code-cell" title="元の発注を見る">{{ $r->po_code }}</a>
+                                        <a href="{{ route('purchases.show', $poId) }}" class="link-strong code-cell" title="元の発注を見る">{{ $r->po_code }}</a>
                                     @else
                                         <span class="code-cell">{{ $r->po_code }}</span>
                                     @endif
                                 </td>
                                 <td>{{ $r->supplier }}</td>
                                 <td class="code-cell t-strong">{{ $r->sku }}</td>
-                                <td class="num mono"><span class="badge badge-green badge--plain">+@include('partials.qty', ['qty' => $r->qty, 'productId' => $r->product_id])</span></td>
+                                <td class="num mono">
+                                    <span class="badge badge-green badge--plain">
+                                        @if ($poType === PurchaseOrderType::YARN)
+                                            +{{ number_format((float) ($r->qty_kg ?? $r->qty ?? 0), 2) }} kg
+                                        @elseif ($poType === PurchaseOrderType::GREIGE)
+                                            +@include('partials.qty', ['qty' => (int) ($r->qty_meters ?? $r->qty ?? 0), 'isGreige' => true, 'greigeSku' => $r->greige_sku ?? $r->sku])
+                                        @else
+                                            +@include('partials.qty', ['qty' => (int) ($r->qty ?? 0), 'productId' => $r->product_id ?? null])
+                                        @endif
+                                    </span>
+                                </td>
                                 <td class="mono t-muted">{{ $r->date }}</td>
                             </tr>
                         @endforeach

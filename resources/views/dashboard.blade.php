@@ -14,6 +14,8 @@
         </a>
     </div>
 
+    @include('partials.cost-warning', ['warnings' => $data['costWarnings'] ?? []])
+
     {{-- KPI カード --}}
     <div class="kpi-grid">
         <div class="kpi">
@@ -32,7 +34,12 @@
             <div class="kpi__icon tone-green">@include('partials.icon', ['name' => 'chart'])</div>
             <div class="kpi__label">今月粗利</div>
             <div class="kpi__value">{{ number_format($data['profit']) }}<span style="font-size:14px;font-weight:600;"> 円</span></div>
-            <div class="kpi__sub">粗利率 {{ $data['sales'] > 0 ? round($data['profit'] / $data['sales'] * 100, 1) : 0 }}%</div>
+            <div class="kpi__sub">
+                粗利率 {{ $data['sales'] > 0 ? round($data['profit'] / $data['sales'] * 100, 1) : 0 }}%
+                @if ($data['hasUncalculableCost'] ?? false)
+                    <span class="t-muted">（算出可能な品番のみ合算）</span>
+                @endif
+            </div>
         </div>
         <div class="kpi">
             <div class="kpi__icon tone-amber">@include('partials.icon', ['name' => 'cart'])</div>

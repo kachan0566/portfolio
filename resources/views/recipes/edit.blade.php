@@ -6,8 +6,8 @@
 @section('content')
     <div class="page-header">
         <div>
-            <h1>レシピ編集</h1>
-            <p class="lead">「{{ $product->sku }}」（{{ $product->color }}）の原材料と使用量を編集します。</p>
+            <h1>製品レシピ編集</h1>
+            <p class="lead">「{{ $product->sku }}」（{{ $product->color }}）の染色加工料を編集します。</p>
         </div>
         <a href="{{ route('recipes.index') }}" class="btn btn-secondary">
             @include('partials.icon', ['name' => 'back']) 一覧に戻る
@@ -24,7 +24,16 @@
                     <p class="t-strong code-cell" style="margin:0;font-size:15px;">{{ $product->sku }}（{{ $product->color }}）</p>
                 </div>
 
-                @include('partials.recipe-lines', ['materials' => $materials, 'lines' => $items])
+                @include('partials.product-recipe-form', [
+                    'processingCost' => $processingCost,
+                    'price' => $price,
+                    'greigeSku' => $greigeSku,
+                    'greigeName' => $greigeName,
+                    'breakdown' => $breakdown,
+                    'profit' => $profit,
+                    'ym' => $ym,
+                    'costWarnings' => $costWarnings,
+                ])
 
                 <div class="actions">
                     <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 更新する</button>
@@ -34,3 +43,7 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/recipe-profit.js') }}"></script>
+@endpush

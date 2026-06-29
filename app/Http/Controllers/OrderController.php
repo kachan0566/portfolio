@@ -90,8 +90,20 @@ class OrderController extends Controller
             ->sortBy('date')
             ->values();
 
-        $linkedPurchaseOrders = PurchaseOrderLink::linkedToOrder($target->id, $target->product_id);
-        $freePurchaseOrders = PurchaseOrderLink::freeForProduct($target->product_id);
+        $productPurchaseOrders = DemoData::purchaseOrders()
+            ->where('product_id', $target->product_id)
+            ->values();
+        $purchaseOrdersById = $productPurchaseOrders->keyBy('id');
+        $linkedPurchaseOrders = $productPurchaseOrders
+            ->where('order_id', $target->id)
+            ->values();
+        $freePurchaseOrders = $productPurchaseOrders
+            ->where('order_id', null)
+            ->values();
+        $siblingOrders = DemoData::orders()
+            ->where('product_id', $target->product_id)
+            ->where('id', '!=', $target->id)
+            ->values();
 
         $allocationLines = StockAllocation::linesForOrder($target->id);
         $stockAllocationLines = StockAllocation::stockLinesForOrder($target->id);
@@ -130,7 +142,7 @@ class OrderController extends Controller
             ->sortBy('due_date')
             ->values();
 
-        $poOptions = StockAllocation::poOptionsForProduct($target->product_id);
+        $poOptions = StockAllocation::poOptionsFromPurchases($productPurchaseOrders, $target->product_id);
 
         $otherOrdersStockAllocated = $sameProductOrders
             ->where('id', '!=', $target->id)
@@ -171,6 +183,8 @@ class OrderController extends Controller
             'supplyShortage' => $supplyShortage,
             'stockPoOptions' => $poOptions['stock'],
             'poPoOptions' => $poOptions['po'],
+            'purchaseOrdersById' => $purchaseOrdersById,
+            'siblingOrders' => $siblingOrders,
         ]);
     }
 

@@ -18,6 +18,12 @@
         <div class="card__body">
             <div class="stat-row">
                 <div class="stat-row__item">
+                    <div class="stat-row__label">種別</div>
+                    <div class="stat-row__value" style="font-size:15px;">
+                        <span class="badge badge-indigo badge--plain">{{ \App\Support\SupplierType::label($supplier->type) }}</span>
+                    </div>
+                </div>
+                <div class="stat-row__item">
                     <div class="stat-row__label">担当者</div>
                     <div class="stat-row__value" style="font-size:15px;">{{ $supplier->contact }}</div>
                 </div>

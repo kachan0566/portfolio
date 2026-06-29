@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\ListSearch;
+use App\Support\QtyHelper;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,18 +68,18 @@ class ShipmentController extends Controller
 
         if ($qty > $shippable) {
             return redirect()->route('shipments.create', ['order_id' => $orderId])
-                ->with('error', "出荷可能な現在庫引当は {$shippable}m です。発注引当のみの数量は出荷できません。");
+                ->with('error', '出荷可能な現在庫引当は '.QtyHelper::format($shippable, $order->product_id).' です。発注引当のみの数量は出荷できません。');
         }
 
         $effectiveStock = DemoState::effectiveStock($order->product_id);
         if ($qty > $effectiveStock) {
             return redirect()->route('shipments.create', ['order_id' => $orderId])
-                ->with('error', "現在庫（{$effectiveStock}m）を超える出荷はできません。");
+                ->with('error', '現在庫（'.QtyHelper::format($effectiveStock, $order->product_id).'）を超える出荷はできません。');
         }
 
         DemoState::applyShipment($orderId, $order->product_id, $qty);
 
         return redirect()->route('shipments.index')
-            ->with('success', "受注 {$order->code} から {$qty}m を出荷登録し、在庫を減少しました。");
+            ->with('success', '受注 '.$order->code.' から '.QtyHelper::format($qty, $order->product_id).' を出荷登録し、在庫を減少しました。');
     }
 }

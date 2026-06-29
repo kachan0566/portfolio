@@ -233,6 +233,9 @@ table.data tbody td {
 table.data tbody tr:last-child td { border-bottom: none; }
 table.data tbody tr { transition: background 0.12s; }
 table.data tbody tr:hover { background: var(--surface-2); }
+table.data tbody tr.is-selected { background: #eef2ff; }
+table.data tbody tr.is-selected:hover { background: #e0e7ff; }
+table.data tbody tr.sales-row[data-href] { cursor: pointer; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .mono { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .t-strong { font-weight: 700; }
@@ -609,6 +612,18 @@ tfoot.data-foot td {
     align-items: center;
     flex-wrap: wrap;
 }
+.sales-month-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.sales-month-form__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+}
+.sales-month-form .select { min-width: 120px; }
 @media (max-width: 720px) {
     .filter-bar__field--range { grid-column: span 1; }
     .filter-bar__range { flex-direction: column; align-items: stretch; }
@@ -890,4 +905,49 @@ tfoot.data-foot td {
 }
 .allocation-table--order-detail .alloc-status-badge {
     font-size: 11px;
+}
+
+/* 数量入力：反数 / メートル切替 */
+.qty-unit-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.qty-unit-toggle__label {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-right: 4px;
+}
+.qty-unit-toggle__btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.qty-unit-toggle__btn--active {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+.qty-unit-field__hint {
+    margin: 4px 0 0;
+    font-size: 11px;
+}
+.po-line .qty-unit-field__hint {
+    margin: 2px 0 0;
+    font-size: 10px;
+    line-height: 1.3;
+}
+.po-line__qty-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
 }

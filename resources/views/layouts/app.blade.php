@@ -4,8 +4,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'ダッシュボード') ｜ 受発注・在庫・売上管理</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body>
@@ -16,7 +14,7 @@
             ['route' => 'dashboard',        'label' => 'ダッシュボード', 'icon' => 'grid'],
             ['section' => 'マスタ管理'],
             ['route' => 'products.index',   'label' => '商品管理',     'icon' => 'box'],
-            ['route' => 'prices.index',     'label' => '月別原材料価格', 'icon' => 'tag'],
+            ['route' => 'prices.index',     'label' => '月別糸価格', 'icon' => 'tag'],
             ['route' => 'recipes.index',    'label' => '商品レシピ',   'icon' => 'beaker'],
             ['route' => 'customers.index',  'label' => '得意先',       'icon' => 'users'],
             ['route' => 'suppliers.index',  'label' => '仕入先',       'icon' => 'truck'],

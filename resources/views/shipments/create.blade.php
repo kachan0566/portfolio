@@ -58,22 +58,39 @@
         <div class="card form-card" style="max-width:none;">
             <div class="card__head"><h2 class="card__title">出荷内容</h2></div>
             <div class="card__body">
+                @php
+                    $selectedOrder = $pending->firstWhere('id', $selectedOrderId) ?? $pending->first();
+                    $selectedMetersPerTan = \App\Support\DemoData::findProduct($selectedOrder?->product_id)?->meters_per_tan ?? 50;
+                    $selectedShippable = $selectedOrder?->shippable_qty ?? 0;
+                @endphp
+                @include('partials.qty-unit-toggle', ['pageKey' => 'shipments-form'])
                 <form action="{{ route('shipments.store') }}" method="POST" id="shipment-form">
                     @csrf
                     <div class="field">
                         <label class="label" for="order">受注元（対象受注）<span class="req">*</span></label>
                         <select class="select" id="order" name="order_id">
                             @foreach ($pending as $o)
-                                <option value="{{ $o->id }}" data-shippable="{{ $o->shippable_qty }}" @selected($selectedOrderId === $o->id)>
-                                    {{ $o->code }} ／ {{ $o->customer }}（出荷可 {{ $o->shippable_qty }}m）
+                                @php $perTan = \App\Support\DemoData::findProduct($o->product_id)?->meters_per_tan ?? 50; @endphp
+                                <option value="{{ $o->id }}"
+                                        data-shippable="{{ $o->shippable_qty }}"
+                                        data-meters-per-tan="{{ $perTan }}"
+                                        @selected($selectedOrderId === $o->id)>
+                                    {{ $o->code }} ／ {{ $o->customer }}（出荷可 {{ \App\Support\QtyHelper::format($o->shippable_qty, $o->product_id) }}）
                                 </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="form-row">
                         <div class="field">
-                            <label class="label" for="qty">出荷数量<span class="req">*</span></label>
-                            <input class="input" type="number" id="qty" name="qty" min="1" placeholder="100">
+                            <label class="label" for="qty-display">出荷数量<span class="req">*</span></label>
+                            @include('partials.qty-input', [
+                                'name' => 'qty',
+                                'id' => 'qty-display',
+                                'valueMeters' => 0,
+                                'metersPerTan' => $selectedMetersPerTan,
+                                'maxMeters' => $selectedShippable > 0 ? $selectedShippable : null,
+                                'pageKey' => 'shipments-form',
+                            ])
                             <p class="field-hint" id="shippable-hint"></p>
                         </div>
                         <div class="field">
@@ -98,20 +115,39 @@
             </div>
         </div>
     </div>
+@endsection
 
+@push('scripts')
+    @include('partials.qty-unit-loader')
     <script>
     (function () {
         const orderSelect = document.getElementById('order');
-        const qtyInput = document.getElementById('qty');
+        const qtyField = document.querySelector('[data-qty-unit-field][data-page-key="shipments-form"]');
         const hint = document.getElementById('shippable-hint');
+        const api = QtyUnit.initPage('shipments-form');
+
         function updateHint() {
             const opt = orderSelect?.selectedOptions[0];
             const max = parseInt(opt?.dataset.shippable || '0', 10);
-            if (hint) hint.textContent = max > 0 ? `この受注は現在庫引当の範囲で最大 ${max}m まで出荷できます。` : '現在庫引当がないため出荷できません。';
-            if (qtyInput) { qtyInput.max = max; qtyInput.placeholder = max > 0 ? String(max) : '0'; }
+            const perTan = parseInt(opt?.dataset.metersPerTan || '50', 10);
+            if (qtyField) {
+                qtyField.dataset.metersPerTan = String(perTan);
+                if (max > 0) {
+                    qtyField.dataset.maxMeters = String(max);
+                } else {
+                    qtyField.removeAttribute('data-max-meters');
+                }
+                api.setMetersPerTan(perTan);
+            }
+            if (hint) {
+                hint.textContent = max > 0
+                    ? 'この受注は現在庫引当の範囲で最大 ' + QtyUnit.formatQty(max, perTan) + ' まで出荷できます。'
+                    : '現在庫引当がないため出荷できません。';
+            }
         }
+
         orderSelect?.addEventListener('change', updateHint);
         updateHint();
     })();
     </script>
-@endsection
+@endpush

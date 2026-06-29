@@ -4,6 +4,9 @@
     $hasActive = \App\Support\ListSearch::isActive($params);
 @endphp
 <form class="filter-bar" method="GET" action="{{ $action ?? request()->url() }}">
+    @foreach ($hidden ?? [] as $hiddenName => $hiddenValue)
+        <input type="hidden" name="{{ $hiddenName }}" value="{{ $hiddenValue }}">
+    @endforeach
     <div class="filter-bar__grid">
         @if (! empty($fields['code']))
             <div class="filter-bar__field">
@@ -70,7 +73,10 @@
             @include('partials.icon', ['name' => 'search']) 検索
         </button>
         @if ($hasActive)
-            <a href="{{ $action ?? request()->url() }}" class="btn btn-secondary btn-sm">条件をクリア</a>
+            @php
+                $clearHref = $clearUrl ?? (($action ?? request()->url()) . (empty($hidden) ? '' : '?' . http_build_query($hidden)));
+            @endphp
+            <a href="{{ $clearHref }}" class="btn btn-secondary btn-sm">条件をクリア</a>
         @endif
     </div>
 </form>

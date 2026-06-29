@@ -20,6 +20,14 @@ Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 // マスタ管理
 Route::resource('products', ProductController::class)->except(['show']);
 Route::get('/prices', [MaterialPriceController::class, 'index'])->name('prices.index');
+Route::get('/prices/create', [MaterialPriceController::class, 'create'])->name('prices.create');
+Route::post('/prices', [MaterialPriceController::class, 'store'])->name('prices.store');
+Route::get('/prices/{price}/edit', [MaterialPriceController::class, 'edit'])->name('prices.edit');
+Route::put('/prices/{price}', [MaterialPriceController::class, 'update'])->name('prices.update');
+Route::get('/recipes/greige/create', [RecipeController::class, 'createGreige'])->name('recipes.greige.create');
+Route::post('/recipes/greige', [RecipeController::class, 'storeGreige'])->name('recipes.greige.store');
+Route::get('/recipes/greige/{greigeSku}/edit', [RecipeController::class, 'editGreige'])->name('recipes.greige.edit');
+Route::put('/recipes/greige/{greigeSku}', [RecipeController::class, 'updateGreige'])->name('recipes.greige.update');
 Route::get('/recipes', [RecipeController::class, 'index'])->name('recipes.index');
 Route::get('/recipes/create', [RecipeController::class, 'create'])->name('recipes.create');
 Route::post('/recipes', [RecipeController::class, 'store'])->name('recipes.store');
@@ -46,7 +54,7 @@ Route::post('/orders/{order}/save-allocation', [OrderController::class, 'saveAll
     ->name('orders.save-allocation');
 Route::post('/purchases/{purchase}/relink-order', [OrderController::class, 'relinkPurchase'])
     ->name('purchases.relink-order');
-Route::resource('purchases', PurchaseOrderController::class)->except(['show']);
+Route::resource('purchases', PurchaseOrderController::class);
 Route::get('/receivings', [ReceivingController::class, 'index'])->name('receivings.index');
 Route::get('/receivings/create', [ReceivingController::class, 'create'])->name('receivings.create');
 Route::post('/receivings', [ReceivingController::class, 'store'])->name('receivings.store');

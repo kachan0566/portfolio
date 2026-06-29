@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Support\AllocationConversion;
 use App\Support\DemoData;
 use App\Support\DemoState;
+use App\Support\GreigeInventory;
 use App\Support\ListSearch;
+use App\Support\QtyHelper;
 use App\Support\StockAllocation;
+use App\Support\YarnInventory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,8 +22,13 @@ class InventoryController extends Controller
         $search = ListSearch::params($request);
 
         $products = DemoData::products()->map(function ($p) use ($ym) {
-            $p->unit_cost = (int) round(DemoData::unitCost($p->id, $ym));
-            $p->stock_value = $p->unit_cost * DemoState::effectiveStock($p->id);
+            $p->stock = DemoState::effectiveStock($p->id);
+            $unitCost = DemoData::unitCost($p->id, $ym);
+            $p->unit_cost = $unitCost !== null ? (int) round($unitCost) : null;
+            $p->cost_calculable = $unitCost !== null;
+            $p->stock_value = $p->unit_cost !== null
+                ? $p->unit_cost * DemoState::effectiveStock($p->id)
+                : null;
 
             return $p;
         });
@@ -58,7 +66,16 @@ class InventoryController extends Controller
             $productionSearch['status'] = '';
         }
         $inProduction = ListSearch::filter(
-            DemoData::purchaseOrders()->whereNotIn('stage', ['原材料未発注', '製品出荷済'])->values(),
+            DemoData::purchaseOrders()
+                ->filter(fn ($po) => ($po->type ?? '') === \App\Support\PurchaseOrderType::PRODUCT)
+                ->map(function ($po) {
+                    $po->stage = DemoState::effectivePoStage($po->id);
+
+                    return $po;
+                })
+                ->whereNotIn('stage', ['原材料未発注', '製品出荷済'])
+                ->whereNotIn('status', [\App\Support\PurchaseOrderStatus::RECEIVED, \App\Support\PurchaseOrderStatus::CANCELLED])
+                ->values(),
             $productionSearch,
             [
                 'date_field' => 'finish_date',
@@ -66,13 +83,56 @@ class InventoryController extends Controller
             ]
         );
 
+        $tab = $request->query('tab', 'product');
+        if (! in_array($tab, ['product', 'greige', 'yarn'], true)) {
+            $tab = 'product';
+        }
+
+        $greigeEntries = GreigeInventory::entries();
+
+        $yarnRows = DemoData::yarnMaterials()->map(function ($m) {
+            return (object) [
+                'material_id' => $m->id,
+                'sku' => $m->sku,
+                'name' => $m->name,
+                'stock_kg' => YarnInventory::effectiveStockKg($m->id),
+                'on_order_kg' => YarnInventory::onOrderRemainingKg($m->id),
+                'allocated_kg' => YarnInventory::allocatedKg($m->id),
+                'available_kg' => YarnInventory::availableKg($m->id),
+            ];
+        });
+
+        $yarnMovements = collect(YarnInventory::stockMovements())->map(function ($m) {
+            $material = DemoData::findMaterial($m['material_id']);
+
+            return (object) [
+                'date' => $m['date'],
+                'sku' => $material?->sku ?? '—',
+                'name' => $material?->name ?? '—',
+                'qty_kg' => $m['qty_kg'],
+                'note' => $m['note'],
+            ];
+        });
+
         return view('inventory.index', [
             'products' => $products,
             'movements' => $movements,
             'inProduction' => $inProduction,
+            'greigeEntries' => $greigeEntries,
+            'greigeTotalMeters' => GreigeInventory::totalMeters(),
+            'greigeTotalTan' => $greigeEntries->sum(fn ($g) => QtyHelper::tanCount($g->qty_meters, null, true, $g->greige_sku)),
+            'yarnRows' => $yarnRows,
+            'yarnMovements' => $yarnMovements,
+            'yarnTotalKg' => $yarnRows->sum('stock_kg'),
+            'tab' => $tab,
             'lowStockCount' => $products->filter(fn ($p) => DemoState::effectiveStock($p->id) < $p->stock_min)->count(),
             'totalStock' => $products->sum(fn ($p) => DemoState::effectiveStock($p->id)),
-            'stockValue' => $products->sum('stock_value'),
+            'stockValue' => $products->sum(fn ($p) => $p->stock_value ?? 0),
+            'hasUncalculableCost' => $products->contains(fn ($p) => ! $p->cost_calculable),
+            'costWarnings' => DemoData::collectCostWarnings(
+                $products->where('cost_calculable', false)->pluck('id'),
+                $ym
+            ),
             'search' => $search,
         ]);
     }
@@ -94,7 +154,9 @@ class InventoryController extends Controller
 
         $outstanding = $orders->sum('remaining');
         $balance = $effectiveStock - $outstanding;
-        $unitCost = (int) round(DemoData::unitCost($product, $ym));
+        $unitCostValue = DemoData::unitCost($product, $ym);
+        $unitCost = $unitCostValue !== null ? (int) round($unitCostValue) : null;
+        $costWarnings = DemoData::costWarningMessages($product, $ym);
 
         $purchases = DemoData::purchaseOrders()
             ->where('product_id', $product)
@@ -123,6 +185,8 @@ class InventoryController extends Controller
             'product' => $target,
             'effectiveStock' => $effectiveStock,
             'unitCost' => $unitCost,
+            'costCalculable' => $unitCost !== null,
+            'costWarnings' => $costWarnings,
             'orders' => $orders,
             'purchases' => $purchases,
             'outstanding' => $outstanding,
