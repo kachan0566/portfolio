@@ -513,10 +513,65 @@
                     <div class="t-muted" style="font-size:12px;">安全在庫 @include('partials.qty', ['qty' => $product->stock_min, 'productId' => $product->id])</div>
                 </div>
             </div>
+            @if ($order->planned_ship_date ?? false)
+                <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <div class="stat-row__label">出荷予定日</div>
+                    <div class="mono t-strong" style="font-size:13px;margin-top:4px;">{{ $order->planned_ship_date }}</div>
+                </div>
+            @endif
             @if ($order->ship_memo)
                 <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
                     <div class="stat-row__label">出荷予定日メモ</div>
                     <div class="t-muted" style="font-size:13px;margin-top:4px;">{{ $order->ship_memo }}</div>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- ═══════════════════════════════════════════════════
+         出荷予定（出荷確定）
+    ════════════════════════════════════════════════════════ --}}
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__head">
+            <h2 class="card__title">出荷予定（出荷確定）</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+                @if ($order->remaining > 0)
+                    <a href="{{ route('shipment-plans.create', $order->id) }}" class="btn btn-primary btn-sm">出荷予定を登録</a>
+                @endif
+            </div>
+        </div>
+        <div class="card__body{{ $shipmentPlans->isNotEmpty() ? ' card__body--flush' : '' }}">
+            <p class="field-hint" style="margin:0 0 12px;">月末在庫予想の減算対象となる出荷コミットです。在庫引当とは別に管理します。</p>
+            @if ($shipmentPlans->isEmpty())
+                <p class="t-muted" style="margin:0;">出荷予定はまだ登録されていません。</p>
+            @else
+                <div class="table-wrap">
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                <th>予定番号</th>
+                                <th>出荷予定日</th>
+                                <th class="num">確定数量</th>
+                                <th class="num">出荷済</th>
+                                <th class="num">未出荷</th>
+                                <th>状態</th>
+                                <th>備考</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($shipmentPlans as $plan)
+                                <tr>
+                                    <td class="code-cell t-strong">{{ $plan->code }}</td>
+                                    <td class="mono">{{ $plan->planned_ship_date }}</td>
+                                    <td class="num mono">@include('partials.qty', ['qty' => $plan->confirmed_qty_m, 'productId' => $order->product_id])</td>
+                                    <td class="num mono">@include('partials.qty', ['qty' => $plan->shipped_qty_m, 'productId' => $order->product_id])</td>
+                                    <td class="num mono">@include('partials.qty', ['qty' => $plan->unshipped_qty_m, 'productId' => $order->product_id])</td>
+                                    <td><span class="badge badge-indigo badge--plain">{{ $plan->status_label }}</span></td>
+                                    <td class="t-muted" style="font-size:12px;">{{ $plan->note }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             @endif
         </div>

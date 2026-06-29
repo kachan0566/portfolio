@@ -60,6 +60,10 @@
                         <label class="label" for="due_date">納期<span class="req">*</span></label>
                         <input class="input" type="date" id="due_date" name="due_date" value="{{ $order->due_date }}">
                     </div>
+                    <div class="field">
+                        <label class="label" for="planned_ship_date">出荷予定日</label>
+                        <input class="input" type="date" id="planned_ship_date" name="planned_ship_date" value="{{ $order->planned_ship_date ?? $order->due_date }}">
+                    </div>
                 </div>
                 <div class="field">
                     <label class="label" for="ship_memo">出荷予定日メモ</label>

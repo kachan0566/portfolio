@@ -14,6 +14,7 @@
 
     @include('partials.cost-warning', ['warnings' => $costWarnings])
 
+    @if ($tab === 'product')
     <div class="kpi-grid">
         <div class="kpi">
             <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'archive'])</div>
@@ -39,7 +40,9 @@
             <div class="kpi__value">{{ $lowStockCount }}<span style="font-size:14px;font-weight:600;"> 件</span></div>
         </div>
     </div>
+    @endif
 
+    @if (in_array($tab, ['product', 'greige', 'yarn'], true))
     <div class="card" style="margin-bottom:16px;">
         <div class="card__head"><h2 class="card__title">検索</h2></div>
         @include('partials.list-search', [
@@ -60,14 +63,25 @@
             ],
         ])
     </div>
+    @endif
 
     <div class="card" style="margin-bottom:16px;">
         <div class="card__head" style="padding-bottom:0;border-bottom:none;">
-            <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);width:100%;padding-bottom:0;">
+            <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);width:100%;padding-bottom:0;flex-wrap:wrap;">
                 <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'product'])) }}"
                    class="btn btn-ghost btn-sm"
                    style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'product' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
                     製品在庫
+                </a>
+                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'forecast', 'ym' => $forecastYm])) }}"
+                   class="btn btn-ghost btn-sm"
+                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'forecast' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
+                    月末在庫予想
+                </a>
+                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'long_term'])) }}"
+                   class="btn btn-ghost btn-sm"
+                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'long_term' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
+                    長期在庫
                 </a>
                 <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'greige'])) }}"
                    class="btn btn-ghost btn-sm"
@@ -86,7 +100,11 @@
         </div>
     </div>
 
-    @if ($tab === 'yarn')
+    @if ($tab === 'forecast')
+        @include('inventory.partials.forecast-tab')
+    @elseif ($tab === 'long_term')
+        @include('inventory.partials.long-term-tab')
+    @elseif ($tab === 'yarn')
         <div class="kpi-grid" style="margin-bottom:16px;">
             <div class="kpi">
                 <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'archive'])</div>

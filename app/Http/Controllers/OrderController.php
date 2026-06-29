@@ -7,6 +7,7 @@ use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\ListSearch;
 use App\Support\PurchaseOrderLink;
+use App\Support\ShipmentPlan;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -184,6 +185,7 @@ class OrderController extends Controller
             'stockPoOptions' => $poOptions['stock'],
             'poPoOptions' => $poOptions['po'],
             'purchaseOrdersById' => $purchaseOrdersById,
+            'shipmentPlans' => ShipmentPlan::forOrder($target->id),
             'siblingOrders' => $siblingOrders,
         ]);
     }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Inventory\LongTermInventoryEngine;
+use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\AllocationConversion;
 use App\Support\DemoData;
 use App\Support\DemoState;
@@ -84,9 +86,13 @@ class InventoryController extends Controller
         );
 
         $tab = $request->query('tab', 'product');
-        if (! in_array($tab, ['product', 'greige', 'yarn'], true)) {
+        if (! in_array($tab, ['product', 'forecast', 'long_term', 'greige', 'yarn'], true)) {
             $tab = 'product';
         }
+
+        $forecastYm = $this->resolveForecastYm($request);
+        $forecast = $tab === 'forecast' ? MonthEndForecastEngine::build($forecastYm) : null;
+        $longTerm = $tab === 'long_term' ? LongTermInventoryEngine::build() : null;
 
         $greigeEntries = GreigeInventory::entries();
 
@@ -134,7 +140,18 @@ class InventoryController extends Controller
                 $ym
             ),
             'search' => $search,
+            'forecastYm' => $forecastYm,
+            'forecastMonthOptions' => DemoData::forecastMonthOptions(),
+            'forecast' => $forecast,
+            'longTerm' => $longTerm,
         ]);
+    }
+
+    private function resolveForecastYm(Request $request): string
+    {
+        $ym = (string) $request->query('ym', DemoData::CURRENT_YM);
+
+        return DemoData::isValidForecastMonth($ym) ? $ym : DemoData::CURRENT_YM;
     }
 
     public function show(int $product): View

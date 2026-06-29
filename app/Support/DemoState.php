@@ -218,6 +218,16 @@ class DemoState
             $stockOverlay = self::readIntMap(self::STOCK_FILE);
             $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0) + (int) floor($qty);
             self::writeIntMap(self::STOCK_FILE, $stockOverlay);
+
+            \App\Support\InboundLot::create([
+                'product_id' => $productId,
+                'receiving_code' => $receiving['code'] ?? null,
+                'received_date' => $receiving['date'] ?? date('Y-m-d'),
+                'received_qty_m' => $qty,
+                'remaining_qty_m' => $qty,
+                'purchase_order_id' => $poId,
+                'source_type' => \App\Support\InboundLot::SOURCE_RECEIVING,
+            ]);
         }
 
         $receivings = self::extraReceivings();
@@ -246,6 +256,9 @@ class DemoState
         $stockOverlay = self::readIntMap(self::STOCK_FILE);
         $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0) - $qty;
         self::writeIntMap(self::STOCK_FILE, $stockOverlay);
+
+        \App\Support\ShipmentPlan::recordShipment($orderId, (float) $qty);
+        \App\Services\Inventory\ShipmentLotAllocator::consume($productId, (float) $qty, $orderId, 'order:'.$orderId);
     }
 
     /** 入荷済み数量がある発注か */
@@ -333,5 +346,16 @@ class DemoState
         $stockOverlay = self::readIntMap(self::STOCK_FILE);
         $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0) + $meters;
         self::writeIntMap(self::STOCK_FILE, $stockOverlay);
+
+        $po = self::findBasePurchase($poId);
+        \App\Support\InboundLot::create([
+            'product_id' => $productId,
+            'receiving_code' => null,
+            'received_date' => $po?->finish_date ?? date('Y-m-d'),
+            'received_qty_m' => (float) $meters,
+            'remaining_qty_m' => (float) $meters,
+            'purchase_order_id' => $poId,
+            'source_type' => \App\Support\InboundLot::SOURCE_DYE_TRANSFER,
+        ]);
     }
 }

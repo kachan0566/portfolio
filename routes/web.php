@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\InventoryForecastController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\ReceivingController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ShipmentController;
+use App\Http\Controllers\ShipmentPlanController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Support\Facades\Route;
 
@@ -61,9 +63,16 @@ Route::post('/receivings', [ReceivingController::class, 'store'])->name('receivi
 Route::get('/shipments', [ShipmentController::class, 'index'])->name('shipments.index');
 Route::get('/shipments/create', [ShipmentController::class, 'create'])->name('shipments.create');
 Route::post('/shipments', [ShipmentController::class, 'store'])->name('shipments.store');
+Route::get('/orders/{order}/shipment-plans/create', [ShipmentPlanController::class, 'create'])->name('shipment-plans.create');
+Route::post('/orders/{order}/shipment-plans', [ShipmentPlanController::class, 'store'])->name('shipment-plans.store');
 
 // 集計
 Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+Route::get('/inventory/forecast/csv', [InventoryForecastController::class, 'exportCsv'])->name('inventory.forecast.csv');
+Route::post('/inventory/forecast/snapshot', [InventoryForecastController::class, 'storeSnapshot'])->name('inventory.forecast.snapshot');
+Route::post('/inventory/forecast/adjustments', [InventoryForecastController::class, 'storeAdjustment'])->name('inventory.forecast.adjustments');
+Route::get('/inventory/forecast/{product}', [InventoryForecastController::class, 'showProduct'])->name('inventory.forecast.show');
+Route::get('/inventory/long-term/{product}', [InventoryForecastController::class, 'longTermDetail'])->name('inventory.long-term.show');
 Route::post('/inventory/{product}/allocate', [InventoryController::class, 'allocate'])->name('inventory.allocate');
 Route::get('/inventory/{product}', [InventoryController::class, 'show'])->name('inventory.show');
 Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');

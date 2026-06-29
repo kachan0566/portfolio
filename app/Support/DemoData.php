@@ -654,16 +654,16 @@ class DemoData
     public static function orders(): Collection
     {
         $rows = [
-            ['id' => 1, 'code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'shipped' => 120, 'order_date' => '2026-06-02', 'due_date' => '2026-06-12', 'ship_memo' => '6/11 全量出荷済み'],
-            ['id' => 2, 'code' => 'SO-2606-002', 'customer' => 'アパレル東京',    'product_id' => 3, 'qty' => 200, 'shipped' => 80,  'order_date' => '2026-06-03', 'due_date' => '2026-06-18', 'ship_memo' => '残120は6/17午前に分納予定'],
-            ['id' => 3, 'code' => 'SO-2606-003', 'customer' => '西日本繊維',      'product_id' => 5, 'qty' => 90,  'shipped' => 0,   'order_date' => '2026-06-05', 'due_date' => '2026-06-20', 'ship_memo' => '在庫確保のうえ6/19出荷予定'],
-            ['id' => 4, 'code' => 'SO-2606-004', 'customer' => 'ユニフォーム製作所', 'product_id' => 2, 'qty' => 60,  'shipped' => 60,  'order_date' => '2026-06-06', 'due_date' => '2026-06-15', 'ship_memo' => '6/12 出荷完了'],
-            ['id' => 5, 'code' => 'SO-2606-005', 'customer' => '東レ商事',        'product_id' => 4, 'qty' => 150, 'shipped' => 0,   'order_date' => '2026-06-08', 'due_date' => '2026-06-25', 'ship_memo' => '入荷待ち。6/24までに出荷予定'],
-            ['id' => 6, 'code' => 'SO-2606-006', 'customer' => 'アパレル東京',    'product_id' => 1, 'qty' => 100, 'shipped' => 40,  'order_date' => '2026-06-10', 'due_date' => '2026-06-28', 'ship_memo' => '残60を6/27に出荷予定'],
-            ['id' => 7, 'code' => 'SO-2606-007', 'customer' => '西日本繊維',      'product_id' => 6, 'qty' => 180, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-03', 'ship_memo' => '本日受付。在庫140mを引当予定。不足40mは PO-2606-007 で追加発注済み'],
-            ['id' => 8, 'code' => 'SO-2606-008', 'customer' => 'アパレル東京',    'product_id' => 7, 'qty' => 80,  'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-08', 'ship_memo' => '本日受付。在庫不足のため PO-2606-008 を追加手配済み'],
-            ['id' => 9, 'code' => 'SO-2606-009', 'customer' => '東レ商事',        'product_id' => 7, 'qty' => 500, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-20', 'ship_memo' => '本日受付。大型案件500m。在庫不足のため PO-2606-009 を追加手配済み'],
-            ['id' => 10, 'code' => 'SO-2606-010', 'customer' => 'ユニフォーム製作所', 'product_id' => 3, 'qty' => 50, 'shipped' => 0, 'order_date' => '2026-06-25', 'due_date' => '2026-07-05', 'ship_memo' => '本日受付。在庫70mから全量引当可能'],
+            ['id' => 1, 'code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'shipped' => 120, 'order_date' => '2026-06-02', 'due_date' => '2026-06-12', 'planned_ship_date' => '2026-06-11', 'ship_memo' => '6/11 全量出荷済み'],
+            ['id' => 2, 'code' => 'SO-2606-002', 'customer' => 'アパレル東京',    'product_id' => 3, 'qty' => 200, 'shipped' => 80,  'order_date' => '2026-06-03', 'due_date' => '2026-06-18', 'planned_ship_date' => '2026-06-17', 'ship_memo' => '残120は6/17午前に分納予定'],
+            ['id' => 3, 'code' => 'SO-2606-003', 'customer' => '西日本繊維',      'product_id' => 5, 'qty' => 90,  'shipped' => 0,   'order_date' => '2026-06-05', 'due_date' => '2026-06-20', 'planned_ship_date' => '2026-06-19', 'ship_memo' => '在庫確保のうえ6/19出荷予定'],
+            ['id' => 4, 'code' => 'SO-2606-004', 'customer' => 'ユニフォーム製作所', 'product_id' => 2, 'qty' => 60,  'shipped' => 60,  'order_date' => '2026-06-06', 'due_date' => '2026-06-15', 'planned_ship_date' => '2026-06-12', 'ship_memo' => '6/12 出荷完了'],
+            ['id' => 5, 'code' => 'SO-2606-005', 'customer' => '東レ商事',        'product_id' => 4, 'qty' => 150, 'shipped' => 0,   'order_date' => '2026-06-08', 'due_date' => '2026-06-25', 'planned_ship_date' => '2026-06-24', 'ship_memo' => '入荷待ち。6/24までに出荷予定'],
+            ['id' => 6, 'code' => 'SO-2606-006', 'customer' => 'アパレル東京',    'product_id' => 1, 'qty' => 100, 'shipped' => 40,  'order_date' => '2026-06-10', 'due_date' => '2026-06-28', 'planned_ship_date' => '2026-06-27', 'ship_memo' => '残60を6/27に出荷予定'],
+            ['id' => 7, 'code' => 'SO-2606-007', 'customer' => '西日本繊維',      'product_id' => 6, 'qty' => 180, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-03', 'planned_ship_date' => '2026-07-02', 'ship_memo' => '本日受付。在庫140mを引当予定。不足40mは PO-2606-007 で追加発注済み'],
+            ['id' => 8, 'code' => 'SO-2606-008', 'customer' => 'アパレル東京',    'product_id' => 7, 'qty' => 80,  'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-08', 'planned_ship_date' => '2026-07-07', 'ship_memo' => '本日受付。在庫不足のため PO-2606-008 を追加手配済み'],
+            ['id' => 9, 'code' => 'SO-2606-009', 'customer' => '東レ商事',        'product_id' => 7, 'qty' => 500, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-20', 'planned_ship_date' => '2026-07-18', 'ship_memo' => '本日受付。大型案件500m。在庫不足のため PO-2606-009 を追加手配済み'],
+            ['id' => 10, 'code' => 'SO-2606-010', 'customer' => 'ユニフォーム製作所', 'product_id' => 3, 'qty' => 50, 'shipped' => 0, 'order_date' => '2026-06-25', 'due_date' => '2026-07-05', 'planned_ship_date' => '2026-07-04', 'ship_memo' => '本日受付。在庫70mから全量引当可能'],
         ];
 
         return collect($rows)->map(function ($r) {
@@ -1051,6 +1051,23 @@ class DemoData
     public static function isValidSalesMonth(string $ym): bool
     {
         return self::salesMonthOptions()->contains($ym);
+    }
+
+    /** 在庫予想画面で選べる対象月 */
+    public static function forecastMonthOptions(): Collection
+    {
+        $base = self::salesMonthOptions();
+        $current = self::CURRENT_YM;
+        if (! $base->contains($current)) {
+            $base = $base->prepend($current);
+        }
+
+        return $base->unique()->sortDesc()->values();
+    }
+
+    public static function isValidForecastMonth(string $ym): bool
+    {
+        return self::forecastMonthOptions()->contains($ym);
     }
 
     /**
