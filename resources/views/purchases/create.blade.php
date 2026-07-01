@@ -110,7 +110,7 @@
                     <div class="form-row">
                         <div class="field">
                             <label class="label" for="qty_tan">発注反数<span class="req">*</span></label>
-                            <input class="input mono" type="number" id="qty_tan" name="qty_tan" step="0.01" min="0.01"
+                            <input class="input mono" type="number" id="qty_tan" name="qty_tan" step="0.05" min="0.05"
                                    value="{{ old('qty_tan') }}" required data-greige-tan>
                         </div>
                         <div class="field">
@@ -145,7 +145,7 @@
                     <div class="form-row">
                         <div class="field">
                             <label class="label" for="product_qty_tan">発注反数<span class="req">*</span></label>
-                            <input class="input mono" type="number" id="product_qty_tan" step="0.01" min="0.01"
+                            <input class="input mono" type="number" id="product_qty_tan" step="0.05" min="0.05"
                                    value="{{ old('product_qty_tan') }}" data-product-tan>
                         </div>
                         <div class="field">

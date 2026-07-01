@@ -19,7 +19,6 @@
 
     <div class="card form-card">
         <div class="card__body">
-            @include('partials.qty-unit-toggle', ['pageKey' => 'orders-form'])
             <form action="{{ route('orders.update', $order->id) }}" method="POST" id="order-form">
                 @csrf
                 @method('PUT')
@@ -43,9 +42,11 @@
                     <div class="field">
                         <label class="label" for="qty-display">数量<span class="req">*</span></label>
                         @include('partials.qty-input', [
-                            'name' => 'qty',
+                            'tanName' => 'qty_tan',
+                            'metersName' => 'qty_meters',
                             'id' => 'qty-display',
-                            'valueMeters' => $order->qty,
+                            'valueTan' => $order->qty_tan ?? \App\Support\QtyHelper::tanCount($order->qty, $order->product_id),
+                            'productId' => $order->product_id,
                             'metersPerTan' => $editProduct->meters_per_tan ?? 50,
                             'pageKey' => 'orders-form',
                         ])

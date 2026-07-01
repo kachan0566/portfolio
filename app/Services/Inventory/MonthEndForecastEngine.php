@@ -2,14 +2,12 @@
 
 namespace App\Services\Inventory;
 
+use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\ForecastManualAdjustment;
 use App\Support\ForecastSnapshot;
 use App\Support\InboundLot;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
-use App\Support\ShipmentPlan;
 use Illuminate\Support\Collection;
 
 class MonthEndForecastEngine
@@ -49,8 +47,8 @@ class MonthEndForecastEngine
     {
         $monthEnd ??= self::monthEndDate($targetYm);
         $currentStock = (float) DemoState::effectiveStock($productId);
-        $inbound = self::inboundScheduled($productId, $monthEnd);
-        $outbound = self::outboundConfirmed($productId, $monthEnd);
+        $inbound = self::inboundScheduled($productId, $targetYm);
+        $outbound = self::outboundConfirmed($productId, $targetYm);
         $manual = ForecastManualAdjustment::totalFor($productId, $targetYm);
         $autoForecast = $currentStock + $inbound['qty'] - $outbound['qty'];
         $forecastQty = round($autoForecast + $manual, 2);
@@ -121,33 +119,12 @@ class MonthEndForecastEngine
     /**
      * @return array{qty: float, details: Collection<int, object>}
      */
-    public static function inboundScheduled(int $productId, string $monthEnd): array
+    public static function inboundScheduled(int $productId, string $targetYm): array
     {
-        $details = DemoData::purchaseOrders()
-            ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::PRODUCT)
-            ->filter(fn ($po) => (int) $po->product_id === $productId)
-            ->filter(fn ($po) => ($po->status ?? '') !== PurchaseOrderStatus::CANCELLED)
-            ->filter(function ($po) use ($monthEnd) {
-                $finish = (string) ($po->finish_date ?? '');
-                return $finish !== '' && $finish <= $monthEnd;
-            })
-            ->map(function ($po) {
-                $remaining = (float) DemoState::poRemaining((int) $po->id);
-
-                return (object) [
-                    'po_id' => (int) $po->id,
-                    'po_code' => $po->code,
-                    'finish_date' => $po->finish_date,
-                    'qty_meters' => (float) $po->qty_meters,
-                    'received_qty' => (float) DemoState::effectiveReceivedQty((int) $po->id),
-                    'remaining_qty' => $remaining,
-                ];
-            })
-            ->filter(fn ($row) => $row->remaining_qty > 0)
-            ->values();
+        $details = SalesForecastEngine::inboundDetailsForInventory($productId, $targetYm);
 
         return [
-            'qty' => (float) $details->sum('remaining_qty'),
+            'qty' => (float) $details->sum('forecast_qty'),
             'details' => $details,
         ];
     }
@@ -155,17 +132,12 @@ class MonthEndForecastEngine
     /**
      * @return array{qty: float, details: Collection<int, object>}
      */
-    public static function outboundConfirmed(int $productId, string $monthEnd): array
+    public static function outboundConfirmed(int $productId, string $targetYm): array
     {
-        $details = collect(ShipmentPlan::all())
-            ->map(fn ($p) => ShipmentPlan::enrich((object) $p))
-            ->filter(fn ($p) => (int) $p->product_id === $productId)
-            ->filter(fn ($p) => ShipmentPlan::isActiveForForecast($p))
-            ->filter(fn ($p) => (string) $p->planned_ship_date <= $monthEnd)
-            ->values();
+        $details = SalesForecastEngine::outboundDetailsForInventory($productId, $targetYm);
 
         return [
-            'qty' => (float) $details->sum(fn ($p) => ShipmentPlan::unshippedQty($p)),
+            'qty' => (float) $details->sum('forecast_qty'),
             'details' => $details,
         ];
     }
@@ -175,6 +147,93 @@ class MonthEndForecastEngine
         $dt = \DateTimeImmutable::createFromFormat('Y-m', $targetYm);
 
         return $dt ? $dt->modify('last day of this month')->format('Y-m-d') : $targetYm.'-30';
+    }
+
+    /**
+     * @param  Collection<int, object>  $lines
+     */
+    public static function summarizeLines(Collection $lines, string $targetYm): object
+    {
+        $monthEnd = self::monthEndDate($targetYm);
+        $calculable = $lines->where('cost_calculable', true);
+
+        return (object) [
+            'target_ym' => $targetYm,
+            'month_end_date' => $monthEnd,
+            'current_stock_qty' => (float) $lines->sum('current_stock_qty'),
+            'current_stock_value' => (int) $calculable->sum('current_stock_value'),
+            'inbound_scheduled_qty' => (float) $lines->sum('inbound_scheduled_qty'),
+            'inbound_scheduled_value' => (int) $calculable->sum('inbound_scheduled_value'),
+            'outbound_confirmed_qty' => (float) $lines->sum('outbound_confirmed_qty'),
+            'outbound_confirmed_value' => (int) $calculable->sum('outbound_confirmed_value'),
+            'forecast_qty' => (float) $lines->sum('forecast_qty'),
+            'forecast_value' => (int) $calculable->sum('forecast_value'),
+            'long_term_qty' => (float) $lines->sum('long_term_qty'),
+            'long_term_value' => (int) $calculable->sum('long_term_value'),
+            'prev_month_diff' => self::prevMonthDiffForLines($lines, $targetYm),
+            'uncosted_count' => $lines->where('cost_calculable', false)->count(),
+            'shortage_count' => $lines->filter(fn ($l) => $l->is_shortage || $l->is_negative)->count(),
+            'latest_snapshot' => ForecastSnapshot::latestForMonth($targetYm),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, object>  $lines
+     */
+    public static function prevMonthDiffForLines(Collection $lines, string $targetYm): ?int
+    {
+        if ($lines->isEmpty()) {
+            return null;
+        }
+
+        $currentTotal = (int) $lines->where('cost_calculable', true)->sum('forecast_value');
+        $prevTotal = (int) $lines->sum(fn ($line) => self::prevForecastValue((int) $line->product_id, $targetYm));
+
+        return $currentTotal - $prevTotal;
+    }
+
+    public static function prevForecastValue(int $productId, string $targetYm): int
+    {
+        $prevYm = \DateTimeImmutable::createFromFormat('Y-m', $targetYm)?->modify('-1 month')->format('Y-m');
+        if (! $prevYm) {
+            return 0;
+        }
+
+        $snapshot = ForecastSnapshot::latestForMonth($prevYm);
+        if ($snapshot !== null) {
+            $snapshotLine = collect($snapshot->lines ?? [])
+                ->first(fn ($row) => (int) ($row['product_id'] ?? 0) === $productId);
+
+            if ($snapshotLine !== null) {
+                return (int) ($snapshotLine['forecast_value'] ?? 0);
+            }
+        }
+
+        $product = DemoData::findProduct($productId);
+        if (! $product) {
+            return 0;
+        }
+
+        $line = self::buildLine($productId, $product, $prevYm, self::monthEndDate($prevYm));
+
+        return $line->cost_calculable ? (int) $line->forecast_value : 0;
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public static function unshippedOrdersForProduct(int $productId): Collection
+    {
+        return DemoData::orders()
+            ->where('product_id', $productId)
+            ->map(function ($order) {
+                $order->remaining = DemoState::orderRemaining((int) $order->id);
+
+                return $order;
+            })
+            ->filter(fn ($order) => $order->remaining > 0)
+            ->sortBy('due_date')
+            ->values();
     }
 
     private static function prevMonthDiff(string $targetYm, int $currentForecastValue): ?int

@@ -6,6 +6,7 @@ use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Http\Requests\UpdatePurchaseOrderRequest;
 use App\Support\DemoData;
 use App\Support\DemoState;
+use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
 use App\Support\ListSearch;
@@ -74,8 +75,18 @@ class PurchaseOrderController extends Controller
             );
         }
 
+        $tanRolls = collect();
+        if ($purchase->type === PurchaseOrderType::GREIGE) {
+            $tanRolls = FabricTanRoll::forPo((int) $purchase->id)
+                ->filter(fn ($roll) => $roll->stage === FabricTanRoll::STAGE_GREIGE_WIP);
+        } elseif ($purchase->type === PurchaseOrderType::PRODUCT) {
+            $tanRolls = FabricTanRoll::forPo((int) $purchase->id)
+                ->filter(fn ($roll) => $roll->stage === FabricTanRoll::STAGE_PRODUCT);
+        }
+
         return view('purchases.show', [
             'purchase' => $purchase,
+            'tanRolls' => $tanRolls,
             'product' => $purchase->type === PurchaseOrderType::PRODUCT
                 ? DemoData::findProduct((int) $purchase->product_id)
                 : null,
@@ -266,10 +277,53 @@ class PurchaseOrderController extends Controller
             }
         }
 
+        if ($type === PurchaseOrderType::PRODUCT && $request->filled('finish_date')) {
+            $patch['finish_date'] = $request->input('finish_date');
+        }
+
+        $patch['arrival_memo'] = (string) $request->input('arrival_memo', '');
+
         PurchaseOrderOverlay::patch($purchase, $patch);
 
         return redirect()->route('purchases.show', $purchase)
             ->with('success', '発注を更新しました。');
+    }
+
+    public function patchArrival(Request $request, int $purchase): RedirectResponse
+    {
+        $target = $this->findPurchase($purchase);
+        $type = $target->type ?? PurchaseOrderType::PRODUCT;
+
+        $validated = $request->validate([
+            'expected_arrival_date' => ['nullable', 'date'],
+            'arrival_memo' => ['nullable', 'string', 'max:500'],
+        ], [], [
+            'expected_arrival_date' => '入荷予定日',
+            'arrival_memo' => 'メモ',
+        ]);
+
+        $patch = [
+            'arrival_memo' => (string) ($validated['arrival_memo'] ?? ''),
+        ];
+
+        $date = $validated['expected_arrival_date'] ?? null;
+        if ($date !== null) {
+            if ($type === PurchaseOrderType::PRODUCT) {
+                $patch['finish_date'] = $date;
+            } else {
+                $patch['due_date'] = $date;
+            }
+        }
+
+        PurchaseOrderOverlay::patch($purchase, $patch);
+
+        $redirectParams = array_filter(
+            $request->only(ListSearch::PARAMS),
+            fn ($value) => $value !== null && $value !== ''
+        );
+
+        return redirect()->route('purchases.index', $redirectParams)
+            ->with('success', "発注 {$target->code} の入荷予定を更新しました。");
     }
 
     public function destroy(int $purchase): RedirectResponse

@@ -141,7 +141,6 @@
 
                 <form action="{{ route('orders.save-allocation', $order->id) }}" method="POST" id="allocation-form">
                     @csrf
-                    @include('partials.qty-unit-toggle', ['pageKey' => 'allocation'])
                     <script id="alloc-meta" type="application/json">
                         {!! json_encode([
                             'stock'          => $stockTotal,

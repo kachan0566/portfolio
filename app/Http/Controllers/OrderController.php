@@ -6,6 +6,7 @@ use App\Support\AllocationConversion;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\ListSearch;
+use App\Support\QtyHelper;
 use App\Support\PurchaseOrderLink;
 use App\Support\ShipmentPlan;
 use App\Support\StockAllocation;
@@ -264,7 +265,13 @@ class OrderController extends Controller
                 $autoStock = min($need, $availableFromPo, max(0, $effectiveStock - StockAllocation::stockUsageForProduct($target->product_id)));
 
                 if ($autoStock > 0) {
-                    StockAllocation::addLine($target->product_id, $order, $purchase, $autoStock, StockAllocation::TYPE_STOCK);
+                    StockAllocation::addLine(
+                        $target->product_id,
+                        $order,
+                        $purchase,
+                        QtyHelper::tanCount($autoStock, $target->product_id),
+                        StockAllocation::TYPE_STOCK
+                    );
                     $message .= " 現在庫引当 {$autoStock}m を登録しました。";
                     $need -= $autoStock;
                 }
@@ -278,7 +285,13 @@ class OrderController extends Controller
                 $autoPo = min($need, $availablePo);
 
                 if ($autoPo > 0) {
-                    StockAllocation::addLine($target->product_id, $order, $purchase, $autoPo, StockAllocation::TYPE_PO);
+                    StockAllocation::addLine(
+                        $target->product_id,
+                        $order,
+                        $purchase,
+                        QtyHelper::tanCount($autoPo, $target->product_id),
+                        StockAllocation::TYPE_PO
+                    );
                     $message .= " 発注引当 {$autoPo}m を登録しました。";
                 }
             }

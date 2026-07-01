@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\ListSearch;
+use App\Support\FabricQuantity;
 use App\Support\QtyHelper;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
@@ -52,18 +53,24 @@ class ShipmentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $orderId = (int) $request->input('order_id');
-        $qty = (int) $request->input('qty');
-
         $order = DemoData::orders()->firstWhere('id', $orderId);
         if (! $order) {
             return redirect()->route('shipments.create')
                 ->with('error', '受注が見つかりません。');
         }
 
+        $resolved = FabricQuantity::resolve(
+            $request->input('qty_tan'),
+            $request->input('qty_meters'),
+            (int) $order->product_id,
+        );
+        $qtyTan = $resolved->qty_tan;
+        $qty = $resolved->qty_meters;
+
         $shippable = StockAllocation::shippableQty($orderId);
-        if ($qty <= 0) {
+        if ($qtyTan <= 0) {
             return redirect()->route('shipments.create', ['order_id' => $orderId])
-                ->with('error', '出荷数量は 1 以上で入力してください。');
+                ->with('error', '出荷数量は 0.05反 以上で入力してください。');
         }
 
         if ($qty > $shippable) {
@@ -77,7 +84,7 @@ class ShipmentController extends Controller
                 ->with('error', '現在庫（'.QtyHelper::format($effectiveStock, $order->product_id).'）を超える出荷はできません。');
         }
 
-        DemoState::applyShipment($orderId, $order->product_id, $qty);
+        DemoState::applyShipment($orderId, $order->product_id, $qtyTan, $qty);
 
         return redirect()->route('shipments.index')
             ->with('success', '受注 '.$order->code.' から '.QtyHelper::format($qty, $order->product_id).' を出荷登録し、在庫を減少しました。');

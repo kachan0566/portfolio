@@ -1,28 +1,70 @@
 @php
-    $name = $name ?? 'qty';
+    $tanName = $tanName ?? ($name ?? 'qty_tan');
+    $metersName = $metersName ?? 'qty_meters';
+    $productId = $productId ?? null;
+    $isGreige = $isGreige ?? false;
+    $greigeSku = $greigeSku ?? null;
+    $valueMeters = isset($valueMeters) ? (int) $valueMeters : null;
+    $valueTan = isset($valueTan)
+        ? (float) $valueTan
+        : ($valueMeters !== null && $valueMeters > 0
+            ? \App\Support\QtyHelper::tanCount($valueMeters, $productId, $isGreige, $greigeSku)
+            : 0.0);
+    if ($valueMeters === null && $valueTan > 0) {
+        $valueMeters = \App\Support\QtyHelper::metersFromTan($valueTan, $productId, $isGreige, $greigeSku);
+    }
     $valueMeters = (int) ($valueMeters ?? 0);
-    $metersPerTan = (int) ($metersPerTan ?? 50);
+    $metersPerTan = (int) ($metersPerTan ?? \App\Support\QtyHelper::metersPerTan($productId, $isGreige, $greigeSku));
     $pageKey = $pageKey ?? 'default';
-    $id = $id ?? $name;
-    $maxMeters = isset($maxMeters) ? (int) $maxMeters : null;
+    $id = $id ?? null;
+    $maxTan = isset($maxTan)
+        ? (float) $maxTan
+        : (isset($maxMeters) ? \App\Support\QtyHelper::tanCount((int) $maxMeters, $productId, $isGreige, $greigeSku) : null);
     $placeholder = $placeholder ?? '0';
+    $compact = $compact ?? false;
+    $fieldClass = $fieldClass ?? '';
+    $showMeterSwitch = $showMeterSwitch ?? true;
+    $submitMeters = $submitMeters ?? true;
 @endphp
-<div class="qty-unit-field"
+<div class="qty-unit-field{{ $compact ? ' qty-unit-field--compact' : '' }} {{ $fieldClass }}"
      data-qty-unit-field
      data-page-key="{{ $pageKey }}"
+     data-qty-mode="tan"
      data-meters-per-tan="{{ $metersPerTan }}"
-     @if ($maxMeters !== null) data-max-meters="{{ $maxMeters }}" @endif>
-    <input type="hidden" name="{{ $name }}" value="{{ $valueMeters }}" data-qty-meters-hidden>
-    <div class="input-group">
-        <input class="input mono"
-               type="number"
-               id="{{ $id }}"
-               data-qty-display
-               min="0"
-               step="0.01"
-               placeholder="{{ $placeholder }}"
-               autocomplete="off">
-        <span class="input-group__suffix" data-qty-suffix>反</span>
+     @if ($maxTan !== null) data-max-tan="{{ \App\Support\QtyHelper::formatTanCount($maxTan) }}" @endif>
+    <input type="hidden" name="{{ $tanName }}" value="{{ \App\Support\QtyHelper::formatTanCount($valueTan) }}" data-qty-tan-hidden>
+    @if ($submitMeters)
+        <input type="hidden" name="{{ $metersName }}" value="{{ $valueMeters > 0 ? $valueMeters : '' }}" data-qty-meters-hidden>
+    @else
+        <input type="hidden" value="{{ $valueMeters > 0 ? $valueMeters : '' }}" data-qty-meters-hidden>
+    @endif
+    <div data-qty-tan-row>
+        <div class="input-group{{ $compact ? ' po-line__input-group' : '' }}">
+            <input class="input mono"
+                   type="number"
+                   @if ($id) id="{{ $id }}" @endif
+                   data-qty-tan-display
+                   min="0"
+                   step="{{ \App\Support\QtyHelper::TAN_STEP }}"
+                   placeholder="{{ $placeholder }}"
+                   autocomplete="off">
+            <span class="input-group__suffix">反</span>
+        </div>
+    </div>
+    <div data-qty-meter-row hidden>
+        <div class="input-group{{ $compact ? ' po-line__input-group' : '' }}">
+            <input class="input mono"
+                   type="number"
+                   data-qty-meter-display
+                   min="0"
+                   step="1"
+                   placeholder="0"
+                   autocomplete="off">
+            <span class="input-group__suffix">m</span>
+        </div>
     </div>
     <p class="field-hint qty-unit-field__hint" data-qty-hint></p>
+    @if ($showMeterSwitch)
+        <button type="button" class="qty-unit-field__switch" data-qty-mode-switch>mで直接指定</button>
+    @endif
 </div>

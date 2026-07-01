@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
+use App\Support\QtyHelper;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -102,6 +103,11 @@ class StorePurchaseOrderRequest extends FormRequest
                 $sku = (string) $this->input('greige_sku');
                 if ($sku !== '' && ! DemoData::hasGreigeRecipe($sku)) {
                     $validator->errors()->add('greige_sku', 'この生機品番のレシピが未登録のため発注できません。');
+                }
+
+                $tan = (float) $this->input('qty_tan');
+                if ($tan > 0 && ! QtyHelper::isValidTanStep($tan)) {
+                    $validator->errors()->add('qty_tan', '反数は0.05反単位で入力してください。');
                 }
             }
         });

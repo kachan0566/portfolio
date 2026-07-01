@@ -27,7 +27,7 @@
         <div class="kpi">
             <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'package'])</div>
             <div class="kpi__label">今月出荷数量</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.qty', ['qty' => $data['shippedQty']])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.qty-aggregate', ['lines' => $data['salesByProduct'], 'qtyKey' => 'qty'])</div>
             <div class="kpi__sub">出荷件数 {{ \App\Support\DemoData::shipments()->count() }} 件</div>
         </div>
         <div class="kpi">

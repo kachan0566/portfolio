@@ -16,6 +16,13 @@
         </div>
     </div>
 
+    @if (session('success'))
+        <div class="alert alert-success" style="margin-bottom:16px;">
+            @include('partials.icon', ['name' => 'check'])
+            <span>{{ session('success') }}</span>
+        </div>
+    @endif
+
     <div class="card">
         <div class="card__head">
             <h2 class="card__title">発注一覧（{{ $purchases->count() }} 件）</h2>
@@ -43,13 +50,14 @@
                 <table class="data">
                     <thead>
                         <tr>
-                            <th>種別</th>
-                            <th>発注番号</th>
+                            <th>種別 / 発注番号</th>
                             <th>品番</th>
                             <th class="num">数量</th>
                             <th>依頼先</th>
                             <th>出荷先</th>
                             <th>納期</th>
+                            <th style="min-width:150px;">入荷予定日</th>
+                            <th style="min-width:200px;">メモ</th>
                             <th>状態</th>
                             <th>材料不足</th>
                             <th style="width:88px;">操作</th>
@@ -58,13 +66,27 @@
                     <tbody>
                         @foreach ($purchases as $po)
                             <tr>
-                                <td><span class="badge badge-indigo badge--plain">{{ $po->type_label }}</span></td>
-                                <td class="code-cell">{{ $po->code }}</td>
+                                <td>
+                                    <span class="badge badge-indigo badge--plain">{{ $po->type_label }}</span>
+                                    <div class="code-cell" style="margin-top:4px;font-size:12px;">{{ $po->code }}</div>
+                                </td>
                                 <td class="code-cell t-strong">{{ $po->sku }}</td>
                                 <td class="num mono">@include('partials.purchase-qty', ['purchase' => $po])</td>
                                 <td>{{ $po->supplier }}</td>
                                 <td>{{ $po->ship_to }}</td>
                                 <td class="mono">{{ $po->eta }}</td>
+                                <td>
+                                    @include('partials.purchase-arrival-date-inline-form', [
+                                        'purchase' => $po,
+                                        'search' => $search,
+                                    ])
+                                </td>
+                                <td>
+                                    @include('partials.purchase-arrival-memo-inline-form', [
+                                        'purchase' => $po,
+                                        'search' => $search,
+                                    ])
+                                </td>
                                 <td><span class="badge badge-indigo badge--plain">{{ $po->status_label }}</span></td>
                                 <td>
                                     @if ($po->material_shortage)

@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Support;
+
+/**
+ * 生地系数量の正規化。反数（qty_tan）を正とし、m は標準換算または上書き値。
+ */
+class FabricQuantity
+{
+    /**
+     * @return object{qty_tan: float, qty_meters: int, meters_overridden: bool}
+     */
+    public static function resolve(
+        float|int|null $qtyTan,
+        float|int|null $qtyMeters,
+        ?int $productId = null,
+        bool $isGreige = false,
+        ?string $greigeSku = null,
+    ): object {
+        $tan = $qtyTan !== null && (float) $qtyTan > 0
+            ? QtyHelper::roundTan($qtyTan)
+            : 0.0;
+
+        $metersInput = $qtyMeters !== null ? (int) round((float) $qtyMeters) : 0;
+        $nominalMeters = $tan > 0
+            ? QtyHelper::metersFromTan($tan, $productId, $isGreige, $greigeSku)
+            : 0;
+
+        if ($metersInput > 0 && ($tan <= 0 || $metersInput !== $nominalMeters)) {
+            $resolvedTan = $tan > 0
+                ? $tan
+                : QtyHelper::tanCount($metersInput, $productId, $isGreige, $greigeSku);
+
+            return (object) [
+                'qty_tan' => QtyHelper::roundTan($resolvedTan),
+                'qty_meters' => $metersInput,
+                'meters_overridden' => $tan <= 0 || $metersInput !== $nominalMeters,
+            ];
+        }
+
+        return (object) [
+            'qty_tan' => $tan,
+            'qty_meters' => $nominalMeters,
+            'meters_overridden' => false,
+        ];
+    }
+
+    public static function metersFromRecord(
+        object|array $record,
+        ?int $productId = null,
+        bool $isGreige = false,
+        ?string $greigeSku = null,
+    ): int {
+        $row = (object) $record;
+
+        if (isset($row->qty_meters) && (int) $row->qty_meters > 0) {
+            return (int) $row->qty_meters;
+        }
+
+        if (isset($row->qty_tan) && (float) $row->qty_tan > 0) {
+            return QtyHelper::metersFromTan(
+                (float) $row->qty_tan,
+                $productId ?? (isset($row->product_id) ? (int) $row->product_id : null),
+                $isGreige,
+                $greigeSku ?? ($row->greige_sku ?? null),
+            );
+        }
+
+        return (int) ($row->qty ?? 0);
+    }
+
+    public static function tanFromRecord(
+        object|array $record,
+        ?int $productId = null,
+        bool $isGreige = false,
+        ?string $greigeSku = null,
+    ): float {
+        $row = (object) $record;
+
+        if (isset($row->qty_tan) && (float) $row->qty_tan > 0) {
+            return QtyHelper::roundTan((float) $row->qty_tan);
+        }
+
+        $meters = self::metersFromRecord($row, $productId, $isGreige, $greigeSku);
+        if ($meters <= 0) {
+            return 0.0;
+        }
+
+        return QtyHelper::tanCount(
+            $meters,
+            $productId ?? (isset($row->product_id) ? (int) $row->product_id : null),
+            $isGreige,
+            $greigeSku ?? ($row->greige_sku ?? null),
+        );
+    }
+}

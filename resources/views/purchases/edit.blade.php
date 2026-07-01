@@ -93,6 +93,29 @@
                     </div>
                 </div>
 
+                @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT)
+                    <div class="form-row">
+                        <div class="field">
+                            <label class="label" for="finish_date">入荷予定日</label>
+                            <input class="input" type="date" id="finish_date" name="finish_date"
+                                   value="{{ old('finish_date', $purchase->finish_date ?? '') }}">
+                            <p class="field-hint">月末在庫予想の入荷予定計算に使用します（納期とは別）。</p>
+                        </div>
+                        <div class="field" style="flex:1;">
+                            <label class="label" for="arrival_memo">メモ</label>
+                            <textarea class="textarea" id="arrival_memo" name="arrival_memo" rows="3"
+                                      placeholder="例）染工場から6/16上がり連絡あり">{{ old('arrival_memo', $purchase->arrival_memo ?? '') }}</textarea>
+                        </div>
+                    </div>
+                @else
+                    <div class="field">
+                        <label class="label" for="arrival_memo">メモ</label>
+                        <textarea class="textarea" id="arrival_memo" name="arrival_memo" rows="3"
+                                  placeholder="例）入荷に関するメモ">{{ old('arrival_memo', $purchase->arrival_memo ?? '') }}</textarea>
+                        <p class="field-hint">糸・生機発注の入荷予定日は納期と同じです。納期を変更すると入荷予定日も連動します。</p>
+                    </div>
+                @endif
+
                 @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT && ! empty($purchase->schedule))
                     <div class="field">
                         <label class="label" for="stage">生産工程（互換・製品のみ）</label>

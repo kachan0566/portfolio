@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\InventoryForecastController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\InventoryForecastController;
 use App\Http\Controllers\MaterialPriceController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
@@ -11,6 +11,7 @@ use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\ReceivingController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\SalesController;
+use App\Http\Controllers\SalesForecastController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\ShipmentPlanController;
 use App\Http\Controllers\SupplierController;
@@ -56,6 +57,8 @@ Route::post('/orders/{order}/save-allocation', [OrderController::class, 'saveAll
     ->name('orders.save-allocation');
 Route::post('/purchases/{purchase}/relink-order', [OrderController::class, 'relinkPurchase'])
     ->name('purchases.relink-order');
+Route::patch('/purchases/{purchase}/arrival', [PurchaseOrderController::class, 'patchArrival'])
+    ->name('purchases.patch-arrival');
 Route::resource('purchases', PurchaseOrderController::class);
 Route::get('/receivings', [ReceivingController::class, 'index'])->name('receivings.index');
 Route::get('/receivings/create', [ReceivingController::class, 'create'])->name('receivings.create');
@@ -76,3 +79,8 @@ Route::get('/inventory/long-term/{product}', [InventoryForecastController::class
 Route::post('/inventory/{product}/allocate', [InventoryController::class, 'allocate'])->name('inventory.allocate');
 Route::get('/inventory/{product}', [InventoryController::class, 'show'])->name('inventory.show');
 Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');
+Route::get('/sales/forecast/csv', [SalesForecastController::class, 'exportCsv'])->name('sales.forecast.csv');
+Route::post('/sales/forecast/snapshot', [SalesForecastController::class, 'storeSnapshot'])->name('sales.forecast.snapshot');
+Route::get('/sales/forecast/{product}', [SalesForecastController::class, 'showProduct'])->name('sales.forecast.show');
+Route::post('/sales/forecast/{product}', [SalesForecastController::class, 'storeLines'])->name('sales.forecast.store');
+Route::post('/sales/forecast/{product}/reset', [SalesForecastController::class, 'resetLines'])->name('sales.forecast.reset');

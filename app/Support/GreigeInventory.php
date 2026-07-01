@@ -27,26 +27,39 @@ class GreigeInventory
         return DemoData::purchaseOrders()
             ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::GREIGE)
             ->map(function ($po) {
-                $received = (int) floor(DemoState::effectiveReceivedQty((int) $po->id, $po));
-                if ($received <= 0) {
-                    return null;
-                }
-
+                $poId = (int) $po->id;
                 $greigeSku = (string) ($po->greige_sku ?? $po->sku ?? '');
                 $greige = DemoData::findGreige($greigeSku);
                 if ($greige === null) {
                     return null;
                 }
 
+                $rolls = FabricTanRoll::forPo($poId)
+                    ->filter(fn ($roll) => $roll->stage === FabricTanRoll::STAGE_GREIGE_WIP);
+
+                if ($rolls->isNotEmpty()) {
+                    $received = (int) round($rolls->sum(fn ($roll) => FabricTanRoll::actualMeters($roll)));
+                    $rollCount = $rolls->count();
+                } else {
+                    $received = (int) floor(DemoState::effectiveReceivedQty($poId, $po));
+                    if ($received <= 0) {
+                        return null;
+                    }
+                    $rollCount = 0;
+                }
+
                 $shipTo = DemoData::findShipTo((int) ($po->ship_to_id ?? 0));
 
                 return (object) [
-                    'po_id' => (int) $po->id,
+                    'po_id' => $poId,
                     'po_code' => $po->code,
                     'greige_sku' => $greigeSku,
                     'greige_name' => $greige->name,
                     'qty_meters' => $received,
-                    'qty_tan_calc' => QtyHelper::tanCount($received, null, true, $greigeSku),
+                    'qty_tan_calc' => $rollCount > 0
+                        ? (float) $rollCount
+                        : QtyHelper::tanCount($received, null, true, $greigeSku),
+                    'roll_count' => $rollCount,
                     'ship_to' => $shipTo?->name ?? '—',
                     'due_date' => $po->due_date ?? '—',
                 ];
@@ -110,7 +123,15 @@ class GreigeInventory
         if ($oldIdx < $dyeIdx && $newIdx >= $dyeIdx) {
             $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
             if ($po !== null && ($po->type ?? '') === PurchaseOrderType::PRODUCT) {
-                DemoState::applyDyeTransfer($poId, (int) $po->product_id, (int) $po->qty_meters);
+                $result = \App\Services\Fabric\TanRollRecorder::recordDyeingCompletion(
+                    $poId,
+                    (int) $po->product_id,
+                    $po->finish_date ?? null,
+                );
+                $meters = (int) round($result['total_meters']);
+                if ($meters > 0) {
+                    DemoState::applyDyeTransfer($poId, (int) $po->product_id, $meters);
+                }
             }
         }
     }

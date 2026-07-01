@@ -30,16 +30,16 @@
         return QtyUnit.formatQty(m, metersPerTan);
     }
 
-    function readLineMeters(line) {
-        // 隠しフィールドから直接読む。qtyUnitApi.readMeters() を使うと
-        // qty-meters-changed イベントが発火して updateOrderRow が再帰呼び出しされるため使わない。
-        // フォーム送信時は送信ハンドラ内で readMeters() を一括実行済み。
-        return parseInt(
-            line.querySelector('[data-qty-meters-hidden]')?.value
-            || line.querySelector('.po-line__qty')?.value
-            || '0',
-            10
+    function readLineTan(line) {
+        return parseFloat(
+            line.querySelector('[data-qty-tan-hidden]')?.value
+            || '0'
         ) || 0;
+    }
+
+    function readLineMeters(line) {
+        const tan = readLineTan(line);
+        return QtyUnit.tanToMeters(tan, metersPerTan);
     }
 
     function optionsForType(type) {
@@ -73,16 +73,18 @@
         const orderId = select.dataset.orderId;
         const line = select.closest('.po-line');
         const field = line.querySelector('[data-qty-unit-field]');
-        const hidden = line.querySelector('[data-qty-meters-hidden]');
+        const hidden = line.querySelector('[data-qty-tan-hidden]');
         const row = line.closest('tr');
-        const remaining = parseInt(row?.dataset.orderRemaining || '0', 10);
-        const poMax = poId ? (qtyById(type)[poId] || 0) : 0;
-        const maxMeters = poId ? Math.min(remaining, poMax) : remaining;
+        const remainingMeters = parseInt(row?.dataset.orderRemaining || '0', 10);
+        const remainingTan = QtyUnit.metersToTan(remainingMeters, metersPerTan);
+        const poMaxMeters = poId ? (qtyById(type)[poId] || 0) : 0;
+        const poMaxTan = QtyUnit.metersToTan(poMaxMeters, metersPerTan);
+        const maxTan = poId ? Math.min(remainingTan, poMaxTan) : remainingTan;
         if (hidden) {
             hidden.name = `allocations[${orderId}][${type}][${poId}]`;
         }
         if (field) {
-            field.dataset.maxMeters = String(maxMeters);
+            field.dataset.maxTan = String(maxTan);
             qtyUnitApi.refresh();
         }
     }
@@ -162,18 +164,27 @@
                 <option value="">${placeholder}</option>${opts}
             </select>
             <div class="po-line__qty-wrap">
-                <div class="qty-unit-field po-line__qty-field"
+                <div class="qty-unit-field qty-unit-field--compact po-line__qty-field"
                      data-qty-unit-field
                      data-page-key="${PAGE_KEY}"
+                     data-qty-mode="tan"
                      data-meters-per-tan="${metersPerTan}"
                      data-max-meters="0">
                     <input type="hidden"
                            name="allocations[${orderId}][${type}][__NEW__]"
                            value="0"
                            data-qty-meters-hidden>
-                    <div class="input-group po-line__input-group">
-                        <input class="input mono" type="number" data-qty-display min="0" step="0.01" placeholder="0">
-                        <span class="input-group__suffix" data-qty-suffix>反</span>
+                    <div data-qty-tan-row>
+                        <div class="input-group po-line__input-group">
+                            <input class="input mono" type="number" data-qty-tan-display min="0" step="0.05" placeholder="0">
+                            <span class="input-group__suffix">反</span>
+                        </div>
+                    </div>
+                    <div data-qty-meter-row hidden>
+                        <div class="input-group po-line__input-group">
+                            <input class="input mono" type="number" data-qty-meter-display min="0" step="1" placeholder="0">
+                            <span class="input-group__suffix">m</span>
+                        </div>
                     </div>
                     <p class="field-hint qty-unit-field__hint" data-qty-hint></p>
                 </div>

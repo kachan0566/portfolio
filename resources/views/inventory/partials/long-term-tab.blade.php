@@ -1,4 +1,7 @@
-@php $lt = $longTerm; @endphp
+@php
+    $lt = $longTerm;
+    $ltLines = $lt->lines ?? collect();
+@endphp
 
 <div style="margin-bottom:16px;">
     <span class="t-muted" style="font-size:13px;">判定基準日: {{ $lt->as_of_date }}（現在日）</span>
@@ -11,7 +14,7 @@
     </div>
     <div class="kpi">
         <div class="kpi__label">長期在庫総数量</div>
-        <div class="kpi__value" style="font-size:20px;">{{ number_format($lt->total_qty) }}m</div>
+        <div class="kpi__value" style="font-size:20px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'long_term_qty'])</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">長期在庫総金額</div>
@@ -19,22 +22,22 @@
     </div>
     <div class="kpi">
         <div class="kpi__label">12〜18か月</div>
-        <div class="kpi__value" style="font-size:16px;">{{ number_format($lt->bucket_12_18_qty) }}m</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_12_18_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_12_18_value) }} 円</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">18〜24か月</div>
-        <div class="kpi__value" style="font-size:16px;">{{ number_format($lt->bucket_18_24_qty) }}m</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_18_24_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_18_24_value) }} 円</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">24〜36か月</div>
-        <div class="kpi__value" style="font-size:16px;">{{ number_format($lt->bucket_24_36_qty) }}m</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_24_36_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_24_36_value) }} 円</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">36か月以上</div>
-        <div class="kpi__value" style="font-size:16px;">{{ number_format($lt->bucket_36_plus_qty) }}m</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_36_plus_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_36_plus_value) }} 円</div>
     </div>
 </div>

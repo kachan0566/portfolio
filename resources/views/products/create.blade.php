@@ -47,7 +47,7 @@
                     </div>
                     <div class="field">
                         <label class="label" for="unit">単位<span class="req">*</span></label>
-                        <input class="input" type="text" id="unit" name="unit" placeholder="例：m" value="{{ old('unit') }}">
+                        <input class="input" type="text" id="unit" name="unit" placeholder="例：反" value="{{ old('unit', '反') }}">
                     </div>
                 </div>
                 <div class="field">

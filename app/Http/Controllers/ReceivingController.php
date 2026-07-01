@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Fabric\TanRollRecorder;
 use App\Support\DemoData;
 use App\Support\DemoState;
+use App\Support\FabricQuantity;
 use App\Support\ListSearch;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
@@ -89,10 +91,23 @@ class ReceivingController extends Controller
                     ->with('error', '入荷数量は 0.01〜'.number_format($remaining, 2).'kg の範囲で入力してください。');
             }
         } else {
-            $qty = (int) $request->input('qty');
-            if ($qty <= 0 || $qty > (int) floor($remaining)) {
+            $productId = $poType === PurchaseOrderType::PRODUCT ? (int) $po->product_id : null;
+            $greigeSku = $poType === PurchaseOrderType::GREIGE
+                ? (string) ($po->greige_sku ?? $po->sku)
+                : null;
+            $resolved = FabricQuantity::resolve(
+                $request->input('qty_tan'),
+                $request->input('qty_meters', $request->input('qty')),
+                $productId,
+                $poType === PurchaseOrderType::GREIGE,
+                $greigeSku,
+            );
+            $qty = $resolved->qty_meters;
+            $qtyTan = $resolved->qty_tan;
+
+            if ($qtyTan <= 0 || $qty <= 0 || $qty > (int) floor($remaining)) {
                 return redirect()->route('receivings.create', ['type' => $poType])
-                    ->with('error', '入荷数量は 1〜'.(int) floor($remaining).'m の範囲で入力してください。');
+                    ->with('error', '入荷数量は 0.05反以上、かつ発注残 '.(int) floor($remaining).'m 以内で入力してください。');
             }
         }
 
@@ -116,14 +131,29 @@ class ReceivingController extends Controller
         } elseif ($poType === PurchaseOrderType::GREIGE) {
             $receiving['greige_sku'] = $po->greige_sku ?? $po->sku;
             $receiving['qty_meters'] = $qty;
+            $receiving['qty_tan'] = $qtyTan;
             $receiving['sku'] = $receiving['greige_sku'];
         } else {
             $receiving['product_id'] = (int) $po->product_id;
             $receiving['qty'] = $qty;
+            $receiving['qty_tan'] = $qtyTan;
             $receiving['sku'] = $po->sku;
         }
 
         DemoState::applyReceiving($receiving);
+
+        if ($poType === PurchaseOrderType::GREIGE) {
+            $rollCount = max(1, (int) round($qtyTan));
+            TanRollRecorder::recordWeavingCompletion(
+                $poId,
+                (string) ($po->greige_sku ?? $po->sku),
+                $rollCount,
+                $qty,
+                $date,
+            );
+        } elseif ($poType === PurchaseOrderType::PRODUCT) {
+            TanRollRecorder::recordProductReceiving($poId, (int) $po->product_id, $qtyTan, $qty, $date);
+        }
 
         $message = "入荷 {$code} を登録しました。";
 
@@ -141,7 +171,7 @@ class ReceivingController extends Controller
         } elseif ($poType === PurchaseOrderType::YARN) {
             $message = "入荷 {$code} を登録し、糸在庫を ".number_format($qty, 2)."kg 増加しました。";
         } elseif ($poType === PurchaseOrderType::GREIGE) {
-            $message = "入荷 {$code} を登録し、染工場の生機在庫を {$qty}m 増加しました。";
+            $message = "入荷 {$code} を登録し、染工場の生機在庫を {$qtyTan}反（実測 {$qty}m）増加しました。反明細に織り上がり実測を記録しました。";
         }
 
         return redirect()->route('receivings.index')->with('success', $message);

@@ -63,7 +63,6 @@
                     $selectedMetersPerTan = \App\Support\DemoData::findProduct($selectedOrder?->product_id)?->meters_per_tan ?? 50;
                     $selectedShippable = $selectedOrder?->shippable_qty ?? 0;
                 @endphp
-                @include('partials.qty-unit-toggle', ['pageKey' => 'shipments-form'])
                 <form action="{{ route('shipments.store') }}" method="POST" id="shipment-form">
                     @csrf
                     <div class="field">
@@ -84,11 +83,13 @@
                         <div class="field">
                             <label class="label" for="qty-display">出荷数量<span class="req">*</span></label>
                             @include('partials.qty-input', [
-                                'name' => 'qty',
+                                'tanName' => 'qty_tan',
+                                'metersName' => 'qty_meters',
                                 'id' => 'qty-display',
-                                'valueMeters' => 0,
+                                'valueTan' => 0,
+                                'productId' => null,
                                 'metersPerTan' => $selectedMetersPerTan,
-                                'maxMeters' => $selectedShippable > 0 ? $selectedShippable : null,
+                                'maxTan' => $selectedShippable > 0 ? \App\Support\QtyHelper::tanCount($selectedShippable, $selectedProductId ?? null) : null,
                                 'pageKey' => 'shipments-form',
                             ])
                             <p class="field-hint" id="shippable-hint"></p>

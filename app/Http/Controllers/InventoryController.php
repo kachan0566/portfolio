@@ -9,6 +9,8 @@ use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\GreigeInventory;
 use App\Support\ListSearch;
+use App\Support\PurchaseOrderStatus;
+use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use App\Support\StockAllocation;
 use App\Support\YarnInventory;
@@ -69,14 +71,14 @@ class InventoryController extends Controller
         }
         $inProduction = ListSearch::filter(
             DemoData::purchaseOrders()
-                ->filter(fn ($po) => ($po->type ?? '') === \App\Support\PurchaseOrderType::PRODUCT)
+                ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::PRODUCT)
                 ->map(function ($po) {
                     $po->stage = DemoState::effectivePoStage($po->id);
 
                     return $po;
                 })
                 ->whereNotIn('stage', ['原材料未発注', '製品出荷済'])
-                ->whereNotIn('status', [\App\Support\PurchaseOrderStatus::RECEIVED, \App\Support\PurchaseOrderStatus::CANCELLED])
+                ->whereNotIn('status', [PurchaseOrderStatus::RECEIVED, PurchaseOrderStatus::CANCELLED])
                 ->values(),
             $productionSearch,
             [
@@ -92,6 +94,26 @@ class InventoryController extends Controller
 
         $forecastYm = $this->resolveForecastYm($request);
         $forecast = $tab === 'forecast' ? MonthEndForecastEngine::build($forecastYm) : null;
+        $forecastLines = null;
+        $forecastSummary = null;
+
+        if ($forecast !== null) {
+            $forecastLines = ListSearch::filter($forecast->lines, $search, [
+                'code_fields' => [],
+                'sku_fields' => ['sku'],
+                'status_resolver' => function ($line, $status) {
+                    return match ($status) {
+                        '正常' => $line->warnings === [],
+                        '原価未登録' => in_array('原価未登録', $line->warnings, true),
+                        '在庫不足予想' => $line->is_negative,
+                        '安全在庫割れ' => $line->is_shortage && ! $line->is_negative,
+                        default => false,
+                    };
+                },
+            ]);
+            $forecastSummary = MonthEndForecastEngine::summarizeLines($forecastLines, $forecastYm);
+        }
+
         $longTerm = $tab === 'long_term' ? LongTermInventoryEngine::build() : null;
 
         $greigeEntries = GreigeInventory::entries();
@@ -143,6 +165,8 @@ class InventoryController extends Controller
             'forecastYm' => $forecastYm,
             'forecastMonthOptions' => DemoData::forecastMonthOptions(),
             'forecast' => $forecast,
+            'forecastLines' => $forecastLines,
+            'forecastSummary' => $forecastSummary,
             'longTerm' => $longTerm,
         ]);
     }

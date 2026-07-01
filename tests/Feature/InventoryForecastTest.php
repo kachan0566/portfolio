@@ -8,7 +8,6 @@ use App\Support\ForecastManualAdjustment;
 use App\Support\ForecastSnapshot;
 use App\Support\InboundLot;
 use App\Support\ShipmentPlan;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class InventoryForecastTest extends TestCase
@@ -20,9 +19,9 @@ class InventoryForecastTest extends TestCase
         $this->resetJsonState('forecast_manual_adjustments.json');
         $this->resetJsonState('month_end_forecast_snapshots.json');
         $this->resetJsonState('shipment_plans.json');
-        \App\Support\ShipmentPlan::clearCache();
-        \App\Support\ForecastManualAdjustment::clearCache();
-        \App\Support\ForecastSnapshot::clearCache();
+        ShipmentPlan::clearCache();
+        ForecastManualAdjustment::clearCache();
+        ForecastSnapshot::clearCache();
     }
 
     private function resetJsonState(string $file): void
@@ -41,6 +40,110 @@ class InventoryForecastTest extends TestCase
         $response->assertSee('月末在庫予想', false);
         $response->assertSee('品番別明細', false);
         $response->assertSee('提出版として保存', false);
+        $response->assertSee('検索', false);
+    }
+
+    public function test_forecast_search_filters_by_sku(): void
+    {
+        $product = DemoData::products()->firstWhere('sku', 'FAB-A-BK');
+
+        $response = $this->get(route('inventory.index', [
+            'tab' => 'forecast',
+            'ym' => DemoData::CURRENT_YM,
+            'sku' => 'FAB-A-BK',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('code-cell t-strong">FAB-A-BK', false);
+        $response->assertDontSee('code-cell t-strong">FAB-T-WH', false);
+    }
+
+    public function test_forecast_search_filters_by_warning_status(): void
+    {
+        $ym = DemoData::CURRENT_YM;
+        $negativeLine = MonthEndForecastEngine::build($ym)->lines->first(fn ($line) => $line->is_negative);
+        $this->assertNotNull($negativeLine, 'テスト用に在庫不足予想の品番が必要です。');
+
+        $response = $this->get(route('inventory.index', [
+            'tab' => 'forecast',
+            'ym' => $ym,
+            'status' => '在庫不足予想',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee($negativeLine->sku, false);
+    }
+
+    public function test_forecast_kpi_reflects_search(): void
+    {
+        $ym = DemoData::CURRENT_YM;
+        $product = DemoData::products()->firstWhere('sku', 'FAB-A-BK');
+        $line = MonthEndForecastEngine::buildLine(
+            (int) $product->id,
+            $product,
+            $ym,
+            MonthEndForecastEngine::monthEndDate($ym)
+        );
+
+        $response = $this->get(route('inventory.index', [
+            'tab' => 'forecast',
+            'ym' => $ym,
+            'sku' => 'FAB-A-BK',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee(number_format($line->forecast_qty).'m', false);
+    }
+
+    public function test_forecast_prev_month_diff_for_filtered_lines(): void
+    {
+        $ym = DemoData::CURRENT_YM;
+        $product = DemoData::products()->first();
+        $line = MonthEndForecastEngine::buildLine(
+            (int) $product->id,
+            $product,
+            $ym,
+            MonthEndForecastEngine::monthEndDate($ym)
+        );
+        $summary = MonthEndForecastEngine::summarizeLines(collect([$line]), $ym);
+        $prevValue = MonthEndForecastEngine::prevForecastValue((int) $product->id, $ym);
+        $expectedDiff = ($line->cost_calculable ? (int) $line->forecast_value : 0) - $prevValue;
+
+        $this->assertSame($expectedDiff, $summary->prev_month_diff);
+    }
+
+    public function test_forecast_detail_shows_unshipped_orders(): void
+    {
+        $product = DemoData::products()->firstWhere('sku', 'FAB-T-WH');
+        $orders = MonthEndForecastEngine::unshippedOrdersForProduct((int) $product->id);
+        $this->assertNotEmpty($orders);
+
+        $response = $this->get(route('inventory.forecast.show', [
+            'product' => $product->id,
+            'ym' => DemoData::CURRENT_YM,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('未出荷受注一覧', false);
+        $response->assertSee($orders->first()->code, false);
+        $response->assertSee('手動調整', false);
+    }
+
+    public function test_forecast_adjustment_from_detail_redirects_back(): void
+    {
+        $product = DemoData::products()->first();
+        $ym = DemoData::CURRENT_YM;
+
+        $response = $this->post(route('inventory.forecast.adjustments'), [
+            'product_id' => $product->id,
+            'target_ym' => $ym,
+            'qty' => 5,
+            'direction' => 'increase',
+            'reason' => '詳細画面からのテスト調整',
+            'redirect' => 'detail',
+        ]);
+
+        $response->assertRedirect(route('inventory.forecast.show', ['product' => $product->id, 'ym' => $ym]));
     }
 
     public function test_long_term_tab_renders(): void
@@ -129,7 +232,13 @@ class InventoryForecastTest extends TestCase
 
     public function test_forecast_detail_page(): void
     {
-        $product = DemoData::products()->first();
+        $product = DemoData::products()->firstWhere('sku', 'FAB-A-BK');
+        $line = MonthEndForecastEngine::buildLine(
+            (int) $product->id,
+            $product,
+            DemoData::CURRENT_YM,
+            MonthEndForecastEngine::monthEndDate(DemoData::CURRENT_YM)
+        );
 
         $response = $this->get(route('inventory.forecast.show', [
             'product' => $product->id,
@@ -138,6 +247,37 @@ class InventoryForecastTest extends TestCase
 
         $response->assertOk();
         $response->assertSee($product->sku, false);
+        $response->assertSee('現在庫金額', false);
+        $response->assertSee('現在庫数量', false);
+        $response->assertSee('月末予想在庫', false);
+        $response->assertSee(number_format($line->forecast_qty).'m', false);
+        $response->assertDontSee('自動予想', false);
+        $response->assertSee('在庫不足予想', false);
         $response->assertSee('入荷予定', false);
+        $response->assertSee('出荷見通し', false);
+        $response->assertSee('売上見通しを編集', false);
+    }
+
+    public function test_forecast_detail_shows_submitted_badge_when_snapshot_exists(): void
+    {
+        $product = DemoData::products()->first();
+        $ym = DemoData::CURRENT_YM;
+        $result = MonthEndForecastEngine::build($ym);
+
+        ForecastSnapshot::save([
+            'target_ym' => $ym,
+            'base_date' => '2026-06-20',
+            'created_by' => 'テスト担当',
+            'total_forecast_value' => $result->forecast_value,
+            'total_long_term_value' => $result->long_term_value,
+        ], []);
+
+        $response = $this->get(route('inventory.forecast.show', [
+            'product' => $product->id,
+            'ym' => $ym,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('提出済 Ver.1', false);
     }
 }

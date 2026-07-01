@@ -3,13 +3,19 @@
 
     const greigeMeta = window.PURCHASE_GREIGE_META || {};
     const productMeta = window.PURCHASE_PRODUCT_META || {};
+    const TAN_STEP = 0.05;
+
+    function roundTan(tan) {
+        const steps = Math.round((parseFloat(tan) || 0) / TAN_STEP);
+        return Math.round(steps * TAN_STEP * 100) / 100;
+    }
 
     function roundMeters(tan, perTan) {
-        return Math.round((parseFloat(tan) || 0) * (parseInt(perTan, 10) || 0));
+        return Math.round(roundTan(tan) * (parseInt(perTan, 10) || 0));
     }
 
     function formatTan(tan) {
-        return (parseFloat(tan) || 0).toFixed(2).replace(/\.?0+$/, '') || '0';
+        return roundTan(tan).toFixed(2).replace(/\.?0+$/, '') || '0';
     }
 
     function calcGreigeYarn(sku, meters) {
@@ -49,14 +55,17 @@
             const sku = skuSelect.value;
             const meta = greigeMeta[sku] || {};
             const perTan = meta.meters_per_tan || 100;
-            perTanEl.value = perTan + ' m/反';
-            const meters = roundMeters(tanInput.value, perTan);
-            totalEl.value = formatTan(tanInput.value) + '反 / ' + meters.toLocaleString() + 'm';
+            perTanEl.value = perTan + ' m/反（標準）';
+            const roundedTan = roundTan(tanInput.value);
+            tanInput.value = formatTan(roundedTan);
+            const meters = roundMeters(roundedTan, perTan);
+            totalEl.value = formatTan(roundedTan) + '反 / ' + meters.toLocaleString() + 'm';
             renderYarnPreview(sku, meters);
         }
 
         skuSelect.addEventListener('change', sync);
         tanInput.addEventListener('input', sync);
+        tanInput.addEventListener('change', sync);
         sync();
     }
 
@@ -72,14 +81,17 @@
             const id = productSelect.value;
             const meta = productMeta[id] || {};
             const perTan = meta.meters_per_tan || 50;
-            perTanEl.value = perTan + ' m/反';
-            const meters = roundMeters(tanInput.value, perTan);
-            totalEl.value = formatTan(tanInput.value) + '反 / ' + meters.toLocaleString() + 'm';
+            perTanEl.value = perTan + ' m/反（標準）';
+            const roundedTan = roundTan(tanInput.value);
+            tanInput.value = formatTan(roundedTan);
+            const meters = roundMeters(roundedTan, perTan);
+            totalEl.value = formatTan(roundedTan) + '反 / ' + meters.toLocaleString() + 'm';
             if (hiddenMeters) hiddenMeters.value = meters > 0 ? String(meters) : '';
         }
 
         productSelect.addEventListener('change', sync);
         tanInput.addEventListener('input', sync);
+        tanInput.addEventListener('change', sync);
 
         if (hiddenMeters && hiddenMeters.value) {
             const id = productSelect.value;

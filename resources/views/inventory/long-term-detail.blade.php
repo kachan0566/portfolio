@@ -49,8 +49,8 @@
                             <tr>
                                 <td class="mono">{{ $lot->received_date }}</td>
                                 <td class="code-cell">{{ $lot->receiving_code ?? '—' }}</td>
-                                <td class="num mono">{{ number_format($lot->received_qty_m) }}m</td>
-                                <td class="num mono">{{ number_format($lot->remaining_qty_m) }}m</td>
+                                <td class="num mono">@include('partials.qty', ['qty' => $lot->received_qty_m, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty', ['qty' => $lot->remaining_qty_m, 'productId' => $product->id])</td>
                                 <td class="num mono">{{ $lot->age_months }}か月</td>
                                 <td>
                                     @if ($lot->is_long_term)

@@ -154,7 +154,6 @@
 
             <form action="{{ route('inventory.allocate', $product->id) }}" method="POST" id="allocation-form">
                 @csrf
-                @include('partials.qty-unit-toggle', ['pageKey' => 'allocation'])
                 <script id="alloc-meta" type="application/json">
                     {!! json_encode(['stock' => $effectiveStock, 'currentOrderId' => 0, 'metersPerTan' => $product->meters_per_tan ?? 50], JSON_UNESCAPED_UNICODE) !!}
                 </script>

@@ -1,4 +1,5 @@
 @php
+    use App\Support\QtyHelper;
     use App\Support\StockAllocation;
     $stockType = StockAllocation::TYPE_STOCK;
     $poType = StockAllocation::TYPE_PO;
@@ -14,11 +15,15 @@
         $poLines = $sOrder->po_lines ?? collect();
         $stockMap = [];
         foreach ($stockLines as $line) {
-            $stockMap[$line->po_id] = ($stockMap[$line->po_id] ?? 0) + $line->qty;
+            $stockMap[$line->po_id] = QtyHelper::roundTan(
+                ($stockMap[$line->po_id] ?? 0.0) + (float) ($line->qty_tan ?? QtyHelper::tanCount((int) $line->qty, $productId))
+            );
         }
         $poMap = [];
         foreach ($poLines as $line) {
-            $poMap[$line->po_id] = ($poMap[$line->po_id] ?? 0) + $line->qty;
+            $poMap[$line->po_id] = QtyHelper::roundTan(
+                ($poMap[$line->po_id] ?? 0.0) + (float) ($line->qty_tan ?? QtyHelper::tanCount((int) $line->qty, $productId))
+            );
         }
         if (empty($stockMap)) { $stockMap = ['' => 0]; }
         if (empty($poMap)) { $poMap = ['' => 0]; }
@@ -70,21 +75,19 @@
                             @endforeach
                         </select>
                         <div class="po-line__qty-wrap">
-                            <div class="qty-unit-field po-line__qty-field"
-                                 data-qty-unit-field
-                                 data-page-key="{{ $allocPageKey }}"
-                                 data-meters-per-tan="{{ $allocMetersPerTan }}"
-                                 data-max-meters="{{ $sOrder->remaining }}">
-                                <input type="hidden"
-                                       name="allocations[{{ $sOrder->id }}][{{ $stockType }}][{{ $safePoId }}]"
-                                       value="{{ $qty }}"
-                                       data-qty-meters-hidden>
-                                <div class="input-group po-line__input-group">
-                                    <input class="input mono" type="number" data-qty-display min="0" step="0.01" placeholder="0">
-                                    <span class="input-group__suffix" data-qty-suffix>反</span>
-                                </div>
-                                <p class="field-hint qty-unit-field__hint" data-qty-hint></p>
-                            </div>
+                            @include('partials.qty-input', [
+                                'tanName' => 'allocations['.$sOrder->id.']['.$stockType.']['.$safePoId.']',
+                                'valueTan' => $qty,
+                                'metersPerTan' => $allocMetersPerTan,
+                                'productId' => $productId,
+                                'pageKey' => $allocPageKey,
+                                'maxTan' => \App\Support\QtyHelper::tanCount($sOrder->remaining, $productId),
+                                'compact' => true,
+                                'fieldClass' => 'po-line__qty-field',
+                                'showMeterSwitch' => false,
+                                'submitMeters' => false,
+                                'id' => null,
+                            ])
                         </div>
                         <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.icon', ['name' => 'close'])</button>
                     </div>
@@ -112,21 +115,19 @@
                             @endforeach
                         </select>
                         <div class="po-line__qty-wrap">
-                            <div class="qty-unit-field po-line__qty-field"
-                                 data-qty-unit-field
-                                 data-page-key="{{ $allocPageKey }}"
-                                 data-meters-per-tan="{{ $allocMetersPerTan }}"
-                                 data-max-meters="{{ $sOrder->remaining }}">
-                                <input type="hidden"
-                                       name="allocations[{{ $sOrder->id }}][{{ $poType }}][{{ $safePoId }}]"
-                                       value="{{ $qty }}"
-                                       data-qty-meters-hidden>
-                                <div class="input-group po-line__input-group">
-                                    <input class="input mono" type="number" data-qty-display min="0" step="0.01" placeholder="0">
-                                    <span class="input-group__suffix" data-qty-suffix>反</span>
-                                </div>
-                                <p class="field-hint qty-unit-field__hint" data-qty-hint></p>
-                            </div>
+                            @include('partials.qty-input', [
+                                'tanName' => 'allocations['.$sOrder->id.']['.$poType.']['.$safePoId.']',
+                                'valueTan' => $qty,
+                                'metersPerTan' => $allocMetersPerTan,
+                                'productId' => $productId,
+                                'pageKey' => $allocPageKey,
+                                'maxTan' => \App\Support\QtyHelper::tanCount($sOrder->remaining, $productId),
+                                'compact' => true,
+                                'fieldClass' => 'po-line__qty-field',
+                                'showMeterSwitch' => false,
+                                'submitMeters' => false,
+                                'id' => null,
+                            ])
                         </div>
                         <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.icon', ['name' => 'close'])</button>
                     </div>

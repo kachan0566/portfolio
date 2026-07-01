@@ -28,6 +28,56 @@ class PurchaseOrderTest extends TestCase
         $response->assertSee('PO-2606-001');
     }
 
+    public function test_index_shows_arrival_inline_form(): void
+    {
+        $response = $this->get(route('purchases.index'));
+
+        $response->assertOk();
+        $response->assertSee('入荷予定日', false);
+        $response->assertSee('name="expected_arrival_date"', false);
+        $response->assertSee('name="arrival_memo"', false);
+        $response->assertSee('染工場から6/16上がり連絡あり', false);
+    }
+
+    public function test_patch_arrival_persists_product_finish_date_and_memo(): void
+    {
+        $po = DemoData::purchaseOrders()->firstWhere('code', 'PO-2606-002');
+        $this->assertNotNull($po);
+
+        $response = $this->patch(route('purchases.patch-arrival', $po->id), [
+            'expected_arrival_date' => '2026-06-20',
+            'arrival_memo' => 'テスト用メモ',
+        ]);
+
+        $response->assertRedirect(route('purchases.index'));
+        $response->assertSessionHas('success');
+
+        $overrides = PurchaseOrderOverlay::overrides((int) $po->id);
+        $this->assertSame('2026-06-20', $overrides['finish_date']);
+        $this->assertSame('テスト用メモ', $overrides['arrival_memo']);
+
+        $index = $this->get(route('purchases.index'));
+        $index->assertSee('value="2026-06-20"', false);
+        $index->assertSee('テスト用メモ', false);
+    }
+
+    public function test_patch_arrival_persists_yarn_due_date_and_memo(): void
+    {
+        $po = DemoData::purchaseOrders()->firstWhere('type', PurchaseOrderType::YARN);
+        $this->assertNotNull($po);
+
+        $response = $this->patch(route('purchases.patch-arrival', $po->id), [
+            'expected_arrival_date' => '2026-06-25',
+            'arrival_memo' => '糸入荷メモ',
+        ]);
+
+        $response->assertRedirect(route('purchases.index'));
+
+        $overrides = PurchaseOrderOverlay::overrides((int) $po->id);
+        $this->assertSame('2026-06-25', $overrides['due_date']);
+        $this->assertSame('糸入荷メモ', $overrides['arrival_memo']);
+    }
+
     public function test_greige_create_form_shows_loss_preview_fields(): void
     {
         $response = $this->get(route('purchases.create', ['type' => 'greige']));

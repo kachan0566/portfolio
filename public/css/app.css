@@ -1007,6 +1007,28 @@ table.data tbody tr.recipe-cost-total td {
     margin: 4px 0 0;
     font-size: 11px;
 }
+.qty-unit-field__switch {
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #2563eb;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.qty-unit-field__switch:hover {
+    color: #1d4ed8;
+}
+.qty-unit-field--compact .qty-unit-field__switch {
+    font-size: 10px;
+}
+.qty-unit-field--compact .qty-unit-field__hint {
+    margin: 2px 0 0;
+    font-size: 10px;
+}
 .po-line .qty-unit-field__hint {
     margin: 2px 0 0;
     font-size: 10px;

@@ -17,7 +17,8 @@ use Illuminate\Support\Collection;
  * - type     … "stock"（現在庫引当）| "po"（発注引当）
  * - order_id … どの受注に充てるか
  * - po_id    … 来歴の発注ID
- * - qty      … 数量
+ * - qty_tan  … 反数（正）
+ * - qty      … 標準換算メートル（派生・ロット連携用）
  */
 class StockAllocation
 {
@@ -27,11 +28,11 @@ class StockAllocation
 
     private const FILE = 'stock_allocations.json';
 
-    /** @var list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>|null */
+    /** @var list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>|null */
     private static ?array $linesCache = null;
 
     /**
-     * @return list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>
+     * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
      */
     public static function allLines(): array
     {
@@ -58,7 +59,7 @@ class StockAllocation
 
     /**
      * @param  array<mixed, mixed>  $legacy
-     * @return list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>
+     * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
      */
     private static function migrateLegacyFormat(array $legacy): array
     {
@@ -84,7 +85,7 @@ class StockAllocation
                     (int) $order->product_id,
                     (int) $orderId,
                     (int) $poId,
-                    $qty,
+                    QtyHelper::tanCount($qty, (int) $order->product_id),
                     self::inferType((int) $poId, $qty)
                 );
             }
@@ -99,7 +100,7 @@ class StockAllocation
 
     /**
      * @param  list<array<string, mixed>>  $lines
-     * @return list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>
+     * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
      */
     private static function normalizeLines(array $lines): array
     {
@@ -111,23 +112,26 @@ class StockAllocation
                 continue;
             }
 
-            $qty = (int) ($line['qty'] ?? 0);
-            if ($qty <= 0) {
+            $qtyTan = isset($line['qty_tan'])
+                ? QtyHelper::roundTan((float) $line['qty_tan'])
+                : QtyHelper::tanCount((int) ($line['qty'] ?? 0), (int) ($line['product_id'] ?? 0));
+            if ($qtyTan <= 0) {
                 continue;
             }
 
             $poId = (int) ($line['po_id'] ?? 0);
+            $productId = (int) ($line['product_id'] ?? 0);
             $type = $line['type'] ?? null;
             if (! in_array($type, [self::TYPE_STOCK, self::TYPE_PO], true)) {
-                $type = self::inferType($poId, $qty);
+                $type = self::inferType($poId, QtyHelper::metersFromTan($qtyTan, $productId));
                 $needsRewrite = true;
             }
 
             $result[] = self::buildLine(
-                (int) ($line['product_id'] ?? 0),
+                $productId,
                 (int) ($line['order_id'] ?? 0),
                 $poId,
-                $qty,
+                $qtyTan,
                 $type
             );
         }
@@ -160,21 +164,24 @@ class StockAllocation
     }
 
     /**
-     * @return array{product_id: int, order_id: int, po_id: int, qty: int, type: string}
+     * @return array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}
      */
-    private static function buildLine(int $productId, int $orderId, int $poId, int $qty, string $type): array
+    private static function buildLine(int $productId, int $orderId, int $poId, float $qtyTan, string $type): array
     {
+        $qtyTan = QtyHelper::roundTan($qtyTan);
+
         return [
             'product_id' => $productId,
             'order_id' => $orderId,
             'po_id' => $poId,
-            'qty' => $qty,
+            'qty_tan' => $qtyTan,
+            'qty' => QtyHelper::metersFromTan($qtyTan, $productId),
             'type' => $type,
         ];
     }
 
     /**
-     * @param  list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>  $lines
+     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>  $lines
      */
     private static function write(array $lines): void
     {
@@ -351,8 +358,11 @@ class StockAllocation
             ->all();
 
         foreach ($lines as $line) {
-            $qty = (int) ($line['qty'] ?? 0);
-            if ($qty <= 0) {
+            $qtyTan = QtyHelper::roundTan((float) ($line['qty_tan'] ?? $line['qty'] ?? 0));
+            if ($qtyTan <= 0 && isset($line['qty'])) {
+                $qtyTan = QtyHelper::tanCount((int) $line['qty'], $productId);
+            }
+            if ($qtyTan <= 0) {
                 continue;
             }
 
@@ -365,7 +375,7 @@ class StockAllocation
                 $productId,
                 (int) ($line['order_id'] ?? 0),
                 (int) ($line['po_id'] ?? 0),
-                $qty,
+                $qtyTan,
                 $type
             );
         }
@@ -393,16 +403,16 @@ class StockAllocation
                     continue;
                 }
 
-                foreach ($poMap as $poId => $qty) {
-                    $qty = (int) $qty;
-                    if ($qty <= 0) {
+                foreach ($poMap as $poId => $qtyTan) {
+                    $qtyTan = QtyHelper::roundTan((float) $qtyTan);
+                    if ($qtyTan <= 0) {
                         continue;
                     }
 
                     $lines[] = [
                         'order_id' => (int) $orderId,
                         'po_id' => (int) $poId,
-                        'qty' => $qty,
+                        'qty_tan' => $qtyTan,
                         'type' => $type,
                     ];
                 }
@@ -422,9 +432,10 @@ class StockAllocation
         self::saveFromTypedMaps($productId, $typed);
     }
 
-    public static function addLine(int $productId, int $orderId, int $poId, int $qty, string $type = self::TYPE_STOCK): void
+    public static function addLine(int $productId, int $orderId, int $poId, float $qtyTan, string $type = self::TYPE_STOCK): void
     {
-        if ($qty <= 0) {
+        $qtyTan = QtyHelper::roundTan($qtyTan);
+        if ($qtyTan <= 0) {
             return;
         }
 
@@ -436,7 +447,9 @@ class StockAllocation
                 && $line['order_id'] === $orderId
                 && $line['po_id'] === $poId
                 && $line['type'] === $type) {
-                $line['qty'] += $qty;
+                $newTan = QtyHelper::roundTan($line['qty_tan'] + $qtyTan);
+                $line['qty_tan'] = $newTan;
+                $line['qty'] = QtyHelper::metersFromTan($newTan, $productId);
                 $merged = true;
                 break;
             }
@@ -444,7 +457,7 @@ class StockAllocation
         unset($line);
 
         if (! $merged) {
-            $all[] = self::buildLine($productId, $orderId, $poId, $qty, $type);
+            $all[] = self::buildLine($productId, $orderId, $poId, $qtyTan, $type);
         }
 
         self::write($all);
@@ -521,11 +534,13 @@ class StockAllocation
                     continue;
                 }
 
-                foreach ($poMap as $poKey => $qty) {
-                    $qty = max(0, (int) $qty);
-                    if ($qty === 0) {
+                foreach ($poMap as $poKey => $qtyTan) {
+                    $qtyTan = max(0.0, (float) $qtyTan);
+                    if ($qtyTan <= 0) {
                         continue;
                     }
+
+                    $qty = QtyHelper::metersFromTan($qtyTan, $productId);
 
                     $poId = self::parsePoId($poKey);
                     if ($poId === null) {
@@ -605,14 +620,14 @@ class StockAllocation
                     continue;
                 }
 
-                foreach ($poMap as $poKey => $qty) {
-                    $qty = max(0, (int) $qty);
+                foreach ($poMap as $poKey => $qtyTan) {
+                    $qtyTan = max(0.0, (float) $qtyTan);
                     $poId = self::parsePoId($poKey);
-                    if ($qty === 0 || $poId === null) {
+                    if ($qtyTan <= 0 || $poId === null) {
                         continue;
                     }
 
-                    $orderMaps[$type][$poId] = ($orderMaps[$type][$poId] ?? 0) + $qty;
+                    $orderMaps[$type][$poId] = QtyHelper::roundTan(($orderMaps[$type][$poId] ?? 0.0) + $qtyTan);
                 }
             }
 

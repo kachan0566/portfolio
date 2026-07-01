@@ -54,11 +54,11 @@ class DemoData
     public static function greiges(): Collection
     {
         return collect([
-            (object) ['id' => 1, 'sku' => 'KB-A', 'name' => '生機A',        'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
-            (object) ['id' => 2, 'sku' => 'KB-B', 'name' => '生機B',        'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
-            (object) ['id' => 3, 'sku' => 'KB-T', 'name' => 'Tシャツ生機',  'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
-            (object) ['id' => 4, 'sku' => 'KB-C', 'name' => '裏地C生機',    'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
-            (object) ['id' => 5, 'sku' => 'KB-D', 'name' => 'デニム生機',   'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
+            (object) ['id' => 1, 'sku' => 'KB-A', 'name' => '生機A',        'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
+            (object) ['id' => 2, 'sku' => 'KB-B', 'name' => '生機B',        'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
+            (object) ['id' => 3, 'sku' => 'KB-T', 'name' => 'Tシャツ生機',  'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
+            (object) ['id' => 4, 'sku' => 'KB-C', 'name' => '裏地C生機',    'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
+            (object) ['id' => 5, 'sku' => 'KB-D', 'name' => 'デニム生機',   'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_GREIGE],
         ]);
     }
 
@@ -66,13 +66,13 @@ class DemoData
     public static function products(): Collection
     {
         $rows = [
-            (object) ['id' => 1, 'sku' => 'FAB-A-BK', 'greige_sku' => 'KB-A', 'greige_name' => '生機A',       'color' => 'ブラック',   'price' => 1200, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 40,  'stock_min' => 100],
-            (object) ['id' => 2, 'sku' => 'FAB-B-NV', 'greige_sku' => 'KB-B', 'greige_name' => '生機B',       'color' => 'ネイビー',   'price' => 1500, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 100],
-            (object) ['id' => 3, 'sku' => 'FAB-T-WH', 'greige_sku' => 'KB-T', 'greige_name' => 'Tシャツ生機', 'color' => 'ホワイト',   'price' => 900,  'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 70,  'stock_min' => 150],
-            (object) ['id' => 4, 'sku' => 'LIN-C-BE', 'greige_sku' => 'KB-C', 'greige_name' => '裏地C生機',   'color' => 'ベージュ',   'price' => 700,  'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 80],
-            (object) ['id' => 5, 'sku' => 'DEN-D-IN', 'greige_sku' => 'KB-D', 'greige_name' => 'デニム生機',   'color' => 'インディゴ', 'price' => 1800, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 100],
-            (object) ['id' => 6, 'sku' => 'FAB-A-WH', 'greige_sku' => 'KB-A', 'greige_name' => '生機A',       'color' => 'ホワイト',   'price' => 1250, 'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 80],
-            (object) ['id' => 7, 'sku' => 'FAB-T-BK', 'greige_sku' => 'KB-T', 'greige_name' => 'Tシャツ生機', 'color' => 'ブラック',   'price' => 950,  'category' => '生地', 'unit' => 'm', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 120,  'stock_min' => 150],
+            (object) ['id' => 1, 'sku' => 'FAB-A-BK', 'greige_sku' => 'KB-A', 'greige_name' => '生機A',       'color' => 'ブラック',   'price' => 1200, 'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 40,  'stock_min' => 100],
+            (object) ['id' => 2, 'sku' => 'FAB-B-NV', 'greige_sku' => 'KB-B', 'greige_name' => '生機B',       'color' => 'ネイビー',   'price' => 1500, 'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 100],
+            (object) ['id' => 3, 'sku' => 'FAB-T-WH', 'greige_sku' => 'KB-T', 'greige_name' => 'Tシャツ生機', 'color' => 'ホワイト',   'price' => 900,  'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 70,  'stock_min' => 150],
+            (object) ['id' => 4, 'sku' => 'LIN-C-BE', 'greige_sku' => 'KB-C', 'greige_name' => '裏地C生機',   'color' => 'ベージュ',   'price' => 700,  'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 80],
+            (object) ['id' => 5, 'sku' => 'DEN-D-IN', 'greige_sku' => 'KB-D', 'greige_name' => 'デニム生機',   'color' => 'インディゴ', 'price' => 1800, 'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 100],
+            (object) ['id' => 6, 'sku' => 'FAB-A-WH', 'greige_sku' => 'KB-A', 'greige_name' => '生機A',       'color' => 'ホワイト',   'price' => 1250, 'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 0,   'stock_min' => 80],
+            (object) ['id' => 7, 'sku' => 'FAB-T-BK', 'greige_sku' => 'KB-T', 'greige_name' => 'Tシャツ生機', 'color' => 'ブラック',   'price' => 950,  'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 120,  'stock_min' => 150],
         ];
 
         $priceUpdates = DemoOverlay::productPriceUpdates();
@@ -83,6 +83,14 @@ class DemoData
             }
 
             $perTan = $p->meters_per_tan ?? self::METERS_PER_TAN_PRODUCT;
+            $p->stock_tan = isset($p->stock_tan)
+                ? QtyHelper::roundTan((float) $p->stock_tan)
+                : ($perTan > 0
+                    ? QtyHelper::roundTan((int) ($p->stock ?? 0) / $perTan)
+                    : 0.0);
+            $p->stock = $perTan > 0
+                ? (int) round($p->stock_tan * $perTan)
+                : (int) ($p->stock ?? 0);
             $p->stock_min_tan = $perTan > 0
                 ? round($p->stock_min / $perTan, QtyHelper::TAN_DECIMALS)
                 : 0.0;
@@ -672,6 +680,21 @@ class DemoData
             $r['sku'] = $product->sku;
             $r['color'] = $product->color;
             $r['unit'] = $product->unit;
+            $r['qty_tan'] = FabricQuantity::tanFromRecord($r, (int) $r['product_id']);
+            $r['shipped_tan'] = FabricQuantity::tanFromRecord(
+                ['qty_tan' => $r['shipped_tan'] ?? null, 'qty' => $r['shipped'] ?? 0],
+                (int) $r['product_id'],
+            );
+            $r['qty_meters'] = FabricQuantity::metersFromRecord(
+                ['qty_tan' => $r['qty_tan'], 'qty_meters' => $r['qty_meters'] ?? null],
+                (int) $r['product_id'],
+            );
+            $r['shipped_meters'] = FabricQuantity::metersFromRecord(
+                ['qty_tan' => $r['shipped_tan'], 'qty_meters' => $r['shipped_meters'] ?? null],
+                (int) $r['product_id'],
+            );
+            $r['qty'] = $r['qty_meters'];
+            $r['shipped'] = $r['shipped_meters'];
             $r['status'] = self::progressStatus($r['shipped'], $r['qty'], '受注');
             $r['is_new_today'] = $r['order_date'] === self::today();
 
@@ -722,6 +745,7 @@ class DemoData
                 'product_id' => 3, 'qty_meters' => 300, 'received' => 150,
                 'order_date' => '2026-06-03', 'due_date' => '2026-06-14',
                 'stage' => '染機投入済', 'finish_date' => '2026-06-16', 'contact_date' => '2026-06-15',
+                'arrival_memo' => '染工場から6/16上がり連絡あり',
                 'schedule' => [
                     '原材料未発注' => '2026-06-03', '原材料発注済' => '2026-06-05', '原材料出荷済' => '2026-06-07',
                     '織編機投入済' => '2026-06-10', '生機出荷済' => '2026-06-12', '染機投入済' => '2026-06-14',
@@ -735,6 +759,7 @@ class DemoData
                 'product_id' => 5, 'qty_meters' => 120, 'received' => 0,
                 'order_date' => '2026-06-05', 'due_date' => '2026-06-19',
                 'stage' => '生機出荷済', 'finish_date' => '2026-06-22', 'contact_date' => '2026-06-20',
+                'arrival_memo' => '染工場に確認済み。6/22入荷見込み',
                 'schedule' => [
                     '原材料未発注' => '2026-06-05', '原材料発注済' => '2026-06-08', '原材料出荷済' => '2026-06-11',
                     '織編機投入済' => '2026-06-14', '生機出荷済' => '2026-06-16', '染機投入済' => '2026-06-19',
@@ -774,6 +799,7 @@ class DemoData
                 'product_id' => 6, 'qty_meters' => 40, 'received' => 0,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-01',
                 'stage' => '原材料発注済', 'finish_date' => '2026-07-02', 'contact_date' => '2026-06-30',
+                'arrival_memo' => '不足分40mの追加手配。7/2上がり予定',
                 'schedule' => [
                     '原材料未発注' => '2026-06-25', '原材料発注済' => '2026-06-25', '原材料出荷済' => '2026-06-27',
                     '織編機投入済' => '2026-06-28', '生機出荷済' => '2026-06-29', '染機投入済' => '2026-07-01',
@@ -865,6 +891,7 @@ class DemoData
         $row['ship_to'] = $shipTo?->name ?? '—';
         $row['ship_to_type'] = $shipTo?->type;
         $row['eta'] = $row['due_date'] ?? $row['eta'] ?? null;
+        $row['arrival_memo'] = (string) ($row['arrival_memo'] ?? '');
 
         $linkedOrderId = PurchaseOrderLink::orderIdForPurchase((int) $row['id'], $row['order_id'] ?? null);
         $row['order_id'] = $linkedOrderId;
@@ -885,7 +912,7 @@ class DemoData
             $greige = self::findGreige((string) ($row['greige_sku'] ?? ''));
             $row['sku'] = $greige?->sku ?? ($row['greige_sku'] ?? '—');
             $row['product'] = $greige?->name ?? '—';
-            $row['unit'] = 'm';
+            $row['unit'] = '反';
             $row['qty_meters'] = (int) ($row['qty_meters'] ?? 0);
             $row['qty'] = $row['qty_meters'];
             $row['qty_tan'] = (float) ($row['qty_tan'] ?? 0);
@@ -899,8 +926,14 @@ class DemoData
             $row['product_id'] = (int) ($row['product_id'] ?? 0);
             $row['product'] = $product?->sku ?? '—';
             $row['sku'] = $product?->sku ?? '—';
-            $row['unit'] = $product?->unit ?? 'm';
+            $row['unit'] = $product?->unit ?? '反';
             $row['qty_meters'] = (int) ($row['qty_meters'] ?? $row['qty'] ?? 0);
+            $row['qty_tan'] = isset($row['qty_tan']) && (float) $row['qty_tan'] > 0
+                ? QtyHelper::roundTan((float) $row['qty_tan'])
+                : QtyHelper::tanCount($row['qty_meters'], (int) ($row['product_id'] ?? 0));
+            if ($row['qty_meters'] <= 0 && $row['qty_tan'] > 0) {
+                $row['qty_meters'] = QtyHelper::metersFromTan($row['qty_tan'], (int) ($row['product_id'] ?? 0));
+            }
             $row['qty'] = $row['qty_meters'];
             $row['received'] = (int) ($row['received'] ?? 0);
             $row['stage'] = $row['stage'] ?? $row['status_label'];
@@ -913,11 +946,45 @@ class DemoData
         return (object) $row;
     }
 
+    public static function expectedArrivalDate(object $po): string
+    {
+        return match ($po->type ?? PurchaseOrderType::PRODUCT) {
+            PurchaseOrderType::PRODUCT => (string) ($po->finish_date ?? ''),
+            default => (string) ($po->eta ?? $po->due_date ?? ''),
+        };
+    }
+
     public static function purchaseOrderOrderedQty(object $po): float
     {
         return match ($po->type ?? PurchaseOrderType::PRODUCT) {
             PurchaseOrderType::YARN => (float) ($po->qty_kg ?? $po->qty ?? 0),
-            default => (float) (int) ($po->qty_meters ?? $po->qty ?? 0),
+            PurchaseOrderType::GREIGE => (float) ($po->qty_tan ?? QtyHelper::tanCount(
+                (int) ($po->qty_meters ?? $po->qty ?? 0),
+                null,
+                true,
+                (string) ($po->greige_sku ?? $po->sku ?? ''),
+            )),
+            default => (float) ($po->qty_tan ?? QtyHelper::tanCount(
+                (int) ($po->qty_meters ?? $po->qty ?? 0),
+                (int) ($po->product_id ?? 0),
+            )),
+        };
+    }
+
+    public static function purchaseOrderOrderedMeters(object $po): int
+    {
+        return match ($po->type ?? PurchaseOrderType::PRODUCT) {
+            PurchaseOrderType::YARN => 0,
+            PurchaseOrderType::GREIGE => (int) ($po->qty_meters ?? QtyHelper::metersFromTan(
+                (float) ($po->qty_tan ?? 0),
+                null,
+                true,
+                (string) ($po->greige_sku ?? $po->sku ?? ''),
+            )),
+            default => (int) ($po->qty_meters ?? QtyHelper::metersFromTan(
+                (float) ($po->qty_tan ?? 0),
+                (int) ($po->product_id ?? 0),
+            )),
         };
     }
 
@@ -985,7 +1052,7 @@ class DemoData
                 $r['qty'] = $r['qty_kg'];
             } elseif ($r['po_type'] === PurchaseOrderType::GREIGE) {
                 $r['sku'] = $r['greige_sku'];
-                $r['unit'] = 'm';
+                $r['unit'] = '反';
                 $r['qty'] = $r['qty_meters'];
             } else {
                 $product = self::findProduct((int) $r['product_id']);

@@ -22,6 +22,8 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'order_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:order_date'],
             'status' => ['required', 'string'],
+            'finish_date' => ['nullable', 'date'],
+            'arrival_memo' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -36,6 +38,8 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'order_date' => '発注日',
             'due_date' => '納期',
             'status' => '状態',
+            'finish_date' => '入荷予定日',
+            'arrival_memo' => 'メモ',
         ];
     }
 }

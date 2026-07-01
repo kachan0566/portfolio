@@ -85,10 +85,32 @@
                             </select>
                         </div>
                         <div class="form-row">
-                            <div class="field">
-                                <label class="label" for="qty">入荷数量（{{ $qtyUnit }}）<span class="req">*</span></label>
-                                <input class="input" type="number" id="qty" name="qty" min="{{ $type === PurchaseOrderType::YARN ? '0.01' : '1' }}" step="{{ $qtyStep }}" placeholder="{{ $type === PurchaseOrderType::YARN ? '100.5' : '100' }}">
-                            </div>
+                            @if ($type === PurchaseOrderType::YARN)
+                                <div class="field">
+                                    <label class="label" for="qty">入荷数量（kg）<span class="req">*</span></label>
+                                    <input class="input" type="number" id="qty" name="qty" min="0.01" step="0.01" placeholder="100.5">
+                                </div>
+                            @else
+                                <div class="field">
+                                    <label class="label" for="receiving-qty">入荷数量<span class="req">*</span></label>
+                                    @php
+                                        $firstPo = $pending->first();
+                                        $metersPerTan = $type === PurchaseOrderType::GREIGE
+                                            ? ($firstPo->meters_per_tan ?? 100)
+                                            : (\App\Support\DemoData::findProduct((int) ($firstPo->product_id ?? 0))?->meters_per_tan ?? 50);
+                                    @endphp
+                                    @include('partials.qty-input', [
+                                        'tanName' => 'qty_tan',
+                                        'metersName' => 'qty_meters',
+                                        'id' => 'receiving-qty',
+                                        'valueTan' => 0,
+                                        'metersPerTan' => $metersPerTan,
+                                        'pageKey' => 'receiving-form',
+                                        'placeholder' => '2',
+                                    ])
+                                    <p class="field-hint">反数を入力すると見込mが表示されます。mで直接指定すると実測合計として記録されます（織り上がり／染め上がりの誤差）。</p>
+                                </div>
+                            @endif
                             <div class="field">
                                 <label class="label" for="date">入荷日<span class="req">*</span></label>
                                 <input class="input" type="date" id="date" name="date" value="2026-06-15">
@@ -98,11 +120,17 @@
                             @if ($type === PurchaseOrderType::YARN)
                                 登録すると糸在庫（kg）が増加します。
                             @elseif ($type === PurchaseOrderType::GREIGE)
-                                登録すると染工場の生機在庫（m）が増加します。
+                                登録すると染工場の生機在庫が増加し、反明細に織り上がり実測 m が記録されます。
                             @else
-                                登録すると製品在庫（m）が増加します。発注引当がある場合は自動で現在庫引当に変換されます。
+                                登録すると製品在庫が増加し、反明細に染め上がり実測 m が記録されます。発注引当がある場合は自動で現在庫引当に変換されます。
                             @endif
                         </p>
+                        @if ($type !== PurchaseOrderType::YARN)
+                            @include('partials.qty-unit-loader')
+                            <script>
+                                QtyUnit.initPage('receiving-form');
+                            </script>
+                        @endif
                         <div class="actions">
                             <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 入荷を登録</button>
                             <a href="{{ route('receivings.index') }}" class="btn btn-secondary">キャンセル</a>

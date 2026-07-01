@@ -31,6 +31,8 @@ class InventoryForecastController extends Controller
             'line' => $line,
             'ym' => $ym,
             'monthEndDate' => MonthEndForecastEngine::monthEndDate($ym),
+            'forecastSummary' => MonthEndForecastEngine::summarizeLines(collect([$line]), $ym),
+            'unshippedOrders' => MonthEndForecastEngine::unshippedOrdersForProduct($product),
         ]);
     }
 
@@ -42,6 +44,7 @@ class InventoryForecastController extends Controller
             'qty' => ['required', 'numeric', 'min:0.01'],
             'direction' => ['required', 'in:increase,decrease'],
             'reason' => ['required', 'string', 'max:500'],
+            'redirect' => ['nullable', 'in:detail'],
         ]);
 
         $productId = (int) $request->input('product_id');
@@ -58,8 +61,16 @@ class InventoryForecastController extends Controller
             '木村 勝也'
         );
 
+        $targetYm = (string) $request->input('target_ym');
+
+        if ($request->input('redirect') === 'detail') {
+            return redirect()
+                ->route('inventory.forecast.show', ['product' => $productId, 'ym' => $targetYm])
+                ->with('success', '手動調整を登録しました。');
+        }
+
         return redirect()
-            ->route('inventory.index', ['tab' => 'forecast', 'ym' => $request->input('target_ym')])
+            ->route('inventory.index', ['tab' => 'forecast', 'ym' => $targetYm])
             ->with('success', '手動調整を登録しました。');
     }
 
@@ -108,34 +119,38 @@ class InventoryForecastController extends Controller
             $out = fopen('php://output', 'w');
             fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($out, [
-                '品番', '現在庫数量（反）', '現在庫数量（m）',
-                '月末入荷予定数量', '月末出荷確定数量', '手動調整数量',
-                '月末予想在庫数量', '最新製造コスト', '月末予想在庫金額',
-                '最古入荷日', '最古在庫月齢', '12か月以上在庫数量', '12か月以上在庫金額', '備考',
+                '品番',
+                '現在庫数量（反）', '現在庫数量（m）',
+                '入荷予定（反）', '入荷予定（m）',
+                '出荷確定（反）', '出荷確定（m）',
+                '手動調整（反）', '手動調整（m）',
+                '月末予想在庫（反）', '月末予想在庫（m）',
+                '最新製造コスト', '月末予想在庫金額',
+                '最古入荷日', '最古在庫月齢',
+                '12か月以上在庫（反）', '12か月以上在庫（m）', '12か月以上在庫金額',
+                '備考',
             ]);
 
-            $totalQty = 0.0;
-            $totalValue = 0;
-
             foreach ($result->lines as $line) {
-                $product = DemoData::findProduct($line->product_id);
-                $mpt = $product?->meters_per_tan ?? 50;
-                $tan = QtyHelper::tanCount($line->current_stock_qty, $mpt);
-                $totalQty += $line->forecast_qty;
-                $totalValue += $line->forecast_value;
+                $productId = (int) $line->product_id;
 
                 fputcsv($out, [
                     $line->sku,
-                    $tan,
+                    QtyHelper::tanCount($line->current_stock_qty, $productId),
                     $line->current_stock_qty,
+                    QtyHelper::tanCount($line->inbound_scheduled_qty, $productId),
                     $line->inbound_scheduled_qty,
+                    QtyHelper::tanCount($line->outbound_confirmed_qty, $productId),
                     $line->outbound_confirmed_qty,
+                    QtyHelper::tanCount($line->manual_adjustment_qty, $productId),
                     $line->manual_adjustment_qty,
+                    QtyHelper::tanCount($line->forecast_qty, $productId),
                     $line->forecast_qty,
                     $line->unit_cost ?? '',
                     $line->forecast_value,
                     $line->oldest_received_date ?? '',
                     $line->oldest_age_months ?? '',
+                    QtyHelper::tanCount($line->long_term_qty, $productId),
                     $line->long_term_qty,
                     $line->long_term_value,
                     $line->note,
@@ -143,7 +158,24 @@ class InventoryForecastController extends Controller
             }
 
             fputcsv($out, [
-                '合計', '', '', '', '', '', $totalQty, '', $totalValue, '', '', '', '', '',
+                '合計',
+                QtyHelper::sumTanFromLines($result->lines, 'current_stock_qty'),
+                $result->lines->sum('current_stock_qty'),
+                QtyHelper::sumTanFromLines($result->lines, 'inbound_scheduled_qty'),
+                $result->lines->sum('inbound_scheduled_qty'),
+                QtyHelper::sumTanFromLines($result->lines, 'outbound_confirmed_qty'),
+                $result->lines->sum('outbound_confirmed_qty'),
+                QtyHelper::sumTanFromLines($result->lines, 'manual_adjustment_qty'),
+                $result->lines->sum('manual_adjustment_qty'),
+                QtyHelper::sumTanFromLines($result->lines, 'forecast_qty'),
+                $result->lines->sum('forecast_qty'),
+                '',
+                $result->lines->sum('forecast_value'),
+                '', '',
+                QtyHelper::sumTanFromLines($result->lines, 'long_term_qty'),
+                $result->lines->sum('long_term_qty'),
+                $result->lines->sum('long_term_value'),
+                '',
             ]);
             fclose($out);
         }, $filename, [

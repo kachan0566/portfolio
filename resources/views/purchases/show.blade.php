@@ -181,6 +181,36 @@
         </div>
     </div>
 
+    @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE && ($tanRolls ?? collect())->isNotEmpty())
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__head">
+                <h2 class="card__title">反明細（織り上がり実測）</h2>
+            </div>
+            <div class="card__body">
+                @include('partials.tan-roll-table', [
+                    'rolls' => $tanRolls,
+                    'showWeaving' => true,
+                    'showDyeing' => false,
+                ])
+            </div>
+        </div>
+    @endif
+
+    @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT && ($tanRolls ?? collect())->isNotEmpty())
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__head">
+                <h2 class="card__title">反明細（染め上がり実測）</h2>
+            </div>
+            <div class="card__body">
+                @include('partials.tan-roll-table', [
+                    'rolls' => $tanRolls,
+                    'showWeaving' => true,
+                    'showDyeing' => true,
+                ])
+            </div>
+        </div>
+    @endif
+
     @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE && ! empty($purchase->yarn_requirements))
         <div class="card" style="margin-bottom:16px;">
             <div class="card__head"><h2 class="card__title">必要糸量（ロス率込み）</h2></div>
