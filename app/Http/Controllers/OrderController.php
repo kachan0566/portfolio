@@ -1,0 +1,351 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Support\AllocationConversion;
+use App\Support\DemoData;
+use App\Support\DemoState;
+use App\Support\ListSearch;
+use App\Support\PurchaseOrderLink;
+use App\Support\StockAllocation;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class OrderController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $search = ListSearch::params($request);
+        $orders = ListSearch::filter(DemoData::orders(), $search, [
+            'status_resolver' => function ($order, $status) {
+                if ($status === '出荷残あり') {
+                    return $order->shipped < $order->qty;
+                }
+
+                return $order->status === $status;
+            },
+        ])->sortBy([
+            ['order_date', 'desc'],
+            ['id', 'desc'],
+        ])->map(function ($order) {
+                $allocation = StockAllocation::statusForOrder($order);
+                $order->allocation_status = $allocation['status'];
+                $order->allocation_badge = $allocation['badge_class'];
+                $order->shippable_status = $allocation['shippable_status'];
+                $order->shippable_badge = $allocation['shippable_badge'];
+                $order->allocated = $allocation['allocated'];
+                $order->stock_allocated = $allocation['stock_allocated'];
+                $order->po_allocated = $allocation['po_allocated'];
+                $order->remaining = $allocation['remaining'];
+                $order->shippable = $allocation['shippable'];
+                $order->price = DemoData::findProduct($order->product_id)?->price ?? 0;
+
+                return $order;
+            });
+
+        return view('orders.index', [
+            'orders' => $orders,
+            'search' => $search,
+        ]);
+    }
+
+    public function show(int $order): View
+    {
+        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+
+        $allocation = StockAllocation::statusForOrder($target);
+        $target->allocation_status = $allocation['status'];
+        $target->allocation_badge = $allocation['badge_class'];
+        $target->shippable_status = $allocation['shippable_status'];
+        $target->shippable_badge = $allocation['shippable_badge'];
+        $target->allocated = $allocation['allocated'];
+        $target->stock_allocated = $allocation['stock_allocated'];
+        $target->po_allocated = $allocation['po_allocated'];
+        $target->remaining = $allocation['remaining'];
+        $target->shippable = $allocation['shippable'];
+
+        $product = DemoData::findProduct($target->product_id) ?? abort(404);
+        $effectiveStock = DemoState::effectiveStock($target->product_id);
+
+        $shipRate = $target->qty > 0
+            ? (int) round(DemoState::effectiveShipped($target->id) / $target->qty * 100)
+            : 0;
+
+        $allocationRate = $target->remaining > 0
+            ? (int) round($target->allocated / $target->remaining * 100)
+            : 0;
+
+        $confirmedQty = DemoState::effectiveShipped($target->id) + $target->allocated;
+        $confirmedRate = $target->qty > 0
+            ? (int) round($confirmedQty / $target->qty * 100)
+            : 0;
+
+        $stockRate = $target->qty > 0
+            ? (int) round($effectiveStock / $target->qty * 100)
+            : 0;
+
+        $shipments = DemoData::shipments()
+            ->where('order_code', $target->code)
+            ->sortBy('date')
+            ->values();
+
+        $linkedPurchaseOrders = PurchaseOrderLink::linkedToOrder($target->id, $target->product_id);
+        $freePurchaseOrders = PurchaseOrderLink::freeForProduct($target->product_id);
+
+        $allocationLines = StockAllocation::linesForOrder($target->id);
+        $stockAllocationLines = StockAllocation::stockLinesForOrder($target->id);
+        $poAllocationLines = StockAllocation::poLinesForOrder($target->id);
+        $conversionHistory = AllocationConversion::forOrder($target->id);
+        $shippableQty = StockAllocation::shippableQty($target->id);
+
+        $unallocated = max(0, $target->remaining - $target->allocated);
+        $stockShortage = max(0, $unallocated - $target->stock_allocated);
+
+        $stockCheckLevel = match (true) {
+            $target->remaining === 0 => null,
+            $unallocated === 0 => 'allocated',
+            $target->stock_allocated >= $unallocated => 'full',
+            $target->stock_allocated > 0 => 'partial',
+            default => 'none',
+        };
+
+        $sameProductOrders = DemoData::orders()
+            ->where('product_id', $target->product_id)
+            ->map(function ($o) {
+                $alloc = StockAllocation::statusForOrder($o);
+                $o->allocation_status = $alloc['status'];
+                $o->allocation_badge = $alloc['badge_class'];
+                $o->allocated = $alloc['allocated'];
+                $o->stock_allocated = $alloc['stock_allocated'];
+                $o->po_allocated = $alloc['po_allocated'];
+                $o->remaining = $alloc['remaining'];
+                $o->allocation_lines = StockAllocation::linesForOrder($o->id);
+                $o->stock_lines = StockAllocation::stockLinesForOrder($o->id);
+                $o->po_lines = StockAllocation::poLinesForOrder($o->id);
+
+                return $o;
+            })
+            ->filter(fn ($o) => $o->remaining > 0)
+            ->sortBy('due_date')
+            ->values();
+
+        $poOptions = StockAllocation::poOptionsForProduct($target->product_id);
+
+        $otherOrdersStockAllocated = $sameProductOrders
+            ->where('id', '!=', $target->id)
+            ->sum('stock_allocated');
+
+        $availableStockForThis = max(0, $effectiveStock - $otherOrdersStockAllocated);
+        $unallocatedStock = StockAllocation::unallocatedStockForProduct($target->product_id);
+        $unallocatedPoRemaining = StockAllocation::unallocatedPoRemainingForProduct($target->product_id);
+        $supplyShortage = StockAllocation::supplyShortageForOrder($target->id);
+
+        return view('orders.show', [
+            'order' => $target,
+            'product' => $product,
+            'effectiveStock' => $effectiveStock,
+            'shipRate' => $shipRate,
+            'allocationRate' => $allocationRate,
+            'confirmedQty' => $confirmedQty,
+            'confirmedRate' => $confirmedRate,
+            'unallocated' => $unallocated,
+            'stockCoversRemaining' => $target->stock_allocated >= $target->remaining,
+            'stockShortage' => $stockShortage,
+            'stockCheckLevel' => $stockCheckLevel,
+            'shipments' => $shipments,
+            'orderAmount' => $product->price * $target->qty,
+            'stockRate' => $stockRate,
+            'linkedPurchaseOrders' => $linkedPurchaseOrders,
+            'freePurchaseOrders' => $freePurchaseOrders,
+            'allocationLines' => $allocationLines,
+            'stockAllocationLines' => $stockAllocationLines,
+            'poAllocationLines' => $poAllocationLines,
+            'conversionHistory' => $conversionHistory,
+            'shippableQty' => $shippableQty,
+            'sameProductOrders' => $sameProductOrders,
+            'otherOrdersStockAllocated' => $otherOrdersStockAllocated,
+            'availableStockForThis' => $availableStockForThis,
+            'unallocatedStock' => $unallocatedStock,
+            'unallocatedPoRemaining' => $unallocatedPoRemaining,
+            'supplyShortage' => $supplyShortage,
+            'stockPoOptions' => $poOptions['stock'],
+            'poPoOptions' => $poOptions['po'],
+        ]);
+    }
+
+    public function create(): View
+    {
+        return view('orders.create', [
+            'customers' => DemoData::customers(),
+            'products' => DemoData::products(),
+        ]);
+    }
+
+    public function store(): RedirectResponse
+    {
+        $demoOrderId = DemoData::DEMO_NEW_ORDER_ID;
+
+        return redirect()->route('orders.show', $demoOrderId)
+            ->with('just_created', true)
+            ->with('success', '受注を登録しました。在庫状況を確認してください。（テストデータのため保存はされません）');
+    }
+
+    public function edit(int $order): View
+    {
+        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+
+        return view('orders.edit', [
+            'order' => $target,
+            'customers' => DemoData::customers(),
+            'products' => DemoData::products(),
+        ]);
+    }
+
+    public function update(int $order): RedirectResponse
+    {
+        return redirect()->route('orders.index')
+            ->with('success', '受注を更新しました。（テストデータのため保存はされません）');
+    }
+
+    public function destroy(int $order): RedirectResponse
+    {
+        return redirect()->route('orders.index')
+            ->with('success', '受注を削除しました。（テストデータのため保存はされません）');
+    }
+
+    public function linkPurchase(int $order, int $purchase): RedirectResponse
+    {
+        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $po = DemoData::purchaseOrders()->firstWhere('id', $purchase) ?? abort(404);
+
+        if ($po->product_id !== $target->product_id) {
+            return redirect()->route('orders.show', $order)
+                ->with('error', '品番が異なる発注は紐づけできません。');
+        }
+
+        if (PurchaseOrderLink::orderIdForPurchase($purchase, $po->order_id ?? null) !== null) {
+            return redirect()->route('orders.show', $order)
+                ->with('error', 'この発注はすでに別の受注に紐づいています。');
+        }
+
+        PurchaseOrderLink::link($purchase, $order);
+
+        $remaining = DemoState::orderRemaining($order);
+        $message = "発注 {$po->code} を受注 {$target->code} に紐づけました。";
+
+        if ($remaining > 0) {
+            $effectiveStock = DemoState::effectiveStock($target->product_id);
+            $stockAlloc = StockAllocation::stockAllocatedForOrder($order);
+            $poAlloc = StockAllocation::poAllocatedForOrder($order);
+            $need = max(0, $remaining - $stockAlloc - $poAlloc);
+
+            if ($need > 0 && DemoState::poHasReceived($purchase)) {
+                $received = DemoState::effectiveReceived($purchase);
+                $usage = StockAllocation::usageByPoAndType($target->product_id);
+                $stockUsedFromPo = $usage['stock'][$purchase] ?? 0;
+                $availableFromPo = max(0, $received - $stockUsedFromPo);
+                $autoStock = min($need, $availableFromPo, max(0, $effectiveStock - StockAllocation::stockUsageForProduct($target->product_id)));
+
+                if ($autoStock > 0) {
+                    StockAllocation::addLine($target->product_id, $order, $purchase, $autoStock, StockAllocation::TYPE_STOCK);
+                    $message .= " 現在庫引当 {$autoStock}m を登録しました。";
+                    $need -= $autoStock;
+                }
+            }
+
+            if ($need > 0 && DemoState::poHasRemaining($purchase)) {
+                $poRemaining = DemoState::poRemaining($purchase);
+                $usage = StockAllocation::usageByPoAndType($target->product_id);
+                $poUsed = $usage['po'][$purchase] ?? 0;
+                $availablePo = max(0, $poRemaining - $poUsed);
+                $autoPo = min($need, $availablePo);
+
+                if ($autoPo > 0) {
+                    StockAllocation::addLine($target->product_id, $order, $purchase, $autoPo, StockAllocation::TYPE_PO);
+                    $message .= " 発注引当 {$autoPo}m を登録しました。";
+                }
+            }
+        }
+
+        return redirect()->route('orders.show', $order)->with('success', $message);
+    }
+
+    public function clearAllocation(int $order): RedirectResponse
+    {
+        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+
+        if (StockAllocation::get($order) === 0) {
+            return redirect()->route('orders.show', $order)
+                ->with('error', '解除する引当がありません。');
+        }
+
+        StockAllocation::clearForOrder($order);
+
+        return redirect()->route('orders.show', $order)
+            ->with('success', "受注 {$target->code} の引当をすべて解除しました。（発注の紐づけはそのままです）");
+    }
+
+    public function saveAllocation(Request $request, int $order): RedirectResponse
+    {
+        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $input = $request->input('allocations', []);
+
+        $error = StockAllocation::validateSubmission($target->product_id, $input);
+        if ($error !== null) {
+            return redirect()->route('orders.show', $order)->with('error', $error);
+        }
+
+        $toSave = StockAllocation::parseSubmission($target->product_id, $input);
+        StockAllocation::saveFromTypedMaps($target->product_id, $toSave);
+
+        return redirect()->route('orders.show', $order)
+            ->with('success', '引当を更新しました。');
+    }
+
+    public function removeAllocation(Request $request, int $order, int $purchase): RedirectResponse
+    {
+        $type = $request->query('type', StockAllocation::TYPE_STOCK);
+        if (! in_array($type, [StockAllocation::TYPE_STOCK, StockAllocation::TYPE_PO], true)) {
+            $type = StockAllocation::TYPE_STOCK;
+        }
+
+        $lines = StockAllocation::linesForOrder($order)
+            ->filter(fn ($l) => $l->po_id === $purchase && $l->type === $type);
+
+        if ($lines->isEmpty()) {
+            $po = DemoData::purchaseOrders()->firstWhere('id', $purchase);
+            $label = $po?->code ?? "発注 #{$purchase}";
+            $typeLabel = $type === StockAllocation::TYPE_PO ? '発注引当' : '現在庫引当';
+
+            return redirect()->route('orders.show', $order)
+                ->with('error', "{$label} の{$typeLabel}はありません。");
+        }
+
+        StockAllocation::removeLineFromOrder($order, $purchase, $type);
+
+        $po = DemoData::purchaseOrders()->firstWhere('id', $purchase);
+        $label = $po?->code ?? "発注 #{$purchase}";
+        $typeLabel = $type === StockAllocation::TYPE_PO ? '発注引当' : '現在庫引当';
+
+        return redirect()->route('orders.show', $order)
+            ->with('success', "{$label} の{$typeLabel}を解除しました。");
+    }
+
+    public function relinkPurchase(Request $request, int $purchase): RedirectResponse
+    {
+        $po = DemoData::purchaseOrders()->firstWhere('id', $purchase) ?? abort(404);
+        $newOrderId = (int) $request->input('new_order_id');
+        $newOrder = DemoData::orders()->firstWhere('id', $newOrderId) ?? abort(404);
+
+        if ($po->product_id !== $newOrder->product_id) {
+            return redirect()->back()
+                ->with('error', '品番が異なる受注には付け替えできません。');
+        }
+
+        PurchaseOrderLink::link($purchase, $newOrderId);
+
+        return redirect()->back()
+            ->with('success', "発注 {$po->code} の紐づけ先を {$newOrder->code} に変更しました。（在庫引当の来歴はそのままです）");
+    }
+}

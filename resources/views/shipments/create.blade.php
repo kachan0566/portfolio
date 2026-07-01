@@ -1,0 +1,117 @@
+@extends('layouts.app')
+
+@section('title', '出荷登録')
+@section('breadcrumb', '取引 / 出荷処理 / 登録')
+
+@section('content')
+    <div class="page-header">
+        <div>
+            <h1>出荷登録</h1>
+            <p class="lead">現在庫引当済みの数量のみ出荷確定できます。発注引当のみの数量は入荷後に出荷可能になります。</p>
+        </div>
+        <a href="{{ route('shipments.index') }}" class="btn btn-secondary">
+            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+        </a>
+    </div>
+
+    @if (session('error'))
+        <div class="alert alert-danger" style="margin-bottom:16px;">@include('partials.icon', ['name' => 'alert']) {{ session('error') }}</div>
+    @endif
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card__head">
+                <h2 class="card__title">出荷準備中の受注</h2>
+            </div>
+            <div class="card__body card__body--flush">
+                <div class="table-wrap">
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                <th>受注番号</th><th>受注元</th><th>品番</th>
+                                <th class="num">出荷可能</th><th class="num">発注引当</th><th>引当状況</th><th>納期</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($pending as $o)
+                                <tr>
+                                    <td class="code-cell"><a href="{{ route('orders.show', $o->id) }}" class="link-strong">{{ $o->code }}</a></td>
+                                    <td>{{ $o->customer }}</td>
+                                    <td class="code-cell t-strong">{{ $o->sku }}</td>
+                                    <td class="num mono">@include('partials.qty', ['qty' => $o->shippable_qty, 'productId' => $o->product_id])</td>
+                                    <td class="num mono t-muted">@include('partials.qty', ['qty' => $o->po_allocated, 'productId' => $o->product_id])</td>
+                                    <td>
+                                        <span class="badge badge-indigo badge--plain" style="font-size:11px;">{{ $o->allocation_status }}</span>
+                                        @if ($o->shippable_status)
+                                            <span class="badge badge-amber badge--plain" style="font-size:11px;">{{ $o->shippable_status }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="mono">{{ $o->due_date }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card form-card" style="max-width:none;">
+            <div class="card__head"><h2 class="card__title">出荷内容</h2></div>
+            <div class="card__body">
+                <form action="{{ route('shipments.store') }}" method="POST" id="shipment-form">
+                    @csrf
+                    <div class="field">
+                        <label class="label" for="order">受注元（対象受注）<span class="req">*</span></label>
+                        <select class="select" id="order" name="order_id">
+                            @foreach ($pending as $o)
+                                <option value="{{ $o->id }}" data-shippable="{{ $o->shippable_qty }}" @selected($selectedOrderId === $o->id)>
+                                    {{ $o->code }} ／ {{ $o->customer }}（出荷可 {{ $o->shippable_qty }}m）
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="field">
+                            <label class="label" for="qty">出荷数量<span class="req">*</span></label>
+                            <input class="input" type="number" id="qty" name="qty" min="1" placeholder="100">
+                            <p class="field-hint" id="shippable-hint"></p>
+                        </div>
+                        <div class="field">
+                            <label class="label" for="date">出荷日<span class="req">*</span></label>
+                            <input class="input" type="date" id="date" name="date" value="2026-06-15">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="label" for="ship_to">出荷先<span class="req">*</span></label>
+                        <input class="input" type="text" id="ship_to" name="ship_to" placeholder="例：○○倉庫">
+                    </div>
+                    <div class="field">
+                        <label class="label" for="note">備考</label>
+                        <textarea class="textarea" id="note" name="note" rows="2" placeholder="時間指定・分納など"></textarea>
+                    </div>
+                    <p class="field-hint">登録すると対象品番の在庫が出荷数量だけ減少します（現在庫引当の範囲内のみ）。</p>
+                    <div class="actions">
+                        <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 出荷を登録</button>
+                        <a href="{{ route('shipments.index') }}" class="btn btn-secondary">キャンセル</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const orderSelect = document.getElementById('order');
+        const qtyInput = document.getElementById('qty');
+        const hint = document.getElementById('shippable-hint');
+        function updateHint() {
+            const opt = orderSelect?.selectedOptions[0];
+            const max = parseInt(opt?.dataset.shippable || '0', 10);
+            if (hint) hint.textContent = max > 0 ? `この受注は現在庫引当の範囲で最大 ${max}m まで出荷できます。` : '現在庫引当がないため出荷できません。';
+            if (qtyInput) { qtyInput.max = max; qtyInput.placeholder = max > 0 ? String(max) : '0'; }
+        }
+        orderSelect?.addEventListener('change', updateHint);
+        updateHint();
+    })();
+    </script>
+@endsection
