@@ -52,7 +52,7 @@
         <div class="sidebar__footer">
             <div class="avatar">木</div>
             <div>
-                <div class="sidebar__user-name">木村 勝也</div>
+                <div class="sidebar__user-name">木村 克哉</div>
                 <div class="sidebar__user-role">生産管理担当</div>
             </div>
         </div>

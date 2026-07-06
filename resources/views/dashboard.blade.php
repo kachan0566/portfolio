@@ -90,7 +90,7 @@
                 <div class="table-wrap">
                     <table class="data">
                         <thead>
-                            <tr><th>品番</th><th class="num">現在庫</th><th class="num">安全在庫</th><th>状態</th></tr>
+                            <tr><th>品番</th><th class="num">現在庫</th><th class="num">必要在庫</th><th>状態</th></tr>
                         </thead>
                         <tbody>
                             @forelse ($data['lowStock'] as $p)
