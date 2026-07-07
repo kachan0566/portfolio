@@ -26,6 +26,13 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="field">
+                    <label class="label">受注単位<span class="req">*</span></label>
+                    <div class="radio-row" style="display:flex;gap:16px;">
+                        <label><input type="radio" name="order_qty_mode" value="tan" checked> 反数</label>
+                        <label><input type="radio" name="order_qty_mode" value="meters"> m指定</label>
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="field">
                         <label class="label" for="product">品番<span class="req">*</span></label>
@@ -37,16 +44,17 @@
                     </div>
                     <div class="field">
                         <label class="label" for="qty-display">数量<span class="req">*</span></label>
-                        @include('partials.qty-input', [
-                            'tanName' => 'qty_tan',
-                            'metersName' => 'qty_meters',
-                            'id' => 'qty-display',
-                            'valueTan' => 0,
-                            'productId' => null,
-                            'metersPerTan' => $products->first()->meters_per_tan ?? 50,
-                            'pageKey' => 'orders-form',
-                            'placeholder' => '2',
-                        ])
+                            @include('partials.qty-input', [
+                                'tanName' => 'qty_tan',
+                                'metersName' => 'qty_meters',
+                                'id' => 'qty-display',
+                                'valueTan' => 0,
+                                'productId' => null,
+                                'metersPerTan' => $products->first()->meters_per_tan ?? 50,
+                                'tanStep' => \App\Support\QtyHelper::ORDER_PO_TAN_STEP,
+                                'pageKey' => 'orders-form',
+                                'placeholder' => '2',
+                            ])
                     </div>
                 </div>
                 <div class="form-row">

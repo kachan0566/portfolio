@@ -20,6 +20,8 @@ class DemoState
 
     private const SHIPPED_TAN_FILE = 'order_shipped_tan_state.json';
 
+    private const SHIPPED_M_FILE = 'order_shipped_m_state.json';
+
     private const RECEIVINGS_FILE = 'receivings_state.json';
 
     private const PO_STAGE_FILE = 'po_stage_state.json';
@@ -226,6 +228,12 @@ class DemoState
 
     public static function effectiveStockTan(int $productId): float
     {
+        FabricTanRoll::ensureBootstrapped();
+        $rollTan = ProductRoll::stockTanForProduct($productId);
+        if ($rollTan > 0) {
+            return $rollTan;
+        }
+
         $product = DemoData::findProduct($productId);
         if (! $product) {
             return 0.0;
@@ -234,35 +242,52 @@ class DemoState
         $overlay = self::readStockTanOverlay();
         $baseTan = (float) ($product->stock_tan ?? QtyHelper::tanCount((int) ($product->stock ?? 0), $productId));
 
-        return max(0.0, QtyHelper::roundTan($baseTan + ($overlay[$productId] ?? 0.0)));
+        return max(0.0, QtyHelper::roundReceivingTan($baseTan + ($overlay[$productId] ?? 0.0)));
     }
 
     public static function effectiveStock(int $productId): int
     {
+        FabricTanRoll::ensureBootstrapped();
+        $rollM = ProductRoll::stockMetersForProduct($productId);
+        if ($rollM > 0) {
+            return (int) round($rollM);
+        }
+
         return QtyHelper::metersFromTan(self::effectiveStockTan($productId), $productId);
     }
 
     public static function effectiveShippedTan(int $orderId): float
     {
-        $order = DemoData::orders()->firstWhere('id', $orderId);
-        if (! $order) {
+        $row = DemoData::findBaseOrder($orderId);
+        if (! $row) {
             return 0.0;
         }
 
         $overlay = self::readShippedTanOverlay();
-        $baseTan = (float) ($order->shipped_tan ?? QtyHelper::tanCount((int) ($order->shipped ?? 0), (int) $order->product_id));
+        $productId = (int) $row['product_id'];
+        $baseTan = isset($row['shipped_tan'])
+            ? (float) $row['shipped_tan']
+            : QtyHelper::roundIntegerTan(QtyHelper::tanCount((int) ($row['shipped'] ?? 0), $productId));
 
-        return max(0.0, QtyHelper::roundTan($baseTan + ($overlay[$orderId] ?? 0.0)));
+        return max(0.0, QtyHelper::roundReceivingTan($baseTan + ($overlay[$orderId] ?? 0.0)));
+    }
+
+    public static function effectiveShippedM(int $orderId): int
+    {
+        $row = DemoData::findBaseOrder($orderId);
+        if (! $row) {
+            return 0;
+        }
+
+        $overlay = self::readFloatMap(self::SHIPPED_M_FILE);
+        $baseM = (int) ($row['shipped_meters'] ?? $row['shipped'] ?? 0);
+
+        return max(0, (int) round($baseM + ($overlay[$orderId] ?? 0)));
     }
 
     public static function effectiveShipped(int $orderId): int
     {
-        $order = DemoData::orders()->firstWhere('id', $orderId);
-        if (! $order) {
-            return 0;
-        }
-
-        return QtyHelper::metersFromTan(self::effectiveShippedTan($orderId), (int) $order->product_id);
+        return self::effectiveShippedM($orderId);
     }
 
     public static function orderRemainingTan(int $orderId): float
@@ -272,19 +297,41 @@ class DemoState
             return 0.0;
         }
 
-        $qtyTan = (float) ($order->qty_tan ?? QtyHelper::tanCount((int) $order->qty, (int) $order->product_id));
+        if (($order->order_qty_mode ?? 'tan') === 'meters') {
+            $remainingM = self::orderRemainingM($orderId);
+            if ($remainingM <= 0) {
+                return 0.0;
+            }
 
-        return max(0.0, QtyHelper::roundTan($qtyTan - self::effectiveShippedTan($orderId)));
+            return QtyHelper::tanCountCeilForShipment($remainingM, (int) $order->product_id);
+        }
+
+        $qtyTan = (float) ($order->qty_tan ?? QtyHelper::roundIntegerTan(
+            QtyHelper::tanCount((int) $order->qty, (int) $order->product_id)
+        ));
+
+        return max(0.0, QtyHelper::roundReceivingTan($qtyTan - self::effectiveShippedTan($orderId)));
     }
 
-    public static function orderRemaining(int $orderId): int
+    public static function orderRemainingM(int $orderId): int
     {
         $order = DemoData::orders()->firstWhere('id', $orderId);
         if (! $order) {
             return 0;
         }
 
+        if (($order->order_qty_mode ?? 'tan') === 'meters') {
+            $qtyM = (int) ($order->qty_meters ?? $order->qty ?? 0);
+
+            return max(0, $qtyM - self::effectiveShippedM($orderId));
+        }
+
         return QtyHelper::metersFromTan(self::orderRemainingTan($orderId), (int) $order->product_id);
+    }
+
+    public static function orderRemaining(int $orderId): int
+    {
+        return self::orderRemainingM($orderId);
     }
 
     /**
@@ -324,22 +371,8 @@ class DemoState
         } elseif ($poType === PurchaseOrderType::PRODUCT) {
             $productId = (int) $receiving['product_id'];
             $qtyTan = isset($receiving['qty_tan'])
-                ? QtyHelper::roundTan((float) $receiving['qty_tan'])
+                ? QtyHelper::roundReceivingTan((float) $receiving['qty_tan'])
                 : QtyHelper::tanCount((int) floor($qty), $productId);
-
-            $stockOverlay = self::readStockTanOverlay();
-            $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0.0) + $qtyTan;
-            self::writeStockTanOverlay($stockOverlay);
-
-            \App\Support\InboundLot::create([
-                'product_id' => $productId,
-                'receiving_code' => $receiving['code'] ?? null,
-                'received_date' => $receiving['date'] ?? date('Y-m-d'),
-                'received_qty_m' => $qty,
-                'remaining_qty_m' => $qty,
-                'purchase_order_id' => $poId,
-                'source_type' => \App\Support\InboundLot::SOURCE_RECEIVING,
-            ]);
         }
 
         $receivings = self::extraReceivings();
@@ -357,23 +390,45 @@ class DemoState
 
     public static function applyShipment(int $orderId, int $productId, float $qtyTan, ?int $qtyMeters = null): void
     {
-        $qtyTan = QtyHelper::roundTan($qtyTan);
-        if ($qtyTan <= 0) {
+        $order = DemoData::orders()->firstWhere('id', $orderId);
+        $isMetersOrder = ($order->order_qty_mode ?? 'tan') === 'meters';
+
+        if ($isMetersOrder) {
+            $remainingM = self::orderRemainingM($orderId);
+            $result = \App\Services\Inventory\ShipmentRollAllocator::allocateForMeters(
+                $productId,
+                (float) $remainingM,
+                $orderId,
+                'order:'.$orderId,
+            );
+        } else {
+            $qtyTan = QtyHelper::roundIntegerTan($qtyTan);
+            if ($qtyTan <= 0) {
+                return;
+            }
+            $result = \App\Services\Inventory\ShipmentRollAllocator::allocate(
+                $productId,
+                $qtyTan,
+                $orderId,
+                'order:'.$orderId,
+            );
+        }
+
+        $allocatedTan = (float) ($result['allocated_tan'] ?? 0);
+        $allocatedM = (float) ($result['allocated_m'] ?? 0);
+        if ($allocatedTan <= 0 && $allocatedM <= 0) {
             return;
         }
 
-        $meters = $qtyMeters ?? QtyHelper::metersFromTan($qtyTan, $productId);
+        $shippedTanOverlay = self::readShippedTanOverlay();
+        $shippedTanOverlay[$orderId] = ($shippedTanOverlay[$orderId] ?? 0.0) + $allocatedTan;
+        self::writeShippedTanOverlay($shippedTanOverlay);
 
-        $shippedOverlay = self::readShippedTanOverlay();
-        $shippedOverlay[$orderId] = ($shippedOverlay[$orderId] ?? 0.0) + $qtyTan;
-        self::writeShippedTanOverlay($shippedOverlay);
+        $shippedMOverlay = self::readFloatMap(self::SHIPPED_M_FILE);
+        $shippedMOverlay[$orderId] = ($shippedMOverlay[$orderId] ?? 0) + $allocatedM;
+        self::writeFloatMap(self::SHIPPED_M_FILE, $shippedMOverlay);
 
-        $stockOverlay = self::readStockTanOverlay();
-        $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0.0) - $qtyTan;
-        self::writeStockTanOverlay($stockOverlay);
-
-        \App\Support\ShipmentPlan::recordShipment($orderId, (float) $meters);
-        \App\Services\Inventory\ShipmentLotAllocator::consume($productId, (float) $meters, $orderId, 'order:'.$orderId);
+        \App\Support\ShipmentPlan::recordShipment($orderId, $allocatedM, $allocatedTan);
     }
 
     /** 入荷済み数量がある発注か */
@@ -457,21 +512,5 @@ class DemoState
 
         $transferred[$poId] = $meters;
         self::writeIntMap(self::DYE_TRANSFER_FILE, $transferred);
-
-        $qtyTan = QtyHelper::tanCount($meters, $productId);
-        $stockOverlay = self::readStockTanOverlay();
-        $stockOverlay[$productId] = ($stockOverlay[$productId] ?? 0.0) + $qtyTan;
-        self::writeStockTanOverlay($stockOverlay);
-
-        $po = self::findBasePurchase($poId);
-        \App\Support\InboundLot::create([
-            'product_id' => $productId,
-            'receiving_code' => null,
-            'received_date' => $po?->finish_date ?? date('Y-m-d'),
-            'received_qty_m' => (float) $meters,
-            'remaining_qty_m' => (float) $meters,
-            'purchase_order_id' => $poId,
-            'source_type' => \App\Support\InboundLot::SOURCE_DYE_TRANSFER,
-        ]);
     }
 }

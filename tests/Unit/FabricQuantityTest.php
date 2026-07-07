@@ -8,6 +8,21 @@ use Tests\TestCase;
 
 class FabricQuantityTest extends TestCase
 {
+    public function test_resolve_order_context_requires_integer_tan(): void
+    {
+        $resolved = FabricQuantity::resolve(2, null, 1, false, null, FabricQuantity::CONTEXT_ORDER);
+
+        $this->assertSame(2.0, $resolved->qty_tan);
+        $this->assertSame(100, $resolved->qty_meters);
+    }
+
+    public function test_resolve_receiving_context_uses_quarter_step(): void
+    {
+        $resolved = FabricQuantity::resolve(1.25, null, 1, false, null, FabricQuantity::CONTEXT_RECEIVING);
+
+        $this->assertSame(1.25, $resolved->qty_tan);
+    }
+
     public function test_resolve_tan_is_canonical(): void
     {
         $resolved = FabricQuantity::resolve(2.4, null, 1);

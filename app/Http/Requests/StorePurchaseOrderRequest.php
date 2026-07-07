@@ -106,8 +106,8 @@ class StorePurchaseOrderRequest extends FormRequest
                 }
 
                 $tan = (float) $this->input('qty_tan');
-                if ($tan > 0 && ! QtyHelper::isValidTanStep($tan)) {
-                    $validator->errors()->add('qty_tan', '反数は0.05反単位で入力してください。');
+                if ($tan > 0 && ! QtyHelper::isIntegerTan($tan)) {
+                    $validator->errors()->add('qty_tan', '発注反数は整数で入力してください。');
                 }
             }
         });

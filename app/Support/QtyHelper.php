@@ -16,10 +16,18 @@ class QtyHelper
     /** 生機品番の標準：1反あたりのメートル数 */
     public const METERS_PER_TAN_GREIGE = 100;
 
-    /** 反数の最小刻み（0.05反まで） */
+    /** 反数の最小刻み（レガシー互換・集計用） */
     public const TAN_STEP = 0.05;
 
+    /** 受注・発注・出荷・引当：整数反のみ */
+    public const ORDER_PO_TAN_STEP = 1;
+
+    /** 入荷（在庫化）：0.25反刻み（工場ミスで短い反） */
+    public const RECEIVING_TAN_STEP = 0.25;
+
     public const TAN_DECIMALS = 2;
+
+    public const RECEIVING_TAN_DECIMALS = 2;
 
     public static function metersPerTan(?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): int
     {
@@ -58,6 +66,77 @@ class QtyHelper
         }
 
         return abs((float) $tan - self::roundTan($tan)) < 0.0001;
+    }
+
+    public static function roundTanWithStep(float|int $tan, float $step): float
+    {
+        if ($step <= 0) {
+            return 0.0;
+        }
+
+        $steps = (int) round((float) $tan / $step);
+
+        return round($steps * $step, self::decimalsForStep($step));
+    }
+
+    public static function isValidTanStepWith(float|int $tan, float $step): bool
+    {
+        if ((float) $tan <= 0) {
+            return false;
+        }
+
+        return abs((float) $tan - self::roundTanWithStep($tan, $step)) < 0.0001;
+    }
+
+    private static function decimalsForStep(float $step): int
+    {
+        if ($step >= 1) {
+            return 0;
+        }
+
+        $formatted = rtrim(rtrim(sprintf('%.10F', $step), '0'), '.');
+        $dot = strpos($formatted, '.');
+
+        return $dot === false ? 0 : strlen(substr($formatted, $dot + 1));
+    }
+
+    public static function isIntegerTan(float|int $tan): bool
+    {
+        if ((float) $tan <= 0) {
+            return false;
+        }
+
+        return abs((float) $tan - round((float) $tan)) < 0.0001;
+    }
+
+    public static function roundIntegerTan(float|int $tan): float
+    {
+        return (float) max(0, (int) round((float) $tan));
+    }
+
+    public static function roundReceivingTan(float|int $tan): float
+    {
+        return self::roundTanWithStep($tan, self::RECEIVING_TAN_STEP);
+    }
+
+    public static function isValidReceivingTanStep(float|int $tan): bool
+    {
+        return self::isValidTanStepWith($tan, self::RECEIVING_TAN_STEP);
+    }
+
+    /** m受注の出荷：足りる反数を切り上げ（丸反出荷） */
+    public static function tanCountCeilForShipment(
+        float|int $meters,
+        ?int $productId = null,
+        bool $isGreige = false,
+        ?string $greigeSku = null,
+    ): float {
+        $perTan = self::metersPerTan($productId, $isGreige, $greigeSku);
+        if ($perTan <= 0 || (float) $meters <= 0) {
+            return 0.0;
+        }
+
+        return (float) (int) ceil((float) $meters / $perTan);
     }
 
     public static function tanCount(float|int $meters, ?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): float
@@ -218,8 +297,9 @@ class QtyHelper
         $row = (object) $roll;
         $actual = FabricTanRoll::actualMeters($row);
         $nominal = (int) ($row->nominal_meters ?? self::metersPerTan($productId, $isGreige, $greigeSku));
-        $variance = round($actual - $nominal, 2);
-        $base = '1反 / '.number_format($actual, 1).'m';
+        $tanQty = (float) ($row->tan_qty ?? 1.0);
+        $variance = round($actual - ($nominal * $tanQty), 2);
+        $base = QtyHelper::formatTanCount($tanQty).'反 / '.number_format($actual, 1).'m';
 
         if (abs($variance) < 0.05) {
             return $base;

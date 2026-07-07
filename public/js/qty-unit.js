@@ -1,32 +1,42 @@
 (function () {
     'use strict';
 
-    const TAN_STEP = 0.05;
+    const DEFAULT_TAN_STEP = 0.05;
 
-    function roundTan(tan) {
-        const steps = Math.round((parseFloat(tan) || 0) / TAN_STEP);
-        return Math.round(steps * TAN_STEP * 100) / 100;
+    function tanStepOf(field) {
+        const step = parseFloat(field.dataset.tanStep || String(DEFAULT_TAN_STEP));
+        return step > 0 ? step : DEFAULT_TAN_STEP;
     }
 
-    function formatTanCount(tan) {
-        return roundTan(tan).toFixed(2).replace(/\.?0+$/, '') || '0';
+    function roundTan(tan, step) {
+        step = step ?? DEFAULT_TAN_STEP;
+        const steps = Math.round((parseFloat(tan) || 0) / step);
+        const decimals = step >= 1 ? 0 : 2;
+        return Math.round(steps * step * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    }
+
+    function formatTanCount(tan, step) {
+        step = step ?? DEFAULT_TAN_STEP;
+        const rounded = roundTan(tan, step);
+        const decimals = step >= 1 ? 0 : 2;
+        return rounded.toFixed(decimals).replace(/\.?0+$/, '') || '0';
     }
 
     function metersPerTanOf(field) {
         return parseFloat(field.dataset.metersPerTan || '50') || 50;
     }
 
-    function metersToTan(meters, perTan) {
-        return perTan > 0 ? roundTan(meters / perTan) : 0;
+    function metersToTan(meters, perTan, step) {
+        return perTan > 0 ? roundTan(meters / perTan, step) : 0;
     }
 
-    function tanToMeters(tan, perTan) {
-        return Math.round(roundTan(tan) * perTan);
+    function tanToMeters(tan, perTan, step) {
+        return Math.round(roundTan(tan, step) * perTan);
     }
 
-    function formatQty(meters, perTan) {
+    function formatQty(meters, perTan, step) {
         const m = parseInt(meters, 10) || 0;
-        const tan = formatTanCount(metersToTan(m, perTan));
+        const tan = formatTanCount(metersToTan(m, perTan, step), step);
         return tan + '反 / ' + m.toLocaleString() + 'm';
     }
 
@@ -47,7 +57,8 @@
     }
 
     function readTanHidden(field) {
-        return roundTan(parseFloat(field.querySelector('[data-qty-tan-hidden]')?.value || '0') || 0);
+        const step = tanStepOf(field);
+        return roundTan(parseFloat(field.querySelector('[data-qty-tan-hidden]')?.value || '0') || 0, step);
     }
 
     function readMetersHidden(field) {
@@ -62,23 +73,24 @@
         const meterDisplay = field.querySelector('[data-qty-meter-display]');
         const hint = field.querySelector('[data-qty-hint]');
         const perTan = metersPerTanOf(field);
+        const step = tanStepOf(field);
         const mode = getMode(field);
         const tan = readTanHidden(field);
         const metersOverride = readMetersHidden(field);
-        const nominalMeters = tan > 0 ? tanToMeters(tan, perTan) : 0;
+        const nominalMeters = tan > 0 ? tanToMeters(tan, perTan, step) : 0;
         const meters = mode === 'meter' && metersOverride > 0 ? metersOverride : nominalMeters;
         const maxTan = field.dataset.maxTan !== undefined && field.dataset.maxTan !== ''
-            ? roundTan(parseFloat(field.dataset.maxTan))
+            ? roundTan(parseFloat(field.dataset.maxTan), step)
             : null;
 
         if (mode === 'tan') {
-            const tanText = tan > 0 ? formatTanCount(tan) : '0';
+            const tanText = tan > 0 ? formatTanCount(tan, step) : '0';
             if (tanDisplay) {
-                tanDisplay.step = String(TAN_STEP);
+                tanDisplay.step = String(step);
                 tanDisplay.min = '0';
                 tanDisplay.value = tanText;
                 if (maxTan !== null) {
-                    tanDisplay.max = formatTanCount(maxTan);
+                    tanDisplay.max = formatTanCount(maxTan, step);
                 } else {
                     tanDisplay.removeAttribute('max');
                 }
@@ -90,18 +102,18 @@
                 meterDisplay.min = '0';
                 meterDisplay.value = meters > 0 ? String(meters) : '0';
                 if (maxTan !== null) {
-                    meterDisplay.max = String(tanToMeters(maxTan, perTan));
+                    meterDisplay.max = String(tanToMeters(maxTan, perTan, step));
                 } else {
                     meterDisplay.removeAttribute('max');
                 }
             }
             if (hint) {
-                hint.textContent = '≈ ' + formatTanCount(metersToTan(meters, perTan)) + '反';
+                hint.textContent = '≈ ' + formatTanCount(metersToTan(meters, perTan, step), step) + '反';
             }
         }
 
         if (tanHidden && tan > 0) {
-            tanHidden.value = formatTanCount(tan);
+            tanHidden.value = formatTanCount(tan, step);
         }
         if (metersHidden) {
             const overridden = mode === 'meter' && meters > 0 && meters !== nominalMeters;
@@ -116,26 +128,27 @@
         const meterDisplay = field.querySelector('[data-qty-meter-display]');
         const hint = field.querySelector('[data-qty-hint]');
         const perTan = metersPerTanOf(field);
+        const step = tanStepOf(field);
         const mode = getMode(field);
         let tan;
         let meters;
 
         if (mode === 'tan') {
-            tan = roundTan(parseFloat(tanDisplay?.value || '0') || 0);
-            if (tanDisplay) tanDisplay.value = formatTanCount(tan);
-            meters = tanToMeters(tan, perTan);
+            tan = roundTan(parseFloat(tanDisplay?.value || '0') || 0, step);
+            if (tanDisplay) tanDisplay.value = formatTanCount(tan, step);
+            meters = tanToMeters(tan, perTan, step);
             if (hint) hint.textContent = '= ' + meters.toLocaleString() + 'm';
             if (metersHidden) metersHidden.value = '';
         } else {
             meters = Math.round(parseFloat(meterDisplay?.value || '0') || 0);
-            tan = meters > 0 ? metersToTan(meters, perTan) : 0;
+            tan = meters > 0 ? metersToTan(meters, perTan, step) : 0;
             if (hint) {
-                hint.textContent = '≈ ' + formatTanCount(tan) + '反';
+                hint.textContent = '≈ ' + formatTanCount(tan, step) + '反';
             }
             if (metersHidden) metersHidden.value = meters > 0 ? String(meters) : '';
         }
 
-        if (tanHidden) tanHidden.value = formatTanCount(Math.max(0, tan));
+        if (tanHidden) tanHidden.value = formatTanCount(Math.max(0, tan), step);
 
         field.dispatchEvent(new CustomEvent('qty-changed', {
             bubbles: true,
@@ -207,12 +220,13 @@
             readMeters: function (field) {
                 updateFieldFromDisplay(field);
                 const perTan = metersPerTanOf(field);
+                const step = tanStepOf(field);
                 const tan = readTanHidden(field);
                 const metersOverride = readMetersHidden(field);
                 if (getMode(field) === 'meter' && metersOverride > 0) {
                     return metersOverride;
                 }
-                return tanToMeters(tan, perTan);
+                return tanToMeters(tan, perTan, step);
             },
         };
 
@@ -233,6 +247,6 @@
         roundTan: roundTan,
         tanToMeters: tanToMeters,
         metersToTan: metersToTan,
-        TAN_STEP: TAN_STEP,
+        TAN_STEP: DEFAULT_TAN_STEP,
     };
 })();

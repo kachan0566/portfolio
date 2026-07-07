@@ -105,10 +105,13 @@
                                         'id' => 'receiving-qty',
                                         'valueTan' => 0,
                                         'metersPerTan' => $metersPerTan,
+                                        'tanStep' => \App\Support\QtyHelper::RECEIVING_TAN_STEP,
+                                        'showMeterSwitch' => false,
+                                        'submitMeters' => false,
                                         'pageKey' => 'receiving-form',
                                         'placeholder' => '2',
                                     ])
-                                    <p class="field-hint">反数を入力すると見込mが表示されます。mで直接指定すると実測合計として記録されます（織り上がり／染め上がりの誤差）。</p>
+                                    <p class="field-hint">反数は 0.25反刻み。下の表で反ごとに実測mを入力してください。</p>
                                 </div>
                             @endif
                             <div class="field">
@@ -116,6 +119,25 @@
                                 <input class="input" type="date" id="date" name="date" value="2026-06-15">
                             </div>
                         </div>
+                        @if ($type !== PurchaseOrderType::YARN)
+                            <div class="card" style="margin:0 0 16px;background:var(--bg-subtle, #f8fafc);">
+                                <div class="card__head"><h3 class="card__title" style="font-size:14px;">反明細（実測m）</h3></div>
+                                <div class="card__body card__body--flush">
+                                    <div class="table-wrap">
+                                        <table class="data" id="receiving-rolls-table">
+                                            <thead>
+                                                <tr><th>#</th><th>反数</th><th class="num">実測m</th></tr>
+                                            </thead>
+                                            <tbody id="receiving-rolls-body"></tbody>
+                                        </table>
+                                    </div>
+                                    <p class="field-hint" style="padding:8px 12px;margin:0;">
+                                        合計: <span id="receiving-tan-sum" class="mono">0.00</span>反 /
+                                        実測 <span id="receiving-m-sum" class="mono">—</span>m
+                                    </p>
+                                </div>
+                            </div>
+                        @endif
                         <p class="field-hint">
                             @if ($type === PurchaseOrderType::YARN)
                                 登録すると糸在庫（kg）が増加します。
@@ -127,8 +149,16 @@
                         </p>
                         @if ($type !== PurchaseOrderType::YARN)
                             @include('partials.qty-unit-loader')
+                            <script src="{{ asset('js/receiving-rolls.js') }}"></script>
                             <script>
                                 QtyUnit.initPage('receiving-form');
+                                ReceivingRolls.init({
+                                    qtyField: document.querySelector('[data-qty-unit-field][data-page-key="receiving-form"]'),
+                                    tbody: document.getElementById('receiving-rolls-body'),
+                                    tanSumEl: document.getElementById('receiving-tan-sum'),
+                                    mSumEl: document.getElementById('receiving-m-sum'),
+                                    metersPerTan: {{ $metersPerTan ?? 50 }},
+                                });
                             </script>
                         @endif
                         <div class="actions">

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreOrderRequest;
 use App\Support\AllocationConversion;
 use App\Support\DemoData;
 use App\Support\DemoState;
+use App\Support\FabricQuantity;
 use App\Support\ListSearch;
+use App\Support\OrderOverlay;
 use App\Support\QtyHelper;
 use App\Support\PurchaseOrderLink;
 use App\Support\ShipmentPlan;
@@ -199,13 +202,45 @@ class OrderController extends Controller
         ]);
     }
 
-    public function store(): RedirectResponse
+    public function store(StoreOrderRequest $request): RedirectResponse
     {
-        $demoOrderId = DemoData::DEMO_NEW_ORDER_ID;
+        $productId = (int) $request->input('product_id');
+        $mode = (string) $request->input('order_qty_mode', 'tan');
+        $customer = DemoData::customers()->firstWhere('id', (int) $request->input('customer_id'));
 
-        return redirect()->route('orders.show', $demoOrderId)
+        $resolved = FabricQuantity::resolve(
+            $request->input('qty_tan'),
+            $request->input('qty_meters'),
+            $productId,
+            false,
+            null,
+            $mode === 'meters' ? FabricQuantity::CONTEXT_DEFAULT : FabricQuantity::CONTEXT_ORDER,
+        );
+
+        $id = OrderOverlay::nextId();
+        $code = 'SO-'.date('ym').'-'.str_pad((string) $id, 3, '0', STR_PAD_LEFT);
+
+        OrderOverlay::add([
+            'id' => $id,
+            'code' => $code,
+            'customer' => $customer?->name ?? '—',
+            'customer_id' => (int) $request->input('customer_id'),
+            'product_id' => $productId,
+            'order_qty_mode' => $mode,
+            'qty_tan' => $mode === 'tan' ? (int) $resolved->qty_tan : 0,
+            'qty_meters' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
+            'meters_overridden' => $resolved->meters_overridden,
+            'qty' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
+            'shipped' => 0,
+            'order_date' => $request->input('order_date'),
+            'due_date' => $request->input('due_date'),
+            'planned_ship_date' => $request->input('due_date'),
+            'ship_memo' => $request->input('ship_memo', ''),
+        ]);
+
+        return redirect()->route('orders.show', $id)
             ->with('just_created', true)
-            ->with('success', '受注を登録しました。在庫状況を確認してください。（テストデータのため保存はされません）');
+            ->with('success', '受注を登録しました。在庫状況を確認してください。');
     }
 
     public function edit(int $order): View
@@ -219,10 +254,39 @@ class OrderController extends Controller
         ]);
     }
 
-    public function update(int $order): RedirectResponse
+    public function update(StoreOrderRequest $request, int $order): RedirectResponse
     {
-        return redirect()->route('orders.index')
-            ->with('success', '受注を更新しました。（テストデータのため保存はされません）');
+        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $productId = (int) $request->input('product_id');
+        $mode = (string) $request->input('order_qty_mode', 'tan');
+
+        $resolved = FabricQuantity::resolve(
+            $request->input('qty_tan'),
+            $request->input('qty_meters'),
+            $productId,
+            false,
+            null,
+            $mode === 'meters' ? FabricQuantity::CONTEXT_DEFAULT : FabricQuantity::CONTEXT_ORDER,
+        );
+
+        $customer = DemoData::customers()->firstWhere('id', (int) $request->input('customer_id'));
+
+        OrderOverlay::patch($order, [
+            'customer_id' => (int) $request->input('customer_id'),
+            'customer' => $customer?->name ?? $target->customer,
+            'product_id' => $productId,
+            'order_qty_mode' => $mode,
+            'qty_tan' => $mode === 'tan' ? (int) $resolved->qty_tan : 0,
+            'qty_meters' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
+            'meters_overridden' => $resolved->meters_overridden,
+            'qty' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
+            'order_date' => $request->input('order_date'),
+            'due_date' => $request->input('due_date'),
+            'ship_memo' => $request->input('ship_memo', ''),
+        ]);
+
+        return redirect()->route('orders.show', $order)
+            ->with('success', '受注を更新しました。');
     }
 
     public function destroy(int $order): RedirectResponse

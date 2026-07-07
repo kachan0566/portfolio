@@ -4,6 +4,8 @@ namespace App\Services\Fabric;
 
 use App\Support\DemoData;
 use App\Support\FabricTanRoll;
+use App\Support\GreigeRoll;
+use App\Support\ProductRoll;
 use App\Support\QtyHelper;
 
 /**
@@ -12,7 +14,55 @@ use App\Support\QtyHelper;
 class TanRollRecorder
 {
     /**
-     * 織り上がり：実測 m 合計を物理反数に按分して反明細を作成する。
+     * 織り上がり：反行入力から生機反を作成。
+     *
+     * @param  list<array{tan_qty: float|int, actual_qty_m: float|int}>  $lines
+     * @return list<object>
+     */
+    public static function recordWeavingFromLines(
+        int $poId,
+        string $greigeSku,
+        array $lines,
+        ?string $measuredAt = null,
+        ?int $receivingId = null,
+    ): array {
+        if ($lines === []) {
+            return [];
+        }
+
+        $greige = DemoData::findGreige($greigeSku);
+        $nominal = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
+        $measuredAt ??= date('Y-m-d');
+        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
+        $poCode = $po?->code ?? 'PO-'.$poId;
+        $created = [];
+
+        foreach ($lines as $index => $line) {
+            $tanQty = QtyHelper::roundReceivingTan((float) ($line['tan_qty'] ?? 1));
+            $actualM = round((float) ($line['actual_qty_m'] ?? 0), 2);
+            if ($tanQty <= 0 || $actualM <= 0) {
+                continue;
+            }
+
+            $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+            $created[] = GreigeRoll::create([
+                'code' => $greigeSku.'-'.$poCode.'-'.$seq,
+                'greige_sku' => $greigeSku,
+                'purchase_order_id' => $poId,
+                'receiving_id' => $receivingId,
+                'tan_qty' => $tanQty,
+                'actual_qty_m' => $actualM,
+                'nominal_meters' => $nominal,
+                'status' => GreigeRoll::STATUS_IN_STOCK,
+                'received_date' => $measuredAt,
+            ]);
+        }
+
+        return $created;
+    }
+
+    /**
+     * @deprecated 按分方式。recordWeavingFromLines を使用。
      *
      * @return list<object>
      */
@@ -23,38 +73,14 @@ class TanRollRecorder
         int $actualMetersTotal,
         ?string $measuredAt = null,
     ): array {
-        if ($rollCount <= 0 || $actualMetersTotal <= 0) {
-            return [];
-        }
+        $perRoll = self::distributeMeters($actualMetersTotal, max(1, $rollCount));
+        $lines = array_map(fn ($m) => ['tan_qty' => 1.0, 'actual_qty_m' => $m], $perRoll);
 
-        $greige = DemoData::findGreige($greigeSku);
-        $nominal = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
-        $measuredAt ??= date('Y-m-d');
-        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
-        $poCode = $po?->code ?? 'PO-'.$poId;
-
-        $perRoll = self::distributeMeters($actualMetersTotal, $rollCount);
-        $created = [];
-
-        foreach ($perRoll as $index => $meters) {
-            $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
-            $created[] = FabricTanRoll::create([
-                'code' => $greigeSku.'-'.$poCode.'-'.$seq,
-                'po_id' => $poId,
-                'greige_sku' => $greigeSku,
-                'stage' => FabricTanRoll::STAGE_GREIGE_WIP,
-                'nominal_meters' => $nominal,
-                'weaving_meters' => $meters,
-                'measured_at' => $measuredAt,
-                'weaving_measured_at' => $measuredAt,
-            ]);
-        }
-
-        return $created;
+        return self::recordWeavingFromLines($poId, $greigeSku, $lines, $measuredAt);
     }
 
     /**
-     * 染め上がり：生機反を製品反へ変換し、染め上がり実測 m を記録する。
+     * 染め上がり：生機反を半分カットして製品反を生成。
      *
      * @return array{product_rolls: list<object>, total_meters: float}
      */
@@ -78,69 +104,64 @@ class TanRollRecorder
         $greigeNominal = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
         $productNominal = (int) ($product->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
 
-        $greigeRolls = FabricTanRoll::forGreigeSku($greige->sku, FabricTanRoll::STAGE_GREIGE_WIP);
-        $rolls = self::allRollsMutable();
+        $targetTan = (float) ($po->qty_tan ?? QtyHelper::roundIntegerTan(
+            QtyHelper::tanCount((int) $po->qty_meters, $productId)
+        ));
+        $greigeRolls = GreigeRoll::inStockForSku($greige->sku);
         $productRolls = [];
         $totalMeters = 0.0;
+        $seq = 0;
 
-        if ($greigeRolls->isNotEmpty()) {
-            $takeCount = min($greigeRolls->count(), max(1, (int) round((float) ($po->qty_tan ?? QtyHelper::tanCount((int) $po->qty_meters, $productId)))));
-            $selected = $greigeRolls->take($takeCount);
-
-            foreach ($selected as $index => $greigeRoll) {
-                $dyeingMeters = self::dyeingMetersFromWeaving((float) $greigeRoll->weaving_meters, $productNominal, $greigeNominal);
-                $totalMeters += $dyeingMeters;
-
-                foreach ($rolls as &$roll) {
-                    if ((int) $roll['id'] === (int) $greigeRoll->id) {
-                        $roll['stage'] = FabricTanRoll::STAGE_CONSUMED;
-                        break;
-                    }
-                }
-                unset($roll);
-
-                $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
-                $productRolls[] = self::appendRoll($rolls, [
-                    'code' => $product->sku.'-'.$po->code.'-'.$seq,
-                    'po_id' => $productPoId,
-                    'greige_sku' => $greige->sku,
-                    'product_id' => $productId,
-                    'parent_roll_id' => (int) $greigeRoll->id,
-                    'stage' => FabricTanRoll::STAGE_PRODUCT,
-                    'nominal_meters' => $productNominal,
-                    'weaving_meters' => (float) $greigeRoll->weaving_meters,
-                    'dyeing_meters' => $dyeingMeters,
-                    'measured_at' => $measuredAt,
-                    'weaving_measured_at' => $greigeRoll->weaving_measured_at,
-                    'dyeing_measured_at' => $measuredAt,
-                ]);
+        foreach ($greigeRolls as $greigeRoll) {
+            if ($targetTan <= 0.0001) {
+                break;
             }
-        } else {
-            $rollCount = max(1, (int) round((float) ($po->qty_tan ?? QtyHelper::tanCount((int) $po->qty_meters, $productId))));
+
+            $halfTan = min(0.5, (float) $greigeRoll->tan_qty);
+            $consumeM = round((float) $greigeRoll->actual_qty_m * ($halfTan / (float) $greigeRoll->tan_qty), 2);
+            $dyeingMeters = self::dyeingMetersFromWeaving($consumeM, $productNominal, $greigeNominal);
+
+            self::consumeGreigeRollHalf((int) $greigeRoll->id, $halfTan, $consumeM);
+
+            $seq++;
+            $seqStr = str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
+            $productRolls[] = ProductRoll::create([
+                'code' => $product->sku.'-'.$po->code.'-'.$seqStr,
+                'product_id' => $productId,
+                'parent_greige_roll_id' => (int) $greigeRoll->id,
+                'purchase_order_id' => $productPoId,
+                'tan_qty' => $halfTan,
+                'actual_qty_m' => $dyeingMeters,
+                'nominal_meters' => $productNominal,
+                'status' => ProductRoll::STATUS_IN_STOCK,
+                'received_date' => $measuredAt,
+            ]);
+
+            $totalMeters += $dyeingMeters;
+            $targetTan = round($targetTan - $halfTan, 2);
+        }
+
+        if ($productRolls === []) {
+            $rollCount = max(1, (int) QtyHelper::roundIntegerTan($targetTan > 0 ? $targetTan : 1));
             $targetMeters = (int) ($po->qty_meters ?? QtyHelper::metersFromTan((float) $po->qty_tan, $productId));
             $perRoll = self::distributeMeters($targetMeters, $rollCount);
 
             foreach ($perRoll as $index => $weavingMeters) {
                 $dyeingMeters = self::dyeingMetersFromWeaving($weavingMeters, $productNominal, $greigeNominal);
                 $totalMeters += $dyeingMeters;
-                $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
-                $productRolls[] = self::appendRoll($rolls, [
-                    'code' => $product->sku.'-'.$po->code.'-'.$seq,
-                    'po_id' => $productPoId,
-                    'greige_sku' => $greige->sku,
+                $seqStr = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+                $productRolls[] = ProductRoll::create([
+                    'code' => $product->sku.'-'.$po->code.'-'.$seqStr,
                     'product_id' => $productId,
-                    'stage' => FabricTanRoll::STAGE_PRODUCT,
+                    'purchase_order_id' => $productPoId,
+                    'tan_qty' => 1.0,
+                    'actual_qty_m' => $dyeingMeters,
                     'nominal_meters' => $productNominal,
-                    'weaving_meters' => $weavingMeters,
-                    'dyeing_meters' => $dyeingMeters,
-                    'measured_at' => $measuredAt,
-                    'weaving_measured_at' => $measuredAt,
-                    'dyeing_measured_at' => $measuredAt,
+                    'status' => ProductRoll::STATUS_IN_STOCK,
+                    'received_date' => $measuredAt,
                 ]);
             }
         }
-
-        FabricTanRoll::replaceAll($rolls);
 
         return [
             'product_rolls' => $productRolls,
@@ -149,7 +170,59 @@ class TanRollRecorder
     }
 
     /**
-     * 製品入荷：染め上がり実測 m で反明細を追加する。
+     * 製品入荷：反行入力から製品反を作成。
+     *
+     * @param  list<array{tan_qty: float|int, actual_qty_m: float|int}>  $lines
+     * @return list<object>
+     */
+    public static function recordProductReceivingFromLines(
+        int $poId,
+        int $productId,
+        array $lines,
+        ?string $measuredAt = null,
+        ?int $receivingId = null,
+    ): array {
+        if ($lines === []) {
+            return [];
+        }
+
+        $product = DemoData::findProduct($productId);
+        if ($product === null) {
+            return [];
+        }
+
+        $productNominal = (int) ($product->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
+        $measuredAt ??= date('Y-m-d');
+        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
+        $poCode = $po?->code ?? 'PO-'.$poId;
+        $created = [];
+
+        foreach ($lines as $index => $line) {
+            $tanQty = QtyHelper::roundReceivingTan((float) ($line['tan_qty'] ?? 1));
+            $actualM = round((float) ($line['actual_qty_m'] ?? 0), 2);
+            if ($tanQty <= 0 || $actualM <= 0) {
+                continue;
+            }
+
+            $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+            $created[] = ProductRoll::create([
+                'code' => $product->sku.'-'.$poCode.'-'.$seq,
+                'product_id' => $productId,
+                'purchase_order_id' => $poId,
+                'receiving_id' => $receivingId,
+                'tan_qty' => $tanQty,
+                'actual_qty_m' => $actualM,
+                'nominal_meters' => $productNominal,
+                'status' => ProductRoll::STATUS_IN_STOCK,
+                'received_date' => $measuredAt,
+            ]);
+        }
+
+        return $created;
+    }
+
+    /**
+     * @deprecated recordProductReceivingFromLines を使用
      *
      * @return list<object>
      */
@@ -161,45 +234,51 @@ class TanRollRecorder
         ?string $measuredAt = null,
     ): array {
         $rollCount = max(1, (int) round($qtyTan));
-        if ($actualMetersTotal <= 0) {
-            return [];
-        }
-
-        $product = DemoData::findProduct($productId);
-        $greige = DemoData::findGreigeByProductId($productId);
-        if ($product === null) {
-            return [];
-        }
-
-        $productNominal = (int) ($product->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
-        $greigeNominal = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
-        $measuredAt ??= date('Y-m-d');
-        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
-        $poCode = $po?->code ?? 'PO-'.$poId;
         $perRoll = self::distributeMeters($actualMetersTotal, $rollCount);
-        $created = [];
+        $lines = array_map(fn ($m) => ['tan_qty' => 1.0, 'actual_qty_m' => $m], $perRoll);
 
-        foreach ($perRoll as $index => $dyeingMeters) {
-            $weavingMeters = $greigeNominal > 0 && $productNominal > 0
-                ? round($dyeingMeters * ($greigeNominal / $productNominal), 2)
-                : $dyeingMeters;
-            $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
-            $created[] = FabricTanRoll::create([
-                'code' => $product->sku.'-'.$poCode.'-'.$seq,
-                'po_id' => $poId,
-                'greige_sku' => $greige?->sku ?? '',
-                'product_id' => $productId,
-                'stage' => FabricTanRoll::STAGE_PRODUCT,
-                'nominal_meters' => $productNominal,
-                'weaving_meters' => $weavingMeters,
-                'dyeing_meters' => $dyeingMeters,
-                'measured_at' => $measuredAt,
-                'weaving_measured_at' => $measuredAt,
-                'dyeing_measured_at' => $measuredAt,
-            ]);
+        return self::recordProductReceivingFromLines($poId, $productId, $lines, $measuredAt);
+    }
+
+    private static function consumeGreigeRollHalf(int $greigeRollId, float $halfTan, float $consumeM): void
+    {
+        $roll = GreigeRoll::find($greigeRollId);
+        if ($roll === null) {
+            return;
         }
 
-        return $created;
+        $rollTan = (float) $roll->tan_qty;
+        $rollM = (float) $roll->actual_qty_m;
+        $remainingTan = round($rollTan - $halfTan, 2);
+        $remainingM = round($rollM - $consumeM, 2);
+
+        if ($remainingTan <= 0.0001) {
+            GreigeRoll::update($greigeRollId, [
+                'status' => GreigeRoll::STATUS_CONSUMED,
+                'tan_qty' => $halfTan,
+                'actual_qty_m' => $consumeM,
+            ]);
+
+            return;
+        }
+
+        GreigeRoll::update($greigeRollId, [
+            'status' => GreigeRoll::STATUS_CONSUMED,
+            'tan_qty' => $halfTan,
+            'actual_qty_m' => $consumeM,
+        ]);
+
+        GreigeRoll::create([
+            'code' => $roll->code.'-R',
+            'greige_sku' => $roll->greige_sku,
+            'purchase_order_id' => $roll->purchase_order_id,
+            'receiving_id' => $roll->receiving_id ?? null,
+            'tan_qty' => $remainingTan,
+            'actual_qty_m' => $remainingM,
+            'nominal_meters' => (int) $roll->nominal_meters,
+            'status' => GreigeRoll::STATUS_IN_STOCK,
+            'received_date' => $roll->received_date,
+        ]);
     }
 
     /**
@@ -223,13 +302,49 @@ class TanRollRecorder
             $result[$i] += 1.0;
         }
 
-        // 軽いばらつき（合計を維持したまま ±1m を入れ替え）
         if ($rollCount >= 2 && $totalMeters >= 4) {
             $result[0] += 1.0;
             $result[$rollCount - 1] -= 1.0;
         }
 
         return $result;
+    }
+
+    /**
+     * 入荷反数から反行の初期値を生成（0.25刻み対応）。
+     *
+     * @return list<array{tan_qty: float, actual_qty_m: int}>
+     */
+    public static function defaultRollLines(float $qtyTan, int $totalMeters): array
+    {
+        $qtyTan = QtyHelper::roundReceivingTan($qtyTan);
+        if ($qtyTan <= 0 || $totalMeters <= 0) {
+            return [];
+        }
+
+        $fullRolls = (int) floor($qtyTan);
+        $fraction = round($qtyTan - $fullRolls, 2);
+        $lines = [];
+
+        if ($fullRolls > 0) {
+            $perFull = self::distributeMeters($totalMeters, max(1, $fullRolls + ($fraction > 0 ? 1 : 0)));
+            for ($i = 0; $i < $fullRolls; $i++) {
+                $lines[] = [
+                    'tan_qty' => 1.0,
+                    'actual_qty_m' => (int) round($perFull[$i] ?? ($totalMeters / $qtyTan)),
+                ];
+            }
+            if ($fraction > 0) {
+                $lines[] = [
+                    'tan_qty' => $fraction,
+                    'actual_qty_m' => (int) round($perFull[$fullRolls] ?? 0),
+                ];
+            }
+        } else {
+            $lines[] = ['tan_qty' => $fraction, 'actual_qty_m' => $totalMeters];
+        }
+
+        return $lines;
     }
 
     private static function dyeingMetersFromWeaving(float $weavingMeters, int $productNominal, int $greigeNominal): float
@@ -241,29 +356,5 @@ class TanRollRecorder
         $ratio = $productNominal / $greigeNominal;
 
         return round($weavingMeters * $ratio, 2);
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private static function allRollsMutable(): array
-    {
-        return FabricTanRoll::all();
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $rolls
-     * @param  array<string, mixed>  $attributes
-     */
-    private static function appendRoll(array &$rolls, array $attributes): object
-    {
-        $nextId = (int) (collect($rolls)->max('id') ?? 0) + 1;
-        $roll = array_merge([
-            'id' => $nextId,
-            'tan_qty' => 1.0,
-        ], $attributes);
-        $rolls[] = $roll;
-
-        return (object) $roll;
     }
 }

@@ -3,9 +3,10 @@
 namespace App\Services\Fabric;
 
 use App\Support\DemoData;
-use App\Support\FabricTanRoll;
-use App\Support\QtyHelper;
+use App\Support\GreigeRoll;
+use App\Support\ProductRoll;
 use App\Support\PurchaseOrderType;
+use App\Support\QtyHelper;
 
 /**
  * デモ用：既存入荷実績から反明細の初期データを生成する。
@@ -14,7 +15,7 @@ class TanRollBootstrap
 {
     public static function run(): void
     {
-        $rolls = [];
+        $greigeRolls = [];
 
         foreach (DemoData::receivings() as $receiving) {
             if (($receiving->po_type ?? '') !== PurchaseOrderType::GREIGE) {
@@ -44,26 +45,21 @@ class TanRollBootstrap
 
             foreach ($perRoll as $index => $actual) {
                 $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
-                $rolls[] = [
-                    'id' => count($rolls) + 1,
+                $greigeRolls[] = [
+                    'id' => count($greigeRolls) + 1,
                     'code' => $greigeSku.'-'.$po->code.'-'.$seq,
-                    'po_id' => $poId,
+                    'purchase_order_id' => $poId,
                     'greige_sku' => $greigeSku,
-                    'product_id' => null,
-                    'parent_roll_id' => null,
-                    'stage' => FabricTanRoll::STAGE_GREIGE_WIP,
-                    'nominal_meters' => $nominal,
-                    'weaving_meters' => $actual,
-                    'dyeing_meters' => null,
                     'tan_qty' => 1.0,
-                    'measured_at' => (string) ($receiving->date ?? date('Y-m-d')),
-                    'weaving_measured_at' => (string) ($receiving->date ?? date('Y-m-d')),
-                    'dyeing_measured_at' => null,
+                    'actual_qty_m' => $actual,
+                    'nominal_meters' => $nominal,
+                    'status' => GreigeRoll::STATUS_IN_STOCK,
+                    'received_date' => (string) ($receiving->date ?? date('Y-m-d')),
                 ];
             }
         }
 
-        FabricTanRoll::replaceAll($rolls);
+        GreigeRoll::replaceAll($greigeRolls);
 
         foreach (DemoData::receivings() as $receiving) {
             if (($receiving->po_type ?? '') !== PurchaseOrderType::PRODUCT) {
@@ -81,8 +77,24 @@ class TanRollBootstrap
             }
 
             $productId = (int) ($receiving->product_id ?? $po->product_id ?? 0);
-            $qtyTan = QtyHelper::tanCount($meters, $productId);
-            TanRollRecorder::recordProductReceiving((int) $po->id, $productId, $qtyTan, $meters, (string) ($receiving->date ?? date('Y-m-d')));
+            $qtyTan = (float) QtyHelper::roundIntegerTan(QtyHelper::tanCount($meters, $productId));
+            TanRollRecorder::recordProductReceiving(
+                (int) $po->id,
+                $productId,
+                $qtyTan,
+                $meters,
+                (string) ($receiving->date ?? date('Y-m-d')),
+            );
         }
+
+        $flag = storage_path('app/'.GreigeRoll::BOOTSTRAP_FLAG);
+        $dir = dirname($flag);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents($flag, date('c'));
+
+        $productFlag = storage_path('app/'.ProductRoll::BOOTSTRAP_FLAG);
+        file_put_contents($productFlag, date('c'));
     }
 }

@@ -29,6 +29,34 @@ class QtyHelperTest extends TestCase
         $this->assertSame(0.05, QtyHelper::roundTan(0.04));
     }
 
+    public function test_is_valid_receiving_tan_step(): void
+    {
+        $this->assertTrue(QtyHelper::isValidReceivingTanStep(0.25));
+        $this->assertTrue(QtyHelper::isValidReceivingTanStep(1.0));
+        $this->assertFalse(QtyHelper::isValidReceivingTanStep(0.3));
+        $this->assertFalse(QtyHelper::isValidReceivingTanStep(0));
+    }
+
+    public function test_is_integer_tan(): void
+    {
+        $this->assertTrue(QtyHelper::isIntegerTan(2.0));
+        $this->assertTrue(QtyHelper::isIntegerTan(1));
+        $this->assertFalse(QtyHelper::isIntegerTan(1.5));
+        $this->assertFalse(QtyHelper::isIntegerTan(0.25));
+    }
+
+    public function test_round_receiving_tan_snaps_to_quarter(): void
+    {
+        $this->assertSame(0.75, QtyHelper::roundReceivingTan(0.74));
+        $this->assertSame(1.0, QtyHelper::roundReceivingTan(0.99));
+    }
+
+    public function test_tan_count_ceil_for_shipment(): void
+    {
+        $this->assertSame(2.0, QtyHelper::tanCountCeilForShipment(51, 1));
+        $this->assertSame(1.0, QtyHelper::tanCountCeilForShipment(50, 1));
+    }
+
     public function test_is_valid_tan_step(): void
     {
         $this->assertTrue(QtyHelper::isValidTanStep(2.5));

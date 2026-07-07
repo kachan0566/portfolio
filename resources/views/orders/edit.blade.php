@@ -46,10 +46,19 @@
                             'metersName' => 'qty_meters',
                             'id' => 'qty-display',
                             'valueTan' => $order->qty_tan ?? \App\Support\QtyHelper::tanCount($order->qty, $order->product_id),
+                            'valueMeters' => ($order->order_qty_mode ?? 'tan') === 'meters' ? ($order->qty_meters ?? $order->qty) : null,
                             'productId' => $order->product_id,
                             'metersPerTan' => $editProduct->meters_per_tan ?? 50,
+                            'tanStep' => \App\Support\QtyHelper::ORDER_PO_TAN_STEP,
                             'pageKey' => 'orders-form',
                         ])
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">受注単位<span class="req">*</span></label>
+                    <div class="radio-row" style="display:flex;gap:16px;">
+                        <label><input type="radio" name="order_qty_mode" value="tan" @checked(($order->order_qty_mode ?? 'tan') === 'tan')> 反数</label>
+                        <label><input type="radio" name="order_qty_mode" value="meters" @checked(($order->order_qty_mode ?? 'tan') === 'meters')> m指定</label>
                     </div>
                 </div>
                 <div class="form-row">

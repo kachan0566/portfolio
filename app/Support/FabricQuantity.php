@@ -7,6 +7,16 @@ namespace App\Support;
  */
 class FabricQuantity
 {
+    public const CONTEXT_DEFAULT = 'default';
+
+    public const CONTEXT_ORDER = 'order';
+
+    public const CONTEXT_RECEIVING = 'receiving';
+
+    public const CONTEXT_SHIPMENT = 'shipment';
+
+    public const CONTEXT_PO = 'po';
+
     /**
      * @return object{qty_tan: float, qty_meters: int, meters_overridden: bool}
      */
@@ -16,9 +26,12 @@ class FabricQuantity
         ?int $productId = null,
         bool $isGreige = false,
         ?string $greigeSku = null,
+        string $context = self::CONTEXT_DEFAULT,
     ): object {
+        $roundTan = self::roundTanForContext($context);
+
         $tan = $qtyTan !== null && (float) $qtyTan > 0
-            ? QtyHelper::roundTan($qtyTan)
+            ? $roundTan($qtyTan)
             : 0.0;
 
         $metersInput = $qtyMeters !== null ? (int) round((float) $qtyMeters) : 0;
@@ -32,7 +45,7 @@ class FabricQuantity
                 : QtyHelper::tanCount($metersInput, $productId, $isGreige, $greigeSku);
 
             return (object) [
-                'qty_tan' => QtyHelper::roundTan($resolvedTan),
+                'qty_tan' => $roundTan($resolvedTan),
                 'qty_meters' => $metersInput,
                 'meters_overridden' => $tan <= 0 || $metersInput !== $nominalMeters,
             ];
@@ -43,6 +56,36 @@ class FabricQuantity
             'qty_meters' => $nominalMeters,
             'meters_overridden' => false,
         ];
+    }
+
+    /**
+     * @return callable(float|int): float
+     */
+    private static function roundTanForContext(string $context): callable
+    {
+        return match ($context) {
+            self::CONTEXT_ORDER, self::CONTEXT_PO, self::CONTEXT_SHIPMENT => fn (float|int $tan) => QtyHelper::roundIntegerTan($tan),
+            self::CONTEXT_RECEIVING => fn (float|int $tan) => QtyHelper::roundReceivingTan($tan),
+            default => fn (float|int $tan) => QtyHelper::roundTan($tan),
+        };
+    }
+
+    public static function tanStepForContext(string $context): float
+    {
+        return match ($context) {
+            self::CONTEXT_ORDER, self::CONTEXT_PO, self::CONTEXT_SHIPMENT => QtyHelper::ORDER_PO_TAN_STEP,
+            self::CONTEXT_RECEIVING => QtyHelper::RECEIVING_TAN_STEP,
+            default => QtyHelper::TAN_STEP,
+        };
+    }
+
+    public static function isValidTanForContext(float|int $tan, string $context): bool
+    {
+        return match ($context) {
+            self::CONTEXT_ORDER, self::CONTEXT_PO, self::CONTEXT_SHIPMENT => QtyHelper::isIntegerTan($tan),
+            self::CONTEXT_RECEIVING => QtyHelper::isValidReceivingTanStep($tan),
+            default => QtyHelper::isValidTanStep($tan),
+        };
     }
 
     public static function metersFromRecord(

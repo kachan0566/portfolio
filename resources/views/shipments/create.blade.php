@@ -73,6 +73,8 @@
                                 <option value="{{ $o->id }}"
                                         data-shippable="{{ $o->shippable_qty }}"
                                         data-meters-per-tan="{{ $perTan }}"
+                                        data-order-mode="{{ $o->order_qty_mode ?? 'tan' }}"
+                                        data-fifo-preview="{{ collect($o->fifo_preview ?? [])->map(fn ($r) => ($r->code ?? '').' '.number_format((float)$r->actual_qty_m,1).'m')->implode(' / ') }}"
                                         @selected($selectedOrderId === $o->id)>
                                     {{ $o->code }} ／ {{ $o->customer }}（出荷可 {{ \App\Support\QtyHelper::format($o->shippable_qty, $o->product_id) }}）
                                 </option>
@@ -89,10 +91,13 @@
                                 'valueTan' => 0,
                                 'productId' => null,
                                 'metersPerTan' => $selectedMetersPerTan,
-                                'maxTan' => $selectedShippable > 0 ? \App\Support\QtyHelper::tanCount($selectedShippable, $selectedProductId ?? null) : null,
+                                'tanStep' => \App\Support\QtyHelper::ORDER_PO_TAN_STEP,
+                                'maxTan' => $selectedShippable > 0 ? \App\Support\QtyHelper::tanCount($selectedShippable, $selectedOrder?->product_id) : null,
                                 'pageKey' => 'shipments-form',
+                                'showMeterSwitch' => false,
                             ])
                             <p class="field-hint" id="shippable-hint"></p>
+                            <div id="fifo-preview" class="field-hint" style="margin-top:8px;"></div>
                         </div>
                         <div class="field">
                             <label class="label" for="date">出荷日<span class="req">*</span></label>
@@ -127,23 +132,35 @@
         const hint = document.getElementById('shippable-hint');
         const api = QtyUnit.initPage('shipments-form');
 
+        const fifoPreview = document.getElementById('fifo-preview');
+
         function updateHint() {
             const opt = orderSelect?.selectedOptions[0];
             const max = parseInt(opt?.dataset.shippable || '0', 10);
             const perTan = parseInt(opt?.dataset.metersPerTan || '50', 10);
+            const isMeters = (opt?.dataset.orderMode || 'tan') === 'meters';
             if (qtyField) {
                 qtyField.dataset.metersPerTan = String(perTan);
-                if (max > 0) {
+                qtyField.hidden = isMeters;
+                if (max > 0 && !isMeters) {
                     qtyField.dataset.maxMeters = String(max);
                 } else {
                     qtyField.removeAttribute('data-max-meters');
                 }
-                api.setMetersPerTan(perTan);
+                if (!isMeters) {
+                    api.setMetersPerTan(perTan);
+                }
             }
             if (hint) {
-                hint.textContent = max > 0
-                    ? 'この受注は現在庫引当の範囲で最大 ' + QtyUnit.formatQty(max, perTan) + ' まで出荷できます。'
-                    : '現在庫引当がないため出荷できません。';
+                hint.textContent = isMeters
+                    ? 'm受注です。FIFOで足りる反が自動選択され、実測mで出荷されます。'
+                    : (max > 0
+                        ? 'この受注は現在庫引当の範囲で最大 ' + QtyUnit.formatQty(max, perTan) + ' まで出荷できます（整数反・FIFO自動）。'
+                        : '現在庫引当がないため出荷できません。');
+            }
+            if (fifoPreview) {
+                const preview = opt?.dataset.fifoPreview || '';
+                fifoPreview.textContent = preview ? 'FIFO候補: ' + preview : '';
             }
         }
 

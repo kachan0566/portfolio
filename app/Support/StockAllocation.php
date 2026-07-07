@@ -540,6 +540,10 @@ class StockAllocation
                         continue;
                     }
 
+                    if (! QtyHelper::isIntegerTan($qtyTan)) {
+                        return "受注 {$order->code} の引当反数は整数で入力してください。";
+                    }
+
                     $qty = QtyHelper::metersFromTan($qtyTan, $productId);
 
                     $poId = self::parsePoId($poKey);

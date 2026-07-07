@@ -2,11 +2,11 @@
 
 namespace App\Services\Inventory;
 
-use App\Support\InboundLot;
+use App\Support\ProductRoll;
 use Illuminate\Support\Collection;
 
 /**
- * 月末予想時点の入荷ロットを FIFO でシミュレーションする。
+ * 月末予想時点の製品反を FIFO でシミュレーションする。
  */
 class FifoLotSimulator
 {
@@ -20,16 +20,17 @@ class FifoLotSimulator
         string $additionalInboundDate,
         float $additionalOutboundM,
     ): array {
-        $lots = InboundLot::withRemaining($productId)
-            ->map(fn ($lot) => [
-                'id' => (int) $lot->id,
-                'product_id' => (int) $lot->product_id,
-                'receiving_code' => $lot->receiving_code,
-                'received_date' => (string) $lot->received_date,
-                'received_qty_m' => (float) $lot->received_qty_m,
-                'remaining_qty_m' => (float) $lot->remaining_qty_m,
-                'purchase_order_id' => $lot->purchase_order_id,
-                'source_type' => (string) $lot->source_type,
+        $lots = ProductRoll::inStockForProduct($productId)
+            ->map(fn ($roll) => [
+                'id' => (int) $roll->id,
+                'product_id' => (int) $roll->product_id,
+                'receiving_code' => null,
+                'received_date' => (string) $roll->received_date,
+                'received_qty_m' => (float) $roll->actual_qty_m,
+                'remaining_qty_m' => (float) $roll->actual_qty_m,
+                'tan_qty' => (float) $roll->tan_qty,
+                'purchase_order_id' => $roll->purchase_order_id,
+                'source_type' => 'product_roll',
             ])
             ->values()
             ->all();
@@ -44,6 +45,7 @@ class FifoLotSimulator
                 'received_date' => $additionalInboundDate,
                 'received_qty_m' => $additionalInboundM,
                 'remaining_qty_m' => $additionalInboundM,
+                'tan_qty' => 1.0,
                 'purchase_order_id' => null,
                 'source_type' => 'forecast_inbound',
             ];
@@ -64,21 +66,45 @@ class FifoLotSimulator
         $threshold = $cutoff->modify("-{$months} months")->format('Y-m-d');
 
         return (float) collect($lots)
-            ->filter(fn ($lot) => (float) ($lot['remaining_qty_m'] ?? 0) > 0)
-            ->filter(fn ($lot) => ($lot['received_date'] ?? '') <= $threshold)
-            ->sum('remaining_qty_m');
+            ->filter(fn ($lot) => self::lotFloat($lot, 'remaining_qty_m') > 0)
+            ->filter(fn ($lot) => self::lotString($lot, 'received_date') <= $threshold)
+            ->sum(fn ($lot) => self::lotFloat($lot, 'remaining_qty_m'));
     }
 
     public static function oldestDate(Collection $lots): ?string
     {
         $dates = $lots
-            ->filter(fn ($lot) => (float) ($lot->remaining_qty_m ?? $lot->remaining_qty_m ?? 0) > 0)
-            ->pluck('received_date')
+            ->filter(fn ($lot) => self::lotFloat($lot, 'remaining_qty_m') > 0)
+            ->map(fn ($lot) => self::lotString($lot, 'received_date'))
             ->filter()
             ->sort()
             ->values();
 
         return $dates->isNotEmpty() ? (string) $dates->first() : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|object  $lot
+     */
+    private static function lotFloat(array|object $lot, string $key): float
+    {
+        if (is_array($lot)) {
+            return (float) ($lot[$key] ?? 0);
+        }
+
+        return (float) ($lot->{$key} ?? 0);
+    }
+
+    /**
+     * @param  array<string, mixed>|object  $lot
+     */
+    private static function lotString(array|object $lot, string $key): string
+    {
+        if (is_array($lot)) {
+            return (string) ($lot[$key] ?? '');
+        }
+
+        return (string) ($lot->{$key} ?? '');
     }
 
     public static function ageInMonths(?string $receivedDate, string $asOfDate): ?int
@@ -104,6 +130,8 @@ class FifoLotSimulator
     }
 
     /**
+     * 丸反単位で FIFO 消費をシミュレートする。
+     *
      * @param  list<array<string, mixed>>  $lots
      */
     private static function consumeFifo(array &$lots, float $qtyM): void
@@ -123,9 +151,8 @@ class FifoLotSimulator
             if ($lotRemaining <= 0) {
                 continue;
             }
-            $take = min($lotRemaining, $remaining);
-            $lot['remaining_qty_m'] = round($lotRemaining - $take, 2);
-            $remaining -= $take;
+            $lot['remaining_qty_m'] = 0.0;
+            $remaining -= $lotRemaining;
         }
         unset($lot);
     }

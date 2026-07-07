@@ -4,7 +4,8 @@ namespace App\Services\Inventory;
 
 use App\Support\DemoData;
 use App\Support\DemoState;
-use App\Support\InboundLot;
+use App\Support\FabricTanRoll;
+use App\Support\ProductRoll;
 use Illuminate\Support\Collection;
 
 class LongTermInventoryEngine
@@ -19,7 +20,7 @@ class LongTermInventoryEngine
 
     public static function build(?string $asOfDate = null): object
     {
-        InboundLot::ensureBootstrapped();
+        FabricTanRoll::ensureBootstrapped();
         $asOfDate ??= DemoData::today();
         $ym = DemoData::CURRENT_YM;
 
@@ -50,7 +51,14 @@ class LongTermInventoryEngine
     public static function buildLine(int $productId, object $product, string $asOfDate, string $ym): object
     {
         $currentStock = (float) DemoState::effectiveStock($productId);
-        $lots = InboundLot::withRemaining($productId);
+        $lots = ProductRoll::inStockForProduct($productId)
+            ->map(fn ($roll) => (object) [
+                'id' => (int) $roll->id,
+                'receiving_code' => $roll->code ?? null,
+                'received_date' => (string) $roll->received_date,
+                'received_qty_m' => (float) $roll->actual_qty_m,
+                'remaining_qty_m' => (float) $roll->actual_qty_m,
+            ]);
         $unitCost = DemoData::unitCost($productId, $ym);
         $unitCostInt = $unitCost !== null ? (int) round($unitCost) : null;
 

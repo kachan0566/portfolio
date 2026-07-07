@@ -5,10 +5,9 @@ namespace App\Support;
 use Illuminate\Support\Collection;
 
 /**
- * 反明細（1物理反 = 1レコード）。各工程の実測 m を保持する。
+ * 反明細ファサード。内部は GreigeRoll / ProductRoll に委譲。
  *
- * Phase 3: 織り上がり（weaving_meters）・染め上がり（dyeing_meters）で誤差を記録。
- * 集計の反数は常に 1.0（物理反単位）。業務上の反数（0.05刻み）は別レイヤー。
+ * @deprecated 新規コードは GreigeRoll / ProductRoll を直接使う。
  */
 class FabricTanRoll
 {
@@ -21,9 +20,6 @@ class FabricTanRoll
     public const FILE = 'fabric_tan_rolls.json';
 
     public const BOOTSTRAP_FLAG = 'fabric_tan_rolls_bootstrapped.flag';
-
-    /** @var list<array<string, mixed>>|null */
-    private static ?array $cache = null;
 
     private static bool $bootstrapping = false;
 
@@ -56,74 +52,83 @@ class FabricTanRoll
     {
         self::ensureBootstrapped();
 
-        if (self::$cache !== null) {
-            return self::$cache;
+        $rolls = [];
+        foreach (GreigeRoll::all() as $roll) {
+            $rolls[] = self::fromGreigeRoll($roll);
+        }
+        foreach (ProductRoll::all() as $roll) {
+            $rolls[] = self::fromProductRoll($roll);
         }
 
-        $path = storage_path('app/'.self::FILE);
-        if (! is_file($path)) {
-            return self::$cache = [];
-        }
+        usort($rolls, fn ($a, $b) => (int) $a['id'] <=> (int) $b['id']);
 
-        $data = json_decode((string) file_get_contents($path), true);
-        if (! is_array($data) || ! isset($data['rolls']) || ! is_array($data['rolls'])) {
-            return self::$cache = [];
-        }
-
-        return self::$cache = self::normalizeRolls($data['rolls']);
+        return $rolls;
     }
 
     /** @return Collection<int, object> */
     public static function forPo(int $poId): Collection
     {
-        return collect(self::all())
-            ->filter(fn ($roll) => (int) ($roll['po_id'] ?? 0) === $poId)
+        self::ensureBootstrapped();
+
+        return GreigeRoll::forPo($poId)
+            ->map(fn ($roll) => (object) self::fromGreigeRoll((array) $roll))
+            ->concat(
+                ProductRoll::forPo($poId)->map(fn ($roll) => (object) self::fromProductRoll((array) $roll))
+            )
             ->sortBy('id')
-            ->map(fn ($roll) => (object) $roll)
             ->values();
     }
 
     /** @return Collection<int, object> */
     public static function forGreigeSku(string $greigeSku, ?string $stage = self::STAGE_GREIGE_WIP): Collection
     {
-        return collect(self::all())
+        self::ensureBootstrapped();
+
+        return collect(GreigeRoll::all())
             ->filter(function ($roll) use ($greigeSku, $stage) {
                 if ((string) ($roll['greige_sku'] ?? '') !== $greigeSku) {
                     return false;
                 }
-                if ($stage === null) {
-                    return true;
+                if ($stage === self::STAGE_CONSUMED) {
+                    return (string) ($roll['status'] ?? '') === GreigeRoll::STATUS_CONSUMED;
+                }
+                if ($stage === self::STAGE_GREIGE_WIP) {
+                    return in_array((string) ($roll['status'] ?? ''), [
+                        GreigeRoll::STATUS_IN_STOCK,
+                        GreigeRoll::STATUS_PARTIALLY_CONSUMED,
+                    ], true);
                 }
 
-                return (string) ($roll['stage'] ?? '') === $stage;
+                return true;
             })
             ->sortBy('id')
-            ->map(fn ($roll) => (object) $roll)
+            ->map(fn ($roll) => (object) self::fromGreigeRoll($roll))
             ->values();
     }
 
     /** @return Collection<int, object> */
     public static function forProduct(int $productId, ?string $stage = self::STAGE_PRODUCT): Collection
     {
-        return collect(self::all())
-            ->filter(function ($roll) use ($productId, $stage) {
-                if ((int) ($roll['product_id'] ?? 0) !== $productId) {
-                    return false;
-                }
-                if ($stage === null) {
-                    return true;
-                }
+        self::ensureBootstrapped();
 
-                return (string) ($roll['stage'] ?? '') === $stage;
-            })
+        if ($stage === self::STAGE_PRODUCT) {
+            return ProductRoll::inStockForProduct($productId)
+                ->map(fn ($roll) => (object) self::fromProductRoll((array) $roll));
+        }
+
+        return collect(ProductRoll::all())
+            ->filter(fn ($roll) => (int) ($roll['product_id'] ?? 0) === $productId)
             ->sortBy('id')
-            ->map(fn ($roll) => (object) $roll)
+            ->map(fn ($roll) => (object) self::fromProductRoll($roll))
             ->values();
     }
 
     public static function actualMeters(object|array $roll): float
     {
         $row = (object) $roll;
+        if (isset($row->actual_qty_m)) {
+            return round((float) $row->actual_qty_m, 2);
+        }
         if (isset($row->dyeing_meters) && $row->dyeing_meters !== null) {
             return round((float) $row->dyeing_meters, 2);
         }
@@ -145,30 +150,41 @@ class FabricTanRoll
      */
     public static function create(array $attributes): object
     {
-        $rolls = self::all();
-        $nextId = (int) (collect($rolls)->max('id') ?? 0) + 1;
+        self::ensureBootstrapped();
 
-        $roll = self::normalizeRoll(array_merge([
-            'id' => $nextId,
-            'code' => 'ROLL-'.$nextId,
-            'po_id' => 0,
-            'greige_sku' => '',
-            'product_id' => null,
-            'parent_roll_id' => null,
-            'stage' => self::STAGE_GREIGE_WIP,
-            'nominal_meters' => DemoData::METERS_PER_TAN_GREIGE,
-            'weaving_meters' => 0.0,
-            'dyeing_meters' => null,
-            'tan_qty' => 1.0,
-            'measured_at' => date('Y-m-d'),
-            'weaving_measured_at' => null,
-            'dyeing_measured_at' => null,
-        ], $attributes));
+        $stage = (string) ($attributes['stage'] ?? self::STAGE_GREIGE_WIP);
 
-        $rolls[] = $roll;
-        self::persist($rolls);
+        if ($stage === self::STAGE_PRODUCT) {
+            $roll = ProductRoll::create([
+                'code' => $attributes['code'] ?? null,
+                'product_id' => (int) ($attributes['product_id'] ?? 0),
+                'parent_greige_roll_id' => $attributes['parent_roll_id'] ?? $attributes['parent_greige_roll_id'] ?? null,
+                'purchase_order_id' => $attributes['po_id'] ?? $attributes['purchase_order_id'] ?? null,
+                'receiving_id' => $attributes['receiving_id'] ?? null,
+                'tan_qty' => (float) ($attributes['tan_qty'] ?? 1.0),
+                'actual_qty_m' => (float) ($attributes['dyeing_meters'] ?? $attributes['actual_qty_m'] ?? 0),
+                'nominal_meters' => (int) ($attributes['nominal_meters'] ?? DemoData::METERS_PER_TAN_PRODUCT),
+                'received_date' => (string) ($attributes['measured_at'] ?? $attributes['received_date'] ?? date('Y-m-d')),
+            ]);
 
-        return (object) $roll;
+            return (object) self::fromProductRoll((array) $roll);
+        }
+
+        $roll = GreigeRoll::create([
+            'code' => $attributes['code'] ?? null,
+            'greige_sku' => (string) ($attributes['greige_sku'] ?? ''),
+            'purchase_order_id' => $attributes['po_id'] ?? $attributes['purchase_order_id'] ?? null,
+            'receiving_id' => $attributes['receiving_id'] ?? null,
+            'tan_qty' => (float) ($attributes['tan_qty'] ?? 1.0),
+            'actual_qty_m' => (float) ($attributes['weaving_meters'] ?? $attributes['actual_qty_m'] ?? 0),
+            'nominal_meters' => (int) ($attributes['nominal_meters'] ?? DemoData::METERS_PER_TAN_GREIGE),
+            'status' => ($attributes['stage'] ?? '') === self::STAGE_CONSUMED
+                ? GreigeRoll::STATUS_CONSUMED
+                : GreigeRoll::STATUS_IN_STOCK,
+            'received_date' => (string) ($attributes['measured_at'] ?? $attributes['received_date'] ?? date('Y-m-d')),
+        ]);
+
+        return (object) self::fromGreigeRoll((array) $roll);
     }
 
     /**
@@ -176,78 +192,134 @@ class FabricTanRoll
      */
     public static function replaceAll(array $rolls): void
     {
-        self::persist(self::normalizeRolls($rolls));
+        $greigeRolls = [];
+        $productRolls = [];
+
+        foreach ($rolls as $roll) {
+            $stage = (string) ($roll['stage'] ?? self::STAGE_GREIGE_WIP);
+            if ($stage === self::STAGE_PRODUCT) {
+                $productRolls[] = self::toProductRoll($roll);
+            } else {
+                $greigeRolls[] = self::toGreigeRoll($roll);
+            }
+        }
+
+        GreigeRoll::replaceAll($greigeRolls);
+        ProductRoll::replaceAll($productRolls);
     }
 
     public static function resetBootstrap(): void
     {
         $flag = storage_path('app/'.self::BOOTSTRAP_FLAG);
-        $file = storage_path('app/'.self::FILE);
         if (is_file($flag)) {
             unlink($flag);
         }
-        if (is_file($file)) {
-            unlink($file);
-        }
-        self::$cache = null;
+        GreigeRoll::resetBootstrap();
+        ProductRoll::resetBootstrap();
+        ShipmentRollAllocation::resetBootstrap();
         self::$bootstrapping = false;
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $rolls
-     */
-    private static function persist(array $rolls): void
-    {
-        $path = storage_path('app/'.self::FILE);
-        $dir = dirname($path);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        file_put_contents(
-            $path,
-            json_encode(['rolls' => self::normalizeRolls($rolls)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-        );
-
-        self::$cache = null;
-    }
-
-    /**
-     * @param  list<array<mixed>>  $rolls
-     * @return list<array<string, mixed>>
-     */
-    private static function normalizeRolls(array $rolls): array
-    {
-        return array_values(array_map(fn ($roll) => self::normalizeRoll((array) $roll), $rolls));
     }
 
     /**
      * @param  array<string, mixed>  $roll
      * @return array<string, mixed>
      */
-    private static function normalizeRoll(array $roll): array
+    private static function fromGreigeRoll(array $roll): array
     {
-        $nominal = (int) ($roll['nominal_meters'] ?? DemoData::METERS_PER_TAN_GREIGE);
-        $weaving = round((float) ($roll['weaving_meters'] ?? 0), 2);
-        $dyeing = array_key_exists('dyeing_meters', $roll) && $roll['dyeing_meters'] !== null
-            ? round((float) $roll['dyeing_meters'], 2)
-            : null;
+        $status = (string) ($roll['status'] ?? GreigeRoll::STATUS_IN_STOCK);
+        $stage = match ($status) {
+            GreigeRoll::STATUS_CONSUMED => self::STAGE_CONSUMED,
+            default => self::STAGE_GREIGE_WIP,
+        };
 
+        return [
+            'id' => (int) $roll['id'],
+            'code' => (string) $roll['code'],
+            'po_id' => (int) ($roll['purchase_order_id'] ?? 0),
+            'greige_sku' => (string) $roll['greige_sku'],
+            'product_id' => null,
+            'parent_roll_id' => null,
+            'stage' => $stage,
+            'nominal_meters' => (int) $roll['nominal_meters'],
+            'weaving_meters' => (float) $roll['actual_qty_m'],
+            'dyeing_meters' => null,
+            'tan_qty' => (float) $roll['tan_qty'],
+            'actual_qty_m' => (float) $roll['actual_qty_m'],
+            'measured_at' => (string) $roll['received_date'],
+            'weaving_measured_at' => (string) $roll['received_date'],
+            'dyeing_measured_at' => null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $roll
+     * @return array<string, mixed>
+     */
+    private static function fromProductRoll(array $roll): array
+    {
+        $stage = (string) ($roll['status'] ?? ProductRoll::STATUS_IN_STOCK) === ProductRoll::STATUS_SHIPPED
+            ? self::STAGE_CONSUMED
+            : self::STAGE_PRODUCT;
+
+        return [
+            'id' => (int) $roll['id'],
+            'code' => (string) $roll['code'],
+            'po_id' => (int) ($roll['purchase_order_id'] ?? 0),
+            'greige_sku' => '',
+            'product_id' => (int) $roll['product_id'],
+            'parent_roll_id' => $roll['parent_greige_roll_id'] ?? null,
+            'stage' => $stage,
+            'nominal_meters' => (int) $roll['nominal_meters'],
+            'weaving_meters' => (float) $roll['actual_qty_m'],
+            'dyeing_meters' => (float) $roll['actual_qty_m'],
+            'tan_qty' => (float) $roll['tan_qty'],
+            'actual_qty_m' => (float) $roll['actual_qty_m'],
+            'measured_at' => (string) $roll['received_date'],
+            'weaving_measured_at' => (string) $roll['received_date'],
+            'dyeing_measured_at' => (string) $roll['received_date'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $roll
+     * @return array<string, mixed>
+     */
+    private static function toGreigeRoll(array $roll): array
+    {
         return [
             'id' => (int) ($roll['id'] ?? 0),
             'code' => (string) ($roll['code'] ?? ''),
-            'po_id' => (int) ($roll['po_id'] ?? 0),
             'greige_sku' => (string) ($roll['greige_sku'] ?? ''),
-            'product_id' => isset($roll['product_id']) ? (int) $roll['product_id'] : null,
-            'parent_roll_id' => isset($roll['parent_roll_id']) ? (int) $roll['parent_roll_id'] : null,
-            'stage' => (string) ($roll['stage'] ?? self::STAGE_GREIGE_WIP),
-            'nominal_meters' => $nominal,
-            'weaving_meters' => $weaving,
-            'dyeing_meters' => $dyeing,
-            'tan_qty' => 1.0,
-            'measured_at' => (string) ($roll['measured_at'] ?? date('Y-m-d')),
-            'weaving_measured_at' => $roll['weaving_measured_at'] ?? null,
-            'dyeing_measured_at' => $roll['dyeing_measured_at'] ?? null,
+            'purchase_order_id' => (int) ($roll['po_id'] ?? $roll['purchase_order_id'] ?? 0) ?: null,
+            'tan_qty' => (float) ($roll['tan_qty'] ?? 1.0),
+            'actual_qty_m' => (float) ($roll['weaving_meters'] ?? $roll['actual_qty_m'] ?? 0),
+            'nominal_meters' => (int) ($roll['nominal_meters'] ?? DemoData::METERS_PER_TAN_GREIGE),
+            'status' => ($roll['stage'] ?? '') === self::STAGE_CONSUMED
+                ? GreigeRoll::STATUS_CONSUMED
+                : GreigeRoll::STATUS_IN_STOCK,
+            'received_date' => (string) ($roll['measured_at'] ?? $roll['received_date'] ?? date('Y-m-d')),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $roll
+     * @return array<string, mixed>
+     */
+    private static function toProductRoll(array $roll): array
+    {
+        return [
+            'id' => (int) ($roll['id'] ?? 0),
+            'code' => (string) ($roll['code'] ?? ''),
+            'product_id' => (int) ($roll['product_id'] ?? 0),
+            'parent_greige_roll_id' => $roll['parent_roll_id'] ?? $roll['parent_greige_roll_id'] ?? null,
+            'purchase_order_id' => (int) ($roll['po_id'] ?? $roll['purchase_order_id'] ?? 0) ?: null,
+            'tan_qty' => (float) ($roll['tan_qty'] ?? 1.0),
+            'actual_qty_m' => (float) ($roll['dyeing_meters'] ?? $roll['actual_qty_m'] ?? 0),
+            'nominal_meters' => (int) ($roll['nominal_meters'] ?? DemoData::METERS_PER_TAN_PRODUCT),
+            'status' => ($roll['stage'] ?? '') === self::STAGE_CONSUMED
+                ? ProductRoll::STATUS_SHIPPED
+                : ProductRoll::STATUS_IN_STOCK,
+            'received_date' => (string) ($roll['measured_at'] ?? $roll['received_date'] ?? date('Y-m-d')),
         ];
     }
 }

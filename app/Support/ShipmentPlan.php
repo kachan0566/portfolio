@@ -111,7 +111,7 @@ class ShipmentPlan
         return self::enrich((object) $plan);
     }
 
-    public static function recordShipment(int $orderId, float $qtyM): void
+    public static function recordShipment(int $orderId, float $qtyM, ?float $qtyTan = null): void
     {
         if ($qtyM <= 0) {
             return;
@@ -142,6 +142,9 @@ class ShipmentPlan
                     continue;
                 }
                 $plans[$i]['shipped_qty_m'] = round((float) $p['shipped_qty_m'] + $take, 2);
+                if ($qtyTan !== null && $qtyTan > 0) {
+                    $plans[$i]['shipped_qty_tan'] = round((float) ($p['shipped_qty_tan'] ?? 0) + $qtyTan, 2);
+                }
                 $plans[$i]['status'] = $plans[$i]['shipped_qty_m'] >= (float) $p['confirmed_qty_m']
                     ? self::STATUS_COMPLETED
                     : self::STATUS_PARTIAL;

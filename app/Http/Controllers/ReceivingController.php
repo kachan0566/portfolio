@@ -9,6 +9,7 @@ use App\Support\FabricQuantity;
 use App\Support\ListSearch;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
+use App\Support\QtyHelper;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,6 +84,7 @@ class ReceivingController extends Controller
 
         $poType = (string) ($po->type ?? PurchaseOrderType::PRODUCT);
         $remaining = DemoState::poRemaining($poId);
+        $rollLines = [];
 
         if ($poType === PurchaseOrderType::YARN) {
             $qty = round((float) $request->input('qty'), 2);
@@ -101,13 +103,25 @@ class ReceivingController extends Controller
                 $productId,
                 $poType === PurchaseOrderType::GREIGE,
                 $greigeSku,
+                FabricQuantity::CONTEXT_RECEIVING,
             );
             $qty = $resolved->qty_meters;
             $qtyTan = $resolved->qty_tan;
 
-            if ($qtyTan <= 0 || $qty <= 0 || $qty > (int) floor($remaining)) {
+            if ($qtyTan <= 0 || $qty <= 0 || ! QtyHelper::isValidReceivingTanStep($qtyTan)) {
                 return redirect()->route('receivings.create', ['type' => $poType])
-                    ->with('error', '入荷数量は 0.05反以上、かつ発注残 '.(int) floor($remaining).'m 以内で入力してください。');
+                    ->with('error', '入荷反数は 0.25反刻みで入力してください。');
+            }
+
+            if ($qty > (int) floor($remaining) + 1) {
+                return redirect()->route('receivings.create', ['type' => $poType])
+                    ->with('error', '入荷数量は発注残 '.(int) floor($remaining).'m 以内で入力してください。');
+            }
+
+            $rollLines = $this->normalizeRollLines($request->input('rolls', []), $qtyTan, $qty);
+            if ($rollLines === []) {
+                return redirect()->route('receivings.create', ['type' => $poType])
+                    ->with('error', '反ごとの実測mを入力してください。');
             }
         }
 
@@ -143,16 +157,19 @@ class ReceivingController extends Controller
         DemoState::applyReceiving($receiving);
 
         if ($poType === PurchaseOrderType::GREIGE) {
-            $rollCount = max(1, (int) round($qtyTan));
-            TanRollRecorder::recordWeavingCompletion(
+            TanRollRecorder::recordWeavingFromLines(
                 $poId,
                 (string) ($po->greige_sku ?? $po->sku),
-                $rollCount,
-                $qty,
+                $rollLines,
                 $date,
             );
         } elseif ($poType === PurchaseOrderType::PRODUCT) {
-            TanRollRecorder::recordProductReceiving($poId, (int) $po->product_id, $qtyTan, $qty, $date);
+            TanRollRecorder::recordProductReceivingFromLines(
+                $poId,
+                (int) $po->product_id,
+                $rollLines,
+                $date,
+            );
         }
 
         $message = "入荷 {$code} を登録しました。";
@@ -175,5 +192,47 @@ class ReceivingController extends Controller
         }
 
         return redirect()->route('receivings.index')->with('success', $message);
+    }
+
+    /**
+     * @param  mixed  $rollsInput
+     * @return list<array{tan_qty: float, actual_qty_m: float}>
+     */
+    private function normalizeRollLines(mixed $rollsInput, float $headerTan, int $totalMeters): array
+    {
+        if (! is_array($rollsInput) || $rollsInput === []) {
+            return TanRollRecorder::defaultRollLines($headerTan, $totalMeters);
+        }
+
+        $lines = [];
+        $tanSum = 0.0;
+        $mSum = 0.0;
+
+        foreach ($rollsInput as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $tanQty = QtyHelper::roundReceivingTan((float) ($row['tan_qty'] ?? 0));
+            $actualM = round((float) ($row['actual_qty_m'] ?? 0), 2);
+            if ($tanQty <= 0 || $actualM <= 0) {
+                continue;
+            }
+            if (! QtyHelper::isValidReceivingTanStep($tanQty)) {
+                continue;
+            }
+            $lines[] = ['tan_qty' => $tanQty, 'actual_qty_m' => $actualM];
+            $tanSum += $tanQty;
+            $mSum += $actualM;
+        }
+
+        if ($lines === []) {
+            return [];
+        }
+
+        if (abs($tanSum - QtyHelper::roundReceivingTan($headerTan)) > 0.01) {
+            return [];
+        }
+
+        return $lines;
     }
 }

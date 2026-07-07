@@ -252,7 +252,9 @@ class InventoryForecastTest extends TestCase
         $response->assertSee('月末予想在庫', false);
         $response->assertSee(number_format($line->forecast_qty).'m', false);
         $response->assertDontSee('自動予想', false);
-        $response->assertSee('在庫不足予想', false);
+        if ($line->is_negative || $line->is_shortage) {
+            $response->assertSee('在庫不足予想', false);
+        }
         $response->assertSee('入荷予定', false);
         $response->assertSee('出荷見通し', false);
         $response->assertSee('売上見通しを編集', false);

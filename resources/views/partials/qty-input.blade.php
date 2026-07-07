@@ -25,12 +25,15 @@
     $fieldClass = $fieldClass ?? '';
     $showMeterSwitch = $showMeterSwitch ?? true;
     $submitMeters = $submitMeters ?? true;
+    $tanStep = $tanStep ?? \App\Support\QtyHelper::TAN_STEP;
+    $tanDecimals = $tanStep >= 1 ? 0 : 2;
 @endphp
 <div class="qty-unit-field{{ $compact ? ' qty-unit-field--compact' : '' }} {{ $fieldClass }}"
      data-qty-unit-field
      data-page-key="{{ $pageKey }}"
      data-qty-mode="tan"
      data-meters-per-tan="{{ $metersPerTan }}"
+     data-tan-step="{{ $tanStep }}"
      @if ($maxTan !== null) data-max-tan="{{ \App\Support\QtyHelper::formatTanCount($maxTan) }}" @endif>
     <input type="hidden" name="{{ $tanName }}" value="{{ \App\Support\QtyHelper::formatTanCount($valueTan) }}" data-qty-tan-hidden>
     @if ($submitMeters)
@@ -45,7 +48,7 @@
                    @if ($id) id="{{ $id }}" @endif
                    data-qty-tan-display
                    min="0"
-                   step="{{ \App\Support\QtyHelper::TAN_STEP }}"
+                   step="{{ $tanStep }}"
                    placeholder="{{ $placeholder }}"
                    autocomplete="off">
             <span class="input-group__suffix">反</span>

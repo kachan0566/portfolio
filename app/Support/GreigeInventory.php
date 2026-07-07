@@ -34,12 +34,15 @@ class GreigeInventory
                     return null;
                 }
 
-                $rolls = FabricTanRoll::forPo($poId)
-                    ->filter(fn ($roll) => $roll->stage === FabricTanRoll::STAGE_GREIGE_WIP);
+                $rolls = GreigeRoll::forPo($poId)
+                    ->filter(fn ($roll) => in_array($roll->status, [
+                        GreigeRoll::STATUS_IN_STOCK,
+                        GreigeRoll::STATUS_PARTIALLY_CONSUMED,
+                    ], true));
 
                 if ($rolls->isNotEmpty()) {
-                    $received = (int) round($rolls->sum(fn ($roll) => FabricTanRoll::actualMeters($roll)));
-                    $rollCount = $rolls->count();
+                    $received = (int) round($rolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
+                    $rollCount = (float) $rolls->sum(fn ($roll) => (float) $roll->tan_qty);
                 } else {
                     $received = (int) floor(DemoState::effectiveReceivedQty($poId, $po));
                     if ($received <= 0) {

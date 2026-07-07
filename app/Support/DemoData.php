@@ -658,8 +658,8 @@ class DemoData
         return self::suppliers()->whereIn('type', $allowed)->values();
     }
 
-    /** 受注一覧 */
-    public static function orders(): Collection
+    /** 受注の生データ（DemoState 参照なし。循環回避用） */
+    public static function baseOrderRows(): Collection
     {
         $rows = [
             ['id' => 1, 'code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'shipped' => 120, 'order_date' => '2026-06-02', 'due_date' => '2026-06-12', 'planned_ship_date' => '2026-06-11', 'ship_memo' => '6/11 全量出荷済み'],
@@ -674,32 +674,76 @@ class DemoData
             ['id' => 10, 'code' => 'SO-2606-010', 'customer' => 'ユニフォーム製作所', 'product_id' => 3, 'qty' => 50, 'shipped' => 0, 'order_date' => '2026-06-25', 'due_date' => '2026-07-05', 'planned_ship_date' => '2026-07-04', 'ship_memo' => '本日受付。在庫70mから全量引当可能'],
         ];
 
+        foreach (OrderOverlay::additions() as $addition) {
+            $rows[] = $addition;
+        }
+
         return collect($rows)->map(function ($r) {
+            return array_merge($r, OrderOverlay::overrides((int) $r['id']));
+        });
+    }
+
+    /** @return array<string, mixed>|null */
+    public static function findBaseOrder(int $id): ?array
+    {
+        $row = self::baseOrderRows()->firstWhere('id', $id);
+
+        return is_array($row) ? $row : null;
+    }
+
+    /** 受注一覧 */
+    public static function orders(): Collection
+    {
+        return self::baseOrderRows()->map(function ($r) {
             $product = self::findProduct($r['product_id']);
             $r['product'] = $product->sku;
             $r['sku'] = $product->sku;
             $r['color'] = $product->color;
             $r['unit'] = $product->unit;
-            $r['qty_tan'] = FabricQuantity::tanFromRecord($r, (int) $r['product_id']);
+            $r['order_qty_mode'] = $r['order_qty_mode'] ?? 'tan';
+            $r['qty_tan'] = ($r['order_qty_mode'] ?? 'tan') === 'tan'
+                ? QtyHelper::roundIntegerTan((float) ($r['qty_tan'] ?? FabricQuantity::tanFromRecord($r, (int) $r['product_id'])))
+                : FabricQuantity::tanFromRecord($r, (int) $r['product_id']);
             $r['shipped_tan'] = FabricQuantity::tanFromRecord(
                 ['qty_tan' => $r['shipped_tan'] ?? null, 'qty' => $r['shipped'] ?? 0],
                 (int) $r['product_id'],
             );
-            $r['qty_meters'] = FabricQuantity::metersFromRecord(
-                ['qty_tan' => $r['qty_tan'], 'qty_meters' => $r['qty_meters'] ?? null],
-                (int) $r['product_id'],
-            );
-            $r['shipped_meters'] = FabricQuantity::metersFromRecord(
-                ['qty_tan' => $r['shipped_tan'], 'qty_meters' => $r['shipped_meters'] ?? null],
-                (int) $r['product_id'],
-            );
+            $r['qty_meters'] = ($r['order_qty_mode'] ?? 'tan') === 'meters'
+                ? (int) ($r['qty_meters'] ?? $r['qty'] ?? 0)
+                : FabricQuantity::metersFromRecord(
+                    ['qty_tan' => $r['qty_tan'], 'qty_meters' => $r['qty_meters'] ?? null],
+                    (int) $r['product_id'],
+                );
+            $r['shipped_meters'] = (int) DemoState::effectiveShippedM((int) $r['id']);
             $r['qty'] = $r['qty_meters'];
             $r['shipped'] = $r['shipped_meters'];
-            $r['status'] = self::progressStatus($r['shipped'], $r['qty'], '受注');
+            $r['status'] = self::orderProgressStatus($r);
             $r['is_new_today'] = $r['order_date'] === self::today();
 
             return (object) $r;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $order
+     */
+    public static function orderProgressStatus(array $order): string
+    {
+        $mode = $order['order_qty_mode'] ?? 'tan';
+        if ($mode === 'meters') {
+            $qty = (int) ($order['qty_meters'] ?? $order['qty'] ?? 0);
+            $shipped = (int) DemoState::effectiveShippedM((int) ($order['id'] ?? 0));
+
+            return self::progressStatus($shipped, $qty, '受注');
+        }
+
+        $qtyTan = (float) ($order['qty_tan'] ?? 0);
+        $shippedTan = DemoState::effectiveShippedTan((int) ($order['id'] ?? 0));
+        if ($shippedTan <= 0) {
+            return '未出荷';
+        }
+
+        return $shippedTan + 0.0001 >= $qtyTan ? '出荷済' : '一部出荷';
     }
 
     /** デモ上の「今日」の日付（受注日の基準） */
@@ -787,7 +831,7 @@ class DemoData
                 'id' => 6, 'code' => 'PO-G-2606-003', 'type' => PurchaseOrderType::GREIGE,
                 'status' => PurchaseOrderStatus::DRAFT, 'order_id' => null,
                 'supplier_id' => 4, 'ship_to_id' => 2,
-                'greige_sku' => 'KB-B', 'qty_tan' => 3.5, 'meters_per_tan' => 100, 'qty_meters' => 350,
+                'greige_sku' => 'KB-B', 'qty_tan' => 4.0, 'meters_per_tan' => 100, 'qty_meters' => 400,
                 'received' => 0,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-05',
             ],
@@ -895,9 +939,9 @@ class DemoData
 
         $linkedOrderId = PurchaseOrderLink::orderIdForPurchase((int) $row['id'], $row['order_id'] ?? null);
         $row['order_id'] = $linkedOrderId;
-        $linkedOrder = $linkedOrderId ? self::orders()->firstWhere('id', $linkedOrderId) : null;
-        $row['order_code'] = $linkedOrder?->code;
-        $row['customer'] = $linkedOrder?->customer;
+        $linkedOrder = $linkedOrderId ? self::findBaseOrder($linkedOrderId) : null;
+        $row['order_code'] = $linkedOrder['code'] ?? null;
+        $row['customer'] = $linkedOrder['customer'] ?? null;
 
         if ($type === PurchaseOrderType::YARN) {
             $material = self::findMaterial((int) ($row['material_id'] ?? 0));
