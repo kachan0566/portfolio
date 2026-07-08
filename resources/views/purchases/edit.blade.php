@@ -116,15 +116,30 @@
                     </div>
                 @endif
 
-                @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT && ! empty($purchase->schedule))
+                @if ($manualStageEditable && $manualStageOptions !== [])
                     <div class="field">
-                        <label class="label" for="stage">生産工程（互換・製品のみ）</label>
+                        <label class="label" for="stage">生産工程</label>
                         <select class="select" id="stage" name="stage" style="max-width:320px;">
-                            @foreach (\App\Support\DemoData::PO_STAGES as $st)
-                                <option value="{{ $st }}" @selected($st === $purchase->stage)>{{ $st }}</option>
+                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
+                                <option value="">（未設定）</option>
+                            @endif
+                            @foreach ($manualStageOptions as $option)
+                                <option value="{{ $option }}" @selected($option === $manualStage)>{{ $option }}</option>
                             @endforeach
                         </select>
-                        <p class="field-hint">既存デモの工程連動用です。Phase C で見直し予定。</p>
+                        <p class="field-hint">
+                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
+                                織工場から織編開始の連絡があったら「織編機投入済」を選びます。糸入荷・生機出荷は入荷記録から自動で更新されます。
+                            @else
+                                染工場への投入連絡後に「染機投入済」を選びます。在庫中・出荷済は入荷記録から自動で更新されます。
+                            @endif
+                        </p>
+                    </div>
+                @elseif (in_array($purchase->type, [\App\Support\PurchaseOrderType::GREIGE, \App\Support\PurchaseOrderType::PRODUCT], true))
+                    <div class="field">
+                        <label class="label">生産工程</label>
+                        <input class="input" type="text" readonly value="{{ $purchase->stage }}">
+                        <p class="field-hint">入荷が始まっているため、工程は自動表示のみです。</p>
                     </div>
                 @endif
 

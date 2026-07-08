@@ -481,14 +481,26 @@ class DemoState
 
     public static function effectivePoStage(int $poId): string
     {
-        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
-        if ($po === null) {
+        $row = DemoData::basePurchaseOrderRows()->firstWhere('id', $poId);
+        if ($row !== null) {
+            $row = array_merge($row, PurchaseOrderOverlay::overrides($poId));
+        } else {
+            $row = collect(PurchaseOrderOverlay::additions())->firstWhere('id', $poId);
+        }
+
+        if ($row === null) {
             return '';
         }
 
         $overlay = self::readStringMap(self::PO_STAGE_FILE);
+        $raw = (string) ($overlay[$poId] ?? ($row['stage'] ?? ''));
+        $type = (string) ($row['type'] ?? '');
 
-        return $overlay[$poId] ?? $po->stage;
+        return match ($type) {
+            PurchaseOrderType::PRODUCT => PurchaseOrderStages::normalizeProductManualStage($raw !== '' ? $raw : null),
+            PurchaseOrderType::GREIGE => PurchaseOrderStages::normalizeGreigeManualStage($raw !== '' ? $raw : null) ?? '',
+            default => '',
+        };
     }
 
     public static function setPoStage(int $poId, string $stage): void

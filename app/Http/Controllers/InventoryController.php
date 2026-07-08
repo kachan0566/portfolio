@@ -9,6 +9,8 @@ use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\GreigeInventory;
 use App\Support\ListSearch;
+use App\Support\PurchaseOrderDisplay;
+use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
@@ -72,13 +74,11 @@ class InventoryController extends Controller
         $inProduction = ListSearch::filter(
             DemoData::purchaseOrders()
                 ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::PRODUCT)
-                ->map(function ($po) {
-                    $po->stage = DemoState::effectivePoStage($po->id);
-
-                    return $po;
-                })
-                ->whereNotIn('stage', ['原材料未発注', '製品出荷済'])
-                ->whereNotIn('status', [PurchaseOrderStatus::RECEIVED, PurchaseOrderStatus::CANCELLED])
+                ->filter(fn ($po) => ! in_array($po->stage ?? '', [
+                    PurchaseOrderStages::LABEL_RECEIVED,
+                    PurchaseOrderStages::LABEL_CANCELLED,
+                    PurchaseOrderStages::LABEL_DRAFT,
+                ], true))
                 ->values(),
             $productionSearch,
             [

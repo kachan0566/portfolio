@@ -40,7 +40,7 @@
                 'sku' => ['label' => '品番'],
                 'due' => ['label' => '納期'],
                 'status' => [
-                    'label' => '状態',
+                    'label' => '工程',
                     'options' => $statusOptions,
                 ],
             ],
@@ -58,7 +58,7 @@
                             <th>納期</th>
                             <th style="min-width:150px;">入荷予定日</th>
                             <th style="min-width:200px;">メモ</th>
-                            <th>状態</th>
+                            <th>工程</th>
                             <th>材料不足</th>
                             <th style="width:88px;">操作</th>
                         </tr>

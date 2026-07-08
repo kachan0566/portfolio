@@ -58,8 +58,8 @@
         </div>
         <div class="kpi">
             <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'archive'])</div>
-            <div class="kpi__label">状態</div>
-            <div class="kpi__value" style="font-size:18px;"><span class="badge badge-indigo">{{ $purchase->status_label }}</span></div>
+            <div class="kpi__label">工程</div>
+            <div class="kpi__value" style="font-size:18px;"><span class="badge badge-indigo badge--plain">{{ $purchase->stage }}</span></div>
             <div class="kpi__sub">発注日 {{ $purchase->order_date }}</div>
         </div>
         <div class="kpi">

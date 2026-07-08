@@ -10,8 +10,10 @@ use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
 use App\Support\ListSearch;
+use App\Support\PurchaseOrderDisplay;
 use App\Support\PurchaseOrderLink;
 use App\Support\PurchaseOrderOverlay;
+use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
@@ -25,22 +27,16 @@ class PurchaseOrderController extends Controller
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
-        $statusOptions = [];
-        foreach (PurchaseOrderType::all() as $type) {
-            foreach (PurchaseOrderStatus::labelsFor($type) as $key => $label) {
-                $statusOptions[$key] = $label;
-            }
-        }
+        $statusOptions = PurchaseOrderDisplay::filterOptions();
 
         $purchases = ListSearch::filter(
             DemoData::purchaseOrders()->map(fn ($po) => $this->enrichPurchase($po)),
             $search,
             [
                 'date_field' => 'eta',
-                'status_field' => 'status',
+                'status_field' => 'stage',
                 'status_resolver' => function ($item, $status) {
-                    return ($item->status ?? '') === $status
-                        || ($item->status_label ?? '') === $status;
+                    return ($item->stage ?? '') === $status;
                 },
             ]
         );
@@ -215,6 +211,9 @@ class PurchaseOrderController extends Controller
             'suppliers' => DemoData::suppliersForPurchaseType($type),
             'shipTos' => DemoData::shipTosForPurchaseType($type),
             'statuses' => PurchaseOrderStatus::labelsFor($type),
+            'manualStageEditable' => PurchaseOrderDisplay::manualStageEditable($purchase),
+            'manualStage' => PurchaseOrderDisplay::effectiveManualStage($purchase),
+            'manualStageOptions' => PurchaseOrderStages::manualOptionsFor($type),
         ]);
     }
 
@@ -268,12 +267,23 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        if ($type === PurchaseOrderType::PRODUCT) {
-            $oldStage = DemoState::effectivePoStage($purchase);
-            if ($request->filled('stage') && $request->input('stage') !== $oldStage) {
+        if ($type === PurchaseOrderType::GREIGE) {
+            $received = DemoState::effectiveReceivedQty($purchase, $target);
+            if ($received <= 0 && $request->filled('stage')) {
                 $newStage = (string) $request->input('stage');
+                if ($newStage === PurchaseOrderStages::GREIGE_WEAVING) {
+                    DemoState::setPoStage($purchase, $newStage);
+                    $patch['stage'] = $newStage;
+                }
+            }
+        }
+
+        if ($type === PurchaseOrderType::PRODUCT) {
+            $received = DemoState::effectiveReceivedQty($purchase, $target);
+            if ($received <= 0 && $request->filled('stage')) {
+                $newStage = PurchaseOrderStages::normalizeProductManualStage((string) $request->input('stage'));
                 DemoState::setPoStage($purchase, $newStage);
-                GreigeInventory::handleStageTransition($purchase, $oldStage, $newStage);
+                $patch['stage'] = $newStage;
             }
         }
 
@@ -401,17 +411,6 @@ class PurchaseOrderController extends Controller
 
     private function enrichPurchase(object $po): object
     {
-        if (($po->type ?? '') === PurchaseOrderType::PRODUCT) {
-            $overlayStage = DemoState::effectivePoStage((int) $po->id);
-            if ($overlayStage !== '' && $overlayStage !== ($po->status_label ?? '')) {
-                $po->stage = $overlayStage;
-                $idx = array_search($po->stage, DemoData::PO_STAGES, true);
-                if ($idx !== false) {
-                    $po->progress = (int) round(($idx + 1) / count(DemoData::PO_STAGES) * 100);
-                }
-            }
-        }
-
         $po->material_shortage = match ($po->type ?? '') {
             PurchaseOrderType::GREIGE => ! YarnInventory::canFulfill(
                 $po->yarn_requirements ?? [],

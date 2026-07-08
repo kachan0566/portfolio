@@ -13,6 +13,7 @@ use App\Support\FabricQuantity;
 use App\Support\ListSearch;
 use App\Support\OrderOverlay;
 use App\Support\QtyHelper;
+use App\Support\OrderProductionStatus;
 use App\Support\PurchaseOrderLink;
 use App\Support\ShipmentPlan;
 use App\Support\StockAllocation;
@@ -155,6 +156,7 @@ class OrderController extends Controller
             'stockRate' => $stockRate,
             'linkedPurchaseOrders' => $linkedPurchaseOrders,
             'freePurchaseOrders' => $freePurchaseOrders,
+            'productionStatus' => OrderProductionStatus::rowsForOrder($target),
             'allocationLines' => $allocationLines,
             'stockAllocationLines' => $stockAllocationLines,
             'poAllocationLines' => $poAllocationLines,

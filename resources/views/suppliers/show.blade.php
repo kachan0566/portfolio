@@ -49,8 +49,8 @@
                 'sku' => ['label' => '品番'],
                 'due' => ['label' => '入荷予定'],
                 'status' => [
-                    'label' => '進捗段階',
-                    'options' => collect(\App\Support\DemoData::PO_STAGES)->mapWithKeys(fn ($s) => [$s => $s])->all(),
+                    'label' => '工程',
+                    'options' => \App\Support\PurchaseOrderDisplay::filterOptions(),
                 ],
             ],
         ])
@@ -60,7 +60,7 @@
                     <thead>
                         <tr>
                             <th>発注番号</th><th>得意先</th><th>品番</th>
-                            <th class="num">数量</th><th>進捗段階</th><th>入荷予定</th>
+                            <th class="num">数量</th><th>工程</th><th>入荷予定</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -48,11 +48,11 @@ class PhaseADataTest extends TestCase
         );
     }
 
-    public function test_product_purchase_order_keeps_legacy_stage(): void
+    public function test_product_purchase_order_shows_received_label_when_complete(): void
     {
         $po = DemoData::purchaseOrders()->firstWhere('code', 'PO-2606-001');
         $this->assertSame(PurchaseOrderType::PRODUCT, $po->type);
         $this->assertSame(PurchaseOrderStatus::RECEIVED, $po->status);
-        $this->assertSame('製品出荷済', $po->stage);
+        $this->assertSame('入荷完了', $po->stage);
     }
 }
