@@ -9,6 +9,7 @@ use App\Support\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
 #[Fillable([
@@ -52,6 +53,12 @@ class Order extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** @return HasMany<OrderAllocation, $this> */
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(OrderAllocation::class);
     }
 
     /** @return Collection<int, object> */
