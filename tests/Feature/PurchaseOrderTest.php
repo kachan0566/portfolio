@@ -2,17 +2,26 @@
 
 namespace Tests\Feature;
 
-use App\Support\DemoData;
-use App\Support\PurchaseOrderOverlay;
+use App\Models\PurchaseOrder;
 use App\Support\PurchaseOrderType;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\PurchaseOrderSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PurchaseOrderTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
-        PurchaseOrderOverlay::clear();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(PurchaseOrderSeeder::class);
     }
 
     public function test_index_lists_three_purchase_types(): void
@@ -41,7 +50,7 @@ class PurchaseOrderTest extends TestCase
 
     public function test_patch_arrival_persists_product_finish_date_and_memo(): void
     {
-        $po = DemoData::purchaseOrders()->firstWhere('code', 'PO-2606-002');
+        $po = PurchaseOrder::query()->where('code', 'PO-2606-002')->first();
         $this->assertNotNull($po);
 
         $response = $this->patch(route('purchases.patch-arrival', $po->id), [
@@ -52,9 +61,9 @@ class PurchaseOrderTest extends TestCase
         $response->assertRedirect(route('purchases.index'));
         $response->assertSessionHas('success');
 
-        $overrides = PurchaseOrderOverlay::overrides((int) $po->id);
-        $this->assertSame('2026-06-20', $overrides['finish_date']);
-        $this->assertSame('テスト用メモ', $overrides['arrival_memo']);
+        $po->refresh();
+        $this->assertSame('テスト用メモ', $po->arrival_memo);
+        $this->assertSame('2026-06-20', $po->productDetail?->finish_date?->toDateString());
 
         $index = $this->get(route('purchases.index'));
         $index->assertSee('value="2026-06-20"', false);
@@ -63,7 +72,7 @@ class PurchaseOrderTest extends TestCase
 
     public function test_patch_arrival_persists_yarn_due_date_and_memo(): void
     {
-        $po = DemoData::purchaseOrders()->firstWhere('type', PurchaseOrderType::YARN);
+        $po = PurchaseOrder::query()->where('type', PurchaseOrderType::YARN)->first();
         $this->assertNotNull($po);
 
         $response = $this->patch(route('purchases.patch-arrival', $po->id), [
@@ -73,9 +82,9 @@ class PurchaseOrderTest extends TestCase
 
         $response->assertRedirect(route('purchases.index'));
 
-        $overrides = PurchaseOrderOverlay::overrides((int) $po->id);
-        $this->assertSame('2026-06-25', $overrides['due_date']);
-        $this->assertSame('糸入荷メモ', $overrides['arrival_memo']);
+        $po->refresh();
+        $this->assertSame('2026-06-25', $po->due_date?->toDateString());
+        $this->assertSame('糸入荷メモ', $po->arrival_memo);
     }
 
     public function test_greige_create_form_shows_loss_preview_fields(): void
@@ -87,8 +96,10 @@ class PurchaseOrderTest extends TestCase
         $response->assertSee('下書き保存');
     }
 
-    public function test_store_greige_draft_persists_in_session(): void
+    public function test_store_greige_draft_persists_in_database(): void
     {
+        $before = PurchaseOrder::query()->count();
+
         $response = $this->post(route('purchases.store'), [
             'type' => PurchaseOrderType::GREIGE,
             'supplier_id' => 4,
@@ -101,7 +112,7 @@ class PurchaseOrderTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $this->assertCount(1, PurchaseOrderOverlay::additions());
+        $this->assertSame($before + 1, PurchaseOrder::query()->count());
 
         $index = $this->get(route('purchases.index'));
         $index->assertSee('PO-G-');

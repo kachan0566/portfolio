@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\PurchaseOrder;
+use Illuminate\Support\Facades\Schema;
+
 /**
  * デモ用の可変状態オーバーレイ（入荷・出荷による received / stock / shipped の増減）。
  * DemoData 本体は変更しない。
@@ -481,6 +484,37 @@ class DemoState
 
     public static function effectivePoStage(int $poId): string
     {
+        $overlay = self::readStringMap(self::PO_STAGE_FILE);
+        if (isset($overlay[$poId]) && $overlay[$poId] !== '') {
+            $type = self::purchaseOrderTypeForStage($poId);
+
+            return match ($type) {
+                PurchaseOrderType::PRODUCT => PurchaseOrderStages::normalizeProductManualStage($overlay[$poId]),
+                PurchaseOrderType::GREIGE => PurchaseOrderStages::normalizeGreigeManualStage($overlay[$poId]) ?? '',
+                default => '',
+            };
+        }
+
+        if (Schema::hasTable('purchase_orders')) {
+            $po = PurchaseOrder::query()
+                ->with(['greigeDetail', 'productDetail'])
+                ->find($poId);
+
+            if ($po !== null) {
+                $raw = match ($po->type) {
+                    PurchaseOrderType::GREIGE => $po->greigeDetail?->stage,
+                    PurchaseOrderType::PRODUCT => $po->productDetail?->stage,
+                    default => null,
+                };
+
+                return match ($po->type) {
+                    PurchaseOrderType::PRODUCT => PurchaseOrderStages::normalizeProductManualStage($raw),
+                    PurchaseOrderType::GREIGE => PurchaseOrderStages::normalizeGreigeManualStage($raw) ?? '',
+                    default => '',
+                };
+            }
+        }
+
         $row = DemoData::basePurchaseOrderRows()->firstWhere('id', $poId);
         if ($row !== null) {
             $row = array_merge($row, PurchaseOrderOverlay::overrides($poId));
@@ -492,8 +526,7 @@ class DemoState
             return '';
         }
 
-        $overlay = self::readStringMap(self::PO_STAGE_FILE);
-        $raw = (string) ($overlay[$poId] ?? ($row['stage'] ?? ''));
+        $raw = (string) ($row['stage'] ?? '');
         $type = (string) ($row['type'] ?? '');
 
         return match ($type) {
@@ -501,6 +534,21 @@ class DemoState
             PurchaseOrderType::GREIGE => PurchaseOrderStages::normalizeGreigeManualStage($raw !== '' ? $raw : null) ?? '',
             default => '',
         };
+    }
+
+    private static function purchaseOrderTypeForStage(int $poId): string
+    {
+        if (Schema::hasTable('purchase_orders')) {
+            $po = PurchaseOrder::query()->find($poId);
+            if ($po !== null) {
+                return (string) $po->type;
+            }
+        }
+
+        $row = DemoData::basePurchaseOrderRows()->firstWhere('id', $poId)
+            ?? collect(PurchaseOrderOverlay::additions())->firstWhere('id', $poId);
+
+        return (string) ($row['type'] ?? PurchaseOrderType::PRODUCT);
     }
 
     public static function setPoStage(int $poId, string $stage): void

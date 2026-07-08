@@ -1149,7 +1149,7 @@ Schema::table('products', function (Blueprint $table) {
 - [ ] `DemoData::products()` → `products`（`greige_id` 変換）
 - [ ] `DemoData::materials()` → `materials`
 - [ ] `DemoData::orders()` → `orders`
-- [ ] `DemoData::purchaseOrders()` → `purchase_orders` + 子3テーブル（旧 `schedule` は移行しない）
+- [x] `DemoData::purchaseOrders()` → `purchase_orders` + 子3テーブル（旧 `schedule` は移行しない）
 - [ ] `StockAllocation` JSON → `order_allocations`
 - [ ] `DemoData::receivings()` → `receivings` + `receiving_lines` + 反明細
 - [ ] `GreigeRoll` / `ProductRoll` JSON → `greige_rolls` / `product_rolls`
