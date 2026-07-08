@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['name', 'unit'])]
+#[Fillable(['sku', 'type', 'name', 'unit'])]
 class Material extends Model
 {
 }

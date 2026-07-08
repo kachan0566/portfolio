@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Greige;
+use App\Models\Product;
 use App\Support\DemoData;
 use App\Support\ListSearch;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +15,7 @@ class ProductController extends Controller
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
-        $products = ListSearch::filter(DemoData::products(), $search, [
+        $products = ListSearch::filter(Product::displayCatalog(), $search, [
             'code_fields' => [],
             'sku_fields' => ['sku', 'greige_sku', 'color'],
         ]);
@@ -21,7 +23,7 @@ class ProductController extends Controller
         return view('products.index', [
             'products' => $products,
             'categories' => DemoData::categories(),
-            'greiges' => DemoData::greiges(),
+            'greiges' => Greige::query()->orderBy('id')->get(),
             'search' => $search,
         ]);
     }
@@ -30,7 +32,7 @@ class ProductController extends Controller
     {
         return view('products.create', [
             'categories' => DemoData::categories(),
-            'greiges' => DemoData::greiges(),
+            'greiges' => Greige::query()->orderBy('id')->get(),
         ]);
     }
 
@@ -42,10 +44,12 @@ class ProductController extends Controller
 
     public function edit(int $product): View
     {
+        $target = Product::query()->with('greige')->find($product) ?? abort(404);
+
         return view('products.edit', [
-            'product' => DemoData::findProduct($product) ?? abort(404),
+            'product' => $target->toDisplayObject(),
             'categories' => DemoData::categories(),
-            'greiges' => DemoData::greiges(),
+            'greiges' => Greige::query()->orderBy('id')->get(),
         ]);
     }
 
