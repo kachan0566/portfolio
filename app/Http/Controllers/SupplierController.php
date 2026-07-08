@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Supplier;
 use App\Support\DemoData;
 use App\Support\ListSearch;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,7 @@ class SupplierController extends Controller
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
-        $suppliers = ListSearch::filter(DemoData::suppliers(), $search, [
+        $suppliers = ListSearch::filter(Supplier::query()->orderBy('id')->get(), $search, [
             'code_fields' => [],
             'supplier_field' => 'name',
             'sku_fields' => [],
@@ -39,7 +40,7 @@ class SupplierController extends Controller
 
     public function show(Request $request, int $supplier): View
     {
-        $target = DemoData::suppliers()->firstWhere('id', $supplier) ?? abort(404);
+        $target = Supplier::query()->find($supplier) ?? abort(404);
         $search = ListSearch::params($request);
         $purchases = ListSearch::filter(
             DemoData::purchaseOrders()->where('supplier', $target->name)->values(),
