@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\PurchaseOrder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * フロント確認用のテストデータ置き場。
@@ -855,6 +857,10 @@ class DemoData
     /** 発注一覧（糸・生機・製品の3種別） */
     public static function purchaseOrders(): Collection
     {
+        if (self::usesPurchaseOrderDatabase()) {
+            return PurchaseOrder::displayList();
+        }
+
         $rows = self::basePurchaseOrderRows()->all();
 
         foreach (PurchaseOrderOverlay::additions() as $addition) {
@@ -869,6 +875,16 @@ class DemoData
 
             return self::enrichPurchaseOrder($r);
         });
+    }
+
+    public static function usesPurchaseOrderDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('purchase_orders')
+                && PurchaseOrder::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public static function purchaseOrdersOfType(string $type): Collection

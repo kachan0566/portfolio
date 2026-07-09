@@ -4,6 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Http\Requests\UpdatePurchaseOrderRequest;
+use App\Models\Greige;
+use App\Models\GreigePurchaseOrder;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\ProductPurchaseOrder;
+use App\Models\PurchaseOrder;
+use App\Models\ShipTo;
+use App\Models\Supplier;
+use App\Models\YarnPurchaseOrder;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\FabricTanRoll;
@@ -11,8 +20,6 @@ use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
 use App\Support\ListSearch;
 use App\Support\PurchaseOrderDisplay;
-use App\Support\PurchaseOrderLink;
-use App\Support\PurchaseOrderOverlay;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
@@ -20,6 +27,7 @@ use App\Support\QtyHelper;
 use App\Support\YarnInventory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class PurchaseOrderController extends Controller
@@ -50,8 +58,7 @@ class PurchaseOrderController extends Controller
 
     public function show(int $purchase): View
     {
-        $purchase = $this->findPurchase($purchase);
-        $purchase = $this->enrichPurchase($purchase);
+        $purchase = $this->enrichPurchase($this->findPurchase($purchase));
 
         $yarnShortages = [];
         $greigeShortage = null;
@@ -111,7 +118,7 @@ class PurchaseOrderController extends Controller
 
         $sourceOrder = null;
         if ($request->filled('order_id')) {
-            $sourceOrder = DemoData::orders()->firstWhere('id', (int) $request->query('order_id'));
+            $sourceOrder = Order::findForDisplay((int) $request->query('order_id'));
             if ($sourceOrder) {
                 $type = PurchaseOrderType::PRODUCT;
             }
@@ -139,8 +146,8 @@ class PurchaseOrderController extends Controller
 
         return view('purchases.create', [
             'type' => $type,
-            'suppliers' => DemoData::suppliersForPurchaseType($type),
-            'shipTos' => DemoData::shipTosForPurchaseType($type),
+            'suppliers' => Supplier::forPurchaseType($type),
+            'shipTos' => ShipTo::forPurchaseType($type),
             'yarnMaterials' => DemoData::yarnMaterials(),
             'greiges' => DemoData::greiges()->filter(fn ($g) => DemoData::hasGreigeRecipe($g->sku))->values(),
             'products' => DemoData::products(),
@@ -159,8 +166,7 @@ class PurchaseOrderController extends Controller
             ? PurchaseOrderStatus::DRAFT
             : PurchaseOrderStatus::ORDERED;
 
-        $id = PurchaseOrderOverlay::nextId();
-        $row = $this->buildRowFromRequest($request, $id, $status);
+        $row = $this->buildRowFromRequest($request, $status);
 
         if ($type === PurchaseOrderType::GREIGE) {
             $requirements = DemoData::greigeYarnRequirements($row['greige_sku'], $row['qty_meters']);
@@ -169,35 +175,74 @@ class PurchaseOrderController extends Controller
                     'qty_tan' => '糸が不足しているため保存できません。'.implode(' ', YarnInventory::shortageMessages($requirements)),
                 ]);
             }
-            if ($status !== PurchaseOrderStatus::DRAFT) {
-                // 確定も同条件（下書き・確定とも足りていれば可）
-            }
-            YarnInventory::setAllocationsForGreigePo(
-                $id,
-                YarnInventory::buildAllocationLines($id, $requirements, $status)
-            );
         }
 
         if ($type === PurchaseOrderType::PRODUCT) {
             $msg = GreigeSupply::shortageMessage(
                 (int) $row['product_id'],
                 (int) $row['qty_meters'],
-                $id
+                null
             );
             if ($msg !== null) {
                 return back()->withInput()->withErrors(['qty_meters' => $msg]);
             }
         }
 
-        if ($type === PurchaseOrderType::PRODUCT && $request->filled('order_id')) {
-            PurchaseOrderLink::link($id, (int) $request->input('order_id'));
-        }
+        $purchase = DB::transaction(function () use ($request, $row, $type, $status) {
+            $po = PurchaseOrder::query()->create([
+                'code' => $row['code'],
+                'type' => $type,
+                'status' => $status,
+                'supplier_id' => $row['supplier_id'],
+                'ship_to_id' => $row['ship_to_id'],
+                'order_id' => $row['order_id'],
+                'order_date' => $row['order_date'],
+                'due_date' => $row['due_date'],
+            ]);
 
-        PurchaseOrderOverlay::add($row);
+            if ($type === PurchaseOrderType::YARN) {
+                YarnPurchaseOrder::query()->create([
+                    'purchase_order_id' => $po->id,
+                    'material_id' => $row['material_id'],
+                    'qty_kg' => $row['qty_kg'],
+                    'received_qty_kg' => 0,
+                ]);
+            } elseif ($type === PurchaseOrderType::GREIGE) {
+                $greige = Greige::query()->where('sku', $row['greige_sku'])->firstOrFail();
+                GreigePurchaseOrder::query()->create([
+                    'purchase_order_id' => $po->id,
+                    'greige_id' => $greige->id,
+                    'qty_tan' => (int) round((float) $row['qty_tan']),
+                    'meters_per_tan' => $row['meters_per_tan'],
+                    'qty_meters' => $row['qty_meters'],
+                    'received_qty_tan' => 0,
+                    'received_qty_m' => 0,
+                ]);
+            } else {
+                ProductPurchaseOrder::query()->create([
+                    'purchase_order_id' => $po->id,
+                    'product_id' => $row['product_id'],
+                    'qty_tan' => (int) $row['qty_tan'],
+                    'qty_meters' => $row['qty_meters'],
+                    'received_qty_tan' => 0,
+                    'received_qty_m' => 0,
+                ]);
+            }
+
+            return $po;
+        });
+
+        if ($type === PurchaseOrderType::GREIGE) {
+            $requirements = DemoData::greigeYarnRequirements($row['greige_sku'], $row['qty_meters']);
+            YarnInventory::setAllocationsForGreigePo(
+                $purchase->id,
+                YarnInventory::buildAllocationLines($purchase->id, $requirements, $status)
+            );
+        }
 
         $label = PurchaseOrderStatus::label($type, $status);
 
-        return redirect()->route('purchases.show', $id)
+        return redirect()->route('purchases.show', $purchase->id)
             ->with('success', "発注 {$row['code']} を{$label}で登録しました。");
     }
 
@@ -208,8 +253,8 @@ class PurchaseOrderController extends Controller
 
         return view('purchases.edit', [
             'purchase' => $purchase,
-            'suppliers' => DemoData::suppliersForPurchaseType($type),
-            'shipTos' => DemoData::shipTosForPurchaseType($type),
+            'suppliers' => Supplier::forPurchaseType($type),
+            'shipTos' => ShipTo::forPurchaseType($type),
             'statuses' => PurchaseOrderStatus::labelsFor($type),
             'manualStageEditable' => PurchaseOrderDisplay::manualStageEditable($purchase),
             'manualStage' => PurchaseOrderDisplay::effectiveManualStage($purchase),
@@ -220,19 +265,12 @@ class PurchaseOrderController extends Controller
     public function update(UpdatePurchaseOrderRequest $request, int $purchase): RedirectResponse
     {
         $target = $this->findPurchase($purchase);
+        $model = PurchaseOrder::query()->findOrFail($purchase);
         $type = $target->type ?? PurchaseOrderType::PRODUCT;
         $newStatus = (string) $request->input('status');
         if (! in_array($newStatus, PurchaseOrderStatus::keysFor($type), true)) {
             return back()->withInput()->withErrors(['status' => '無効な状態です。']);
         }
-
-        $patch = [
-            'supplier_id' => (int) $request->input('supplier_id'),
-            'ship_to_id' => (int) $request->input('ship_to_id'),
-            'order_date' => $request->input('order_date'),
-            'due_date' => $request->input('due_date'),
-            'status' => $newStatus,
-        ];
 
         if ($type === PurchaseOrderType::GREIGE) {
             $requirements = DemoData::greigeYarnRequirements(
@@ -267,33 +305,42 @@ class PurchaseOrderController extends Controller
             }
         }
 
+        $model->update([
+            'supplier_id' => (int) $request->input('supplier_id'),
+            'ship_to_id' => (int) $request->input('ship_to_id'),
+            'order_date' => $request->input('order_date'),
+            'due_date' => $request->input('due_date'),
+            'status' => $newStatus,
+            'arrival_memo' => (string) $request->input('arrival_memo', ''),
+        ]);
+
         if ($type === PurchaseOrderType::GREIGE) {
             $received = DemoState::effectiveReceivedQty($purchase, $target);
             if ($received <= 0 && $request->filled('stage')) {
                 $newStage = (string) $request->input('stage');
                 if ($newStage === PurchaseOrderStages::GREIGE_WEAVING) {
-                    DemoState::setPoStage($purchase, $newStage);
-                    $patch['stage'] = $newStage;
+                    $model->greigeDetail?->update([
+                        'stage' => PurchaseOrderStages::normalizeGreigeManualStage($newStage),
+                    ]);
                 }
             }
         }
 
         if ($type === PurchaseOrderType::PRODUCT) {
             $received = DemoState::effectiveReceivedQty($purchase, $target);
+            $productPatch = [];
             if ($received <= 0 && $request->filled('stage')) {
-                $newStage = PurchaseOrderStages::normalizeProductManualStage((string) $request->input('stage'));
-                DemoState::setPoStage($purchase, $newStage);
-                $patch['stage'] = $newStage;
+                $productPatch['stage'] = PurchaseOrderStages::normalizeProductManualStage(
+                    (string) $request->input('stage')
+                );
+            }
+            if ($request->filled('finish_date')) {
+                $productPatch['finish_date'] = $request->input('finish_date');
+            }
+            if ($productPatch !== []) {
+                $model->productDetail?->update($productPatch);
             }
         }
-
-        if ($type === PurchaseOrderType::PRODUCT && $request->filled('finish_date')) {
-            $patch['finish_date'] = $request->input('finish_date');
-        }
-
-        $patch['arrival_memo'] = (string) $request->input('arrival_memo', '');
-
-        PurchaseOrderOverlay::patch($purchase, $patch);
 
         return redirect()->route('purchases.show', $purchase)
             ->with('success', '発注を更新しました。');
@@ -302,6 +349,7 @@ class PurchaseOrderController extends Controller
     public function patchArrival(Request $request, int $purchase): RedirectResponse
     {
         $target = $this->findPurchase($purchase);
+        $model = PurchaseOrder::query()->findOrFail($purchase);
         $type = $target->type ?? PurchaseOrderType::PRODUCT;
 
         $validated = $request->validate([
@@ -312,20 +360,17 @@ class PurchaseOrderController extends Controller
             'arrival_memo' => 'メモ',
         ]);
 
-        $patch = [
-            'arrival_memo' => (string) ($validated['arrival_memo'] ?? ''),
-        ];
-
         $date = $validated['expected_arrival_date'] ?? null;
-        if ($date !== null) {
-            if ($type === PurchaseOrderType::PRODUCT) {
-                $patch['finish_date'] = $date;
-            } else {
-                $patch['due_date'] = $date;
-            }
-        }
+        $model->update([
+            'arrival_memo' => (string) ($validated['arrival_memo'] ?? ''),
+            'due_date' => $date !== null && $type !== PurchaseOrderType::PRODUCT
+                ? $date
+                : $model->due_date,
+        ]);
 
-        PurchaseOrderOverlay::patch($purchase, $patch);
+        if ($date !== null && $type === PurchaseOrderType::PRODUCT) {
+            $model->productDetail?->update(['finish_date' => $date]);
+        }
 
         $redirectParams = array_filter(
             $request->only(ListSearch::PARAMS),
@@ -343,7 +388,9 @@ class PurchaseOrderController extends Controller
             YarnInventory::releaseGreigePo($purchase);
         }
 
-        PurchaseOrderOverlay::patch($purchase, ['status' => PurchaseOrderStatus::CANCELLED]);
+        PurchaseOrder::query()->whereKey($purchase)->update([
+            'status' => PurchaseOrderStatus::CANCELLED,
+        ]);
 
         return redirect()->route('purchases.index')
             ->with('success', '発注をキャンセルしました。');
@@ -355,11 +402,10 @@ class PurchaseOrderController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function buildRowFromRequest(StorePurchaseOrderRequest $request, int $id, string $status): array
+    private function buildRowFromRequest(StorePurchaseOrderRequest $request, string $status): array
     {
         $type = (string) $request->input('type');
         $row = [
-            'id' => $id,
             'code' => $this->generateCode($type),
             'type' => $type,
             'status' => $status,
@@ -368,8 +414,6 @@ class PurchaseOrderController extends Controller
             'order_date' => $request->input('order_date'),
             'due_date' => $request->input('due_date'),
             'order_id' => $request->filled('order_id') ? (int) $request->input('order_id') : null,
-            'received' => 0,
-            'received_kg' => 0.0,
         ];
 
         if ($type === PurchaseOrderType::YARN) {
@@ -377,7 +421,7 @@ class PurchaseOrderController extends Controller
             $row['qty_kg'] = (float) $request->input('qty_kg');
         } elseif ($type === PurchaseOrderType::GREIGE) {
             $sku = (string) $request->input('greige_sku');
-            $greige = DemoData::findGreige($sku);
+            $greige = Greige::query()->where('sku', $sku)->firstOrFail();
             $perTan = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
             $tan = (float) $request->input('qty_tan');
             $row['greige_sku'] = $sku;
@@ -386,10 +430,9 @@ class PurchaseOrderController extends Controller
             $row['qty_meters'] = QtyHelper::metersFromTan($tan, null, true, $sku);
         } else {
             $productId = (int) $request->input('product_id');
-            $product = DemoData::findProduct($productId);
+            $product = Product::query()->findOrFail($productId);
             $row['product_id'] = $productId;
             $row['qty_meters'] = (int) $request->input('qty_meters');
-            $row['meters_per_tan'] = (int) ($product->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
             $row['qty_tan'] = QtyHelper::tanCount($row['qty_meters'], $productId);
         }
 
@@ -404,7 +447,7 @@ class PurchaseOrderController extends Controller
             default => 'PO-P-',
         };
         $ym = str_replace('-', '', DemoData::CURRENT_YM);
-        $seq = DemoData::purchaseOrders()->where('type', $type)->count() + 1;
+        $seq = PurchaseOrder::query()->where('type', $type)->count() + 1;
 
         return $prefix.$ym.'-'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
     }
