@@ -61,9 +61,9 @@ class PurchaseOrderTest extends TestCase
         $response->assertRedirect(route('purchases.index'));
         $response->assertSessionHas('success');
 
-        $po->refresh();
+        $po->refresh()->load('lines');
         $this->assertSame('テスト用メモ', $po->arrival_memo);
-        $this->assertSame('2026-06-20', $po->productDetail?->finish_date?->toDateString());
+        $this->assertSame('2026-06-20', $po->primaryLine()?->finish_date?->toDateString());
 
         $index = $this->get(route('purchases.index'));
         $index->assertSee('value="2026-06-20"', false);

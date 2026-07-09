@@ -30,12 +30,12 @@ class PurchaseOrderSeederTest extends TestCase
 
         $this->assertSame(DemoData::basePurchaseOrderRows()->count(), PurchaseOrder::query()->count());
 
-        $po = PurchaseOrder::query()->where('code', 'PO-2606-001')->first();
+        $po = PurchaseOrder::query()->where('code', 'PO-2606-001')->with('lines')->first();
         $this->assertNotNull($po);
         $this->assertSame(PurchaseOrderType::PRODUCT, $po->type);
         $this->assertSame(1, $po->order_id);
-        $this->assertSame(200, $po->productDetail?->qty_meters);
-        $this->assertSame(200, $po->productDetail?->received_qty_m);
+        $this->assertSame(200, $po->primaryLine()?->qty_meters);
+        $this->assertSame(200, $po->primaryLine()?->received_qty_m);
     }
 
     public function test_purchase_order_display_object_matches_demo_shape(): void

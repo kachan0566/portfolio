@@ -5,9 +5,7 @@ namespace Database\Seeders;
 use App\Models\Greige;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
-use App\Models\GreigePurchaseOrder;
-use App\Models\ProductPurchaseOrder;
-use App\Models\YarnPurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderType;
@@ -41,14 +39,21 @@ class PurchaseOrderSeeder extends Seeder
                 ],
             );
 
+            $linePayload = [
+                'purchase_order_id' => $row['id'],
+                'line_no' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
             if ($type === PurchaseOrderType::YARN) {
-                YarnPurchaseOrder::query()->updateOrCreate(
-                    ['purchase_order_id' => $row['id']],
-                    [
+                PurchaseOrderLine::query()->updateOrCreate(
+                    ['purchase_order_id' => $row['id'], 'line_no' => 1],
+                    array_merge($linePayload, [
                         'material_id' => $row['material_id'],
                         'qty_kg' => $row['qty_kg'],
                         'received_qty_kg' => $row['received_kg'] ?? 0,
-                    ],
+                    ]),
                 );
             } elseif ($type === PurchaseOrderType::GREIGE) {
                 $sku = (string) $row['greige_sku'];
@@ -64,9 +69,9 @@ class PurchaseOrderSeeder extends Seeder
                     ? round($receivedM / $metersPerTan, 2)
                     : 0.0;
 
-                GreigePurchaseOrder::query()->updateOrCreate(
-                    ['purchase_order_id' => $row['id']],
-                    [
+                PurchaseOrderLine::query()->updateOrCreate(
+                    ['purchase_order_id' => $row['id'], 'line_no' => 1],
+                    array_merge($linePayload, [
                         'greige_id' => $greigeId,
                         'qty_tan' => $qtyTan,
                         'meters_per_tan' => $metersPerTan,
@@ -74,7 +79,7 @@ class PurchaseOrderSeeder extends Seeder
                         'received_qty_tan' => $receivedTan,
                         'received_qty_m' => $receivedM,
                         'stage' => PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null),
-                    ],
+                    ]),
                 );
             } else {
                 $productId = (int) $row['product_id'];
@@ -89,9 +94,9 @@ class PurchaseOrderSeeder extends Seeder
                     ? round($receivedM / $perTan, 2)
                     : 0.0;
 
-                ProductPurchaseOrder::query()->updateOrCreate(
-                    ['purchase_order_id' => $row['id']],
-                    [
+                PurchaseOrderLine::query()->updateOrCreate(
+                    ['purchase_order_id' => $row['id'], 'line_no' => 1],
+                    array_merge($linePayload, [
                         'product_id' => $productId,
                         'qty_tan' => $qtyTan,
                         'qty_meters' => $qtyMeters,
@@ -100,7 +105,7 @@ class PurchaseOrderSeeder extends Seeder
                         'stage' => PurchaseOrderStages::normalizeProductManualStage($row['stage'] ?? null),
                         'finish_date' => $row['finish_date'] ?? null,
                         'contact_date' => $row['contact_date'] ?? null,
-                    ],
+                    ]),
                 );
             }
         }

@@ -5,14 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Http\Requests\UpdatePurchaseOrderRequest;
 use App\Models\Greige;
-use App\Models\GreigePurchaseOrder;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductPurchaseOrder;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use App\Models\ShipTo;
 use App\Models\Supplier;
-use App\Models\YarnPurchaseOrder;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\FabricTanRoll;
@@ -201,16 +199,18 @@ class PurchaseOrderController extends Controller
             ]);
 
             if ($type === PurchaseOrderType::YARN) {
-                YarnPurchaseOrder::query()->create([
+                PurchaseOrderLine::query()->create([
                     'purchase_order_id' => $po->id,
+                    'line_no' => 1,
                     'material_id' => $row['material_id'],
                     'qty_kg' => $row['qty_kg'],
                     'received_qty_kg' => 0,
                 ]);
             } elseif ($type === PurchaseOrderType::GREIGE) {
                 $greige = Greige::query()->where('sku', $row['greige_sku'])->firstOrFail();
-                GreigePurchaseOrder::query()->create([
+                PurchaseOrderLine::query()->create([
                     'purchase_order_id' => $po->id,
+                    'line_no' => 1,
                     'greige_id' => $greige->id,
                     'qty_tan' => (int) round((float) $row['qty_tan']),
                     'meters_per_tan' => $row['meters_per_tan'],
@@ -219,8 +219,9 @@ class PurchaseOrderController extends Controller
                     'received_qty_m' => 0,
                 ]);
             } else {
-                ProductPurchaseOrder::query()->create([
+                PurchaseOrderLine::query()->create([
                     'purchase_order_id' => $po->id,
+                    'line_no' => 1,
                     'product_id' => $row['product_id'],
                     'qty_tan' => (int) $row['qty_tan'],
                     'qty_meters' => $row['qty_meters'],
@@ -319,7 +320,7 @@ class PurchaseOrderController extends Controller
             if ($received <= 0 && $request->filled('stage')) {
                 $newStage = (string) $request->input('stage');
                 if ($newStage === PurchaseOrderStages::GREIGE_WEAVING) {
-                    $model->greigeDetail?->update([
+                    $model->primaryLine()?->update([
                         'stage' => PurchaseOrderStages::normalizeGreigeManualStage($newStage),
                     ]);
                 }
@@ -338,7 +339,7 @@ class PurchaseOrderController extends Controller
                 $productPatch['finish_date'] = $request->input('finish_date');
             }
             if ($productPatch !== []) {
-                $model->productDetail?->update($productPatch);
+                $model->primaryLine()?->update($productPatch);
             }
         }
 
@@ -369,7 +370,7 @@ class PurchaseOrderController extends Controller
         ]);
 
         if ($date !== null && $type === PurchaseOrderType::PRODUCT) {
-            $model->productDetail?->update(['finish_date' => $date]);
+            $model->primaryLine()?->update(['finish_date' => $date]);
         }
 
         $redirectParams = array_filter(
