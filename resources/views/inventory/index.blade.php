@@ -57,7 +57,7 @@
                     'label' => '状態',
                     'options' => array_merge(
                         ['在庫不足' => '在庫不足', '残少なめ' => '残少なめ', '十分' => '十分'],
-                        collect(\App\Support\DemoData::PO_STAGES)->mapWithKeys(fn ($s) => [$s => $s])->all()
+                        \App\Support\PurchaseOrderDisplay::filterOptions()
                     ),
                 ],
             ],
@@ -302,7 +302,7 @@
             <div class="table-wrap">
                 <table class="data">
                     <thead>
-                        <tr><th>品番</th><th class="num">数量</th><th>進捗段階</th><th>上がり予定</th><th>発注番号</th></tr>
+                        <tr><th>品番</th><th class="num">数量</th><th>工程</th><th>上がり予定</th><th>発注番号</th></tr>
                     </thead>
                     <tbody>
                         @forelse ($inProduction as $po)

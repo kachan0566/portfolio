@@ -87,7 +87,86 @@
 | `received`  | 入荷完了  |
 | `cancelled` | キャンセル |
 
+**画面表示との関係:** `status` は在庫・引当の判断用。一覧の **「工程」列** は `status` と種別ごとの進捗を **1ラベルにまとめた表示**（`PurchaseOrderDisplay::label()`）とする。DB に表示用列は持たない。
 
+
+
+
+### 発注工程（種別ごと・画面表示）
+
+旧 **8段階 `PO_STAGES`**（製品発注1件に全工程を載せるモデル）は廃止。糸・生機・製品の各発注が **自分の工程だけ** を持つ。
+
+**アプリ側の定数・解決:** `PurchaseOrderStages`（工程一覧） / `PurchaseOrderDisplay`（表示ラベル） / `GreigeYarnReadiness`（生機の糸入荷済判定）
+
+#### 表示ラベルの共通ルール
+
+| 条件 | 表示 |
+| --- | --- |
+| `status = cancelled` | キャンセル |
+| `status = draft` | 下書き |
+| `status = received` | 入荷完了 |
+| 進行中（`ordered` / `partial`） | **工程名**（下表） |
+| 進行中かつ分納 | **工程名（一部入荷）** |
+
+分納判定: `status = partial` または `received_qty < ordered_qty`（種別ごとの数量列で比較）。
+
+入荷予定日の UI は **行ごと1入力のまま**（糸・生機＝`due_date`、製品＝`finish_date`）。工程別の予定日入力画面は作らない。
+
+#### 糸発注（すべて自動。`stage` 列は持たない）
+
+| 順 | 工程名 | 判定（概要） |
+| --- | --- | --- |
+| 1 | 糸発注済 | 織工場入荷 0 |
+| 2 | 糸出荷済 | 紡績出荷登録あり・入荷 0（将来。`shipped_at` 等） |
+| 3 | 織工場への糸入荷済 | `received_qty_kg > 0` |
+| — | 入荷完了 | `status = received` |
+
+#### 生機発注（糸入荷・生機出荷は自動、織編のみ手動）
+
+| 順 | 工程名 | 手動/自動 | 判定（概要） |
+| --- | --- | --- | --- |
+| 1 | 発注済 | 自動 | レシピ必要糸がまだすべて織工場入荷完了でない |
+| 2 | 糸入荷済 | 自動 | 必要糸品番ごとに **糸発注がすべて入荷完了**（`GreigeYarnReadiness`） |
+| 3 | 織編機投入済 | **手動** | `greige_purchase_orders.stage` に保存 |
+| 4 | 生機出荷済 | 自動 | 染工場への入荷開始（`received_qty_m > 0`）。手動工程より優先 |
+| — | 入荷完了 | 自動 | `status = received` |
+
+#### 製品発注（染機投入のみ手動、以降は自動）
+
+| 順 | 工程名 | 手動/自動 | 判定（概要） |
+| --- | --- | --- | --- |
+| 1 | 染機投入済 | **手動** | `product_purchase_orders.stage`（未設定時もここ扱い） |
+| 2 | 製品在庫中 | 自動 | 一部入荷あり（`partial` 等） |
+| — | 入荷完了 | 自動 | `status = received` |
+
+`製品在庫中`・`生機出荷済` など **入荷から導出する工程は DB に保存しない**。
+
+#### 受注詳細「生産状況」
+
+`OrderProductionStatus::rowsForOrder()` で、受注の製品に関わる **糸 → 生機 → 製品** の進行中発注を並べる。
+
+- 糸: 親生機レシピの `material_id` に一致する糸発注
+- 生機: 製品の親 `greige_id` / SKU に一致する生機発注
+- 製品: `purchase_orders.order_id` が当該受注
+
+#### 発注一覧の列
+
+- **出荷先** … 維持
+- **状態** 列 → **工程** 列（上記表示ラベル）
+- フィルタも工程ラベルベース（`PurchaseOrderDisplay::filterOptions()`）
+
+#### 入荷予定日（`purchase_order_schedule_events` は作らない）
+
+工程ごとの予定日を **別テーブルには持たない**。画面・在庫予想は次の列だけで足りる。
+
+| 種別 | 保存先 | 一覧の「入荷予定日」 |
+| --- | --- | --- |
+| 糸・生機 | `purchase_orders.due_date` | 同上 |
+| 製品 | `product_purchase_orders.finish_date` | 同上 |
+
+旧デモの `schedule` 連想配列（8段階キー）は **移行しない・削除**。
+
+将来、工程別ガントや予定日編集が必要になったときだけ、テーブル追加または JSON 列を検討する。
 
 
 ### 受注数量モード `orders.order_qty_mode`
@@ -427,6 +506,8 @@ LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
 
 **主キー:** `purchase_order_id`（= 親 id）
 
+**工程:** 画面表示はすべて **入荷数量から自動計算**（`stage` 列は持たない）。将来、紡績出荷日を持つ場合は `shipped_at`（date, NULL）を追加し「糸出荷済」判定に使う。
+
 ---
 
 
@@ -443,10 +524,13 @@ LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
 | `qty_meters`        | unsignedInteger           | NO   | 0     | 見積m（`qty_tan × meters_per_tan`） |
 | `received_qty_tan`  | decimal(8,2)              | NO   | 0     | 入荷済み反数                          |
 | `received_qty_m`    | unsignedInteger           | NO   | 0     | 入荷済み実測m合計                       |
+| `stage`             | string(50)                | YES  | null  | **手動**: `織編機投入済` のみ。それ以外は NULL |
 
 
 **主キー:** `purchase_order_id`  
 **インデックス:** `greige_id`
+
+**工程:** `糸入荷済`・`生機出荷済` は **保存せず** 入荷記録・糸 readiness から `PurchaseOrderDisplay` で計算。染工場入荷が始まったら手動 `stage` より `生機出荷済` を優先表示。
 
 ---
 
@@ -463,36 +547,15 @@ LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
 | `qty_meters`        | unsignedInteger           | NO   | 0     | 見積m           |
 | `received_qty_tan`  | decimal(8,2)              | NO   | 0     |               |
 | `received_qty_m`    | unsignedInteger           | NO   | 0     |               |
-| `stage`             | string(50)                | YES  | null  | 現在工程（例：染機投入済） |
-| `finish_date`       | date                      | YES  | null  | 上がり予定日        |
-| `contact_date`      | date                      | YES  | null  | 連絡日           |
+| `stage`             | string(50)                | YES  | null  | **手動**: `染機投入済` のみ保存           |
+| `finish_date`       | date                      | YES  | null  | 上がり予定日（一覧の入荷予定日・在庫予想に使用）   |
+| `contact_date`      | date                      | YES  | null  | 連絡日                           |
 
 
 **主キー:** `purchase_order_id`  
 **インデックス:** `product_id`, `stage`
 
----
-
-
-
-#### `purchase_order_schedule_events`（製品発注・工程）【新規】
-
-
-| 列名                  | 型                      | NULL | デフォルト | 説明                                |
-| ------------------- | ---------------------- | ---- | ----- | --------------------------------- |
-| `id`                | bigint PK              | NO   | auto  |                                   |
-| `purchase_order_id` | FK → `purchase_orders` | NO   |       | `type = product` のみ               |
-| `stage_name`        | string(50)             | NO   |       | 工程名（`DemoData::PO_STAGES` と同じ文字列） |
-| `planned_date`      | date                   | YES  | null  | 予定日                               |
-| `sort_order`        | unsignedTinyInteger    | NO   | 0     | 表示順（PO_STAGES の並び）                |
-| `created_at`        | timestamp              | YES  |       |                                   |
-| `updated_at`        | timestamp              | YES  |       |                                   |
-
-
-**ユニーク:** `(purchase_order_id, stage_name)`  
-**インデックス:** `purchase_order_id`
-
-**移行元:** 製品発注の `schedule` 連想配列
+**工程:** `製品在庫中` は入荷開始後に自動。`入荷完了` は `status = received`。旧8段階 `stage`（原材料〜生機出荷済）は移行時に `染機投入済` へ正規化。
 
 ---
 
@@ -971,7 +1034,7 @@ m 単位のかたまり在庫。→ `product_rolls` へ移行後にテーブル�
 | 1   | `customers`, `suppliers`, `ship_tos`, `greiges` 作成               | なし             |
 | 2   | `products`, `materials` に列追加                                     | 段階1（`greiges`） |
 | 3   | `orders` 作成                                                      | 段階1・2          |
-| 4   | `purchase_orders` + 子3 + `purchase_order_schedule_events`        | 段階1〜3          |
+| 4   | `purchase_orders` + 子3（糸・生機・製品）                              | 段階1〜3          |
 | 5   | `order_allocations`                                              | 段階3・4          |
 | 6   | `receivings`, `receiving_lines`, `greige_rolls`, `product_rolls` | 段階4            |
 | 7   | `shipments`, `shipment_roll_allocations`、旧テーブルデータ移行              | 段階3・6          |
@@ -1086,7 +1149,7 @@ Schema::table('products', function (Blueprint $table) {
 - [ ] `DemoData::products()` → `products`（`greige_id` 変換）
 - [ ] `DemoData::materials()` → `materials`
 - [ ] `DemoData::orders()` → `orders`
-- [ ] `DemoData::purchaseOrders()` → `purchase_orders` + 子テーブル + `schedule_events`
+- [ ] `DemoData::purchaseOrders()` → `purchase_orders` + 子3テーブル（旧 `schedule` は移行しない）
 - [ ] `StockAllocation` JSON → `order_allocations`
 - [ ] `DemoData::receivings()` → `receivings` + `receiving_lines` + 反明細
 - [ ] `GreigeRoll` / `ProductRoll` JSON → `greige_rolls` / `product_rolls`
@@ -1097,4 +1160,4 @@ Schema::table('products', function (Blueprint $table) {
 
 ---
 
-*最終更新：*`DBplan.md`*（発注親子分割・反明細ルール）に合わせて具体列定義を作成。*
+*最終更新：* 発注工程を種別ごとに分割（`PurchaseOrderStages` / `PurchaseOrderDisplay`）。`purchase_order_schedule_events` は採用せず、入荷予定は `due_date` / `finish_date` のみ。

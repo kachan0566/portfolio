@@ -28,18 +28,6 @@ class DemoData
     /** 生機品番の標準：1反あたりのメートル数 */
     public const METERS_PER_TAN_GREIGE = 100;
 
-    /** 発注（生産）の進捗段階。左から順に進む */
-    public const PO_STAGES = [
-        '原材料未発注',
-        '原材料発注済',
-        '原材料出荷済',
-        '織編機投入済',
-        '生機出荷済',
-        '染機投入済',
-        '製品在庫中',
-        '製品出荷済',
-    ];
-
     /** カテゴリ一覧 */
     public static function categories(): Collection
     {
@@ -768,19 +756,14 @@ class DemoData
     public static function basePurchaseOrderRows(): Collection
     {
         return collect([
-            // --- 製品発注（既存デモを移行。工程 stage は Phase C まで互換用に維持） ---
+            // --- 製品発注 ---
             [
                 'id' => 1, 'code' => 'PO-2606-001', 'type' => PurchaseOrderType::PRODUCT,
                 'status' => PurchaseOrderStatus::RECEIVED, 'order_id' => 1,
                 'supplier_id' => 6, 'ship_to_id' => 4,
                 'product_id' => 1, 'qty_meters' => 200, 'received' => 200,
                 'order_date' => '2026-06-01', 'due_date' => '2026-06-08',
-                'stage' => '製品出荷済', 'finish_date' => '2026-06-07', 'contact_date' => '2026-06-06',
-                'schedule' => [
-                    '原材料未発注' => '2026-06-01', '原材料発注済' => '2026-06-02', '原材料出荷済' => '2026-06-03',
-                    '織編機投入済' => '2026-06-04', '生機出荷済' => '2026-06-05', '染機投入済' => '2026-06-06',
-                    '製品在庫中' => '2026-06-07', '製品出荷済' => '2026-06-08',
-                ],
+                'stage' => '染機投入済', 'finish_date' => '2026-06-07', 'contact_date' => '2026-06-06',
             ],
             [
                 'id' => 2, 'code' => 'PO-2606-002', 'type' => PurchaseOrderType::PRODUCT,
@@ -790,11 +773,6 @@ class DemoData
                 'order_date' => '2026-06-03', 'due_date' => '2026-06-14',
                 'stage' => '染機投入済', 'finish_date' => '2026-06-16', 'contact_date' => '2026-06-15',
                 'arrival_memo' => '染工場から6/16上がり連絡あり',
-                'schedule' => [
-                    '原材料未発注' => '2026-06-03', '原材料発注済' => '2026-06-05', '原材料出荷済' => '2026-06-07',
-                    '織編機投入済' => '2026-06-10', '生機出荷済' => '2026-06-12', '染機投入済' => '2026-06-14',
-                    '製品在庫中' => '2026-06-16', '製品出荷済' => '2026-06-18',
-                ],
             ],
             [
                 'id' => 3, 'code' => 'PO-2606-003', 'type' => PurchaseOrderType::PRODUCT,
@@ -802,13 +780,8 @@ class DemoData
                 'supplier_id' => 7, 'ship_to_id' => 4,
                 'product_id' => 5, 'qty_meters' => 120, 'received' => 0,
                 'order_date' => '2026-06-05', 'due_date' => '2026-06-19',
-                'stage' => '生機出荷済', 'finish_date' => '2026-06-22', 'contact_date' => '2026-06-20',
+                'stage' => '染機投入済', 'finish_date' => '2026-06-22', 'contact_date' => '2026-06-20',
                 'arrival_memo' => '染工場に確認済み。6/22入荷見込み',
-                'schedule' => [
-                    '原材料未発注' => '2026-06-05', '原材料発注済' => '2026-06-08', '原材料出荷済' => '2026-06-11',
-                    '織編機投入済' => '2026-06-14', '生機出荷済' => '2026-06-16', '染機投入済' => '2026-06-19',
-                    '製品在庫中' => '2026-06-21', '製品出荷済' => '2026-06-22',
-                ],
             ],
             // --- 生機発注 ---
             [
@@ -842,13 +815,8 @@ class DemoData
                 'supplier_id' => 6, 'ship_to_id' => 4,
                 'product_id' => 6, 'qty_meters' => 40, 'received' => 0,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-01',
-                'stage' => '原材料発注済', 'finish_date' => '2026-07-02', 'contact_date' => '2026-06-30',
+                'stage' => '染機投入済', 'finish_date' => '2026-07-02', 'contact_date' => '2026-06-30',
                 'arrival_memo' => '不足分40mの追加手配。7/2上がり予定',
-                'schedule' => [
-                    '原材料未発注' => '2026-06-25', '原材料発注済' => '2026-06-25', '原材料出荷済' => '2026-06-27',
-                    '織編機投入済' => '2026-06-28', '生機出荷済' => '2026-06-29', '染機投入済' => '2026-07-01',
-                    '製品在庫中' => '2026-07-02', '製品出荷済' => '2026-07-03',
-                ],
             ],
             [
                 'id' => 8, 'code' => 'PO-2606-008', 'type' => PurchaseOrderType::PRODUCT,
@@ -856,12 +824,7 @@ class DemoData
                 'supplier_id' => 6, 'ship_to_id' => 4,
                 'product_id' => 7, 'qty_meters' => 200, 'received' => 120,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-05',
-                'stage' => '原材料発注済', 'finish_date' => '2026-07-06', 'contact_date' => '2026-07-04',
-                'schedule' => [
-                    '原材料未発注' => '2026-06-25', '原材料発注済' => '2026-06-25', '原材料出荷済' => '2026-06-28',
-                    '織編機投入済' => '2026-06-30', '生機出荷済' => '2026-07-01', '染機投入済' => '2026-07-03',
-                    '製品在庫中' => '2026-07-06', '製品出荷済' => '2026-07-07',
-                ],
+                'stage' => '染機投入済', 'finish_date' => '2026-07-06', 'contact_date' => '2026-07-04',
             ],
             [
                 'id' => 9, 'code' => 'PO-2606-009', 'type' => PurchaseOrderType::PRODUCT,
@@ -869,12 +832,7 @@ class DemoData
                 'supplier_id' => 6, 'ship_to_id' => 4,
                 'product_id' => 7, 'qty_meters' => 500, 'received' => 0,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-18',
-                'stage' => '原材料発注済', 'finish_date' => '2026-07-19', 'contact_date' => '2026-07-17',
-                'schedule' => [
-                    '原材料未発注' => '2026-06-25', '原材料発注済' => '2026-06-25', '原材料出荷済' => '2026-06-28',
-                    '織編機投入済' => '2026-07-02', '生機出荷済' => '2026-07-06', '染機投入済' => '2026-07-12',
-                    '製品在庫中' => '2026-07-19', '製品出荷済' => '2026-07-20',
-                ],
+                'stage' => '染機投入済', 'finish_date' => '2026-07-19', 'contact_date' => '2026-07-17',
             ],
             // --- 糸発注 ---
             [
@@ -950,8 +908,6 @@ class DemoData
             $row['unit'] = 'kg';
             $row['qty'] = (float) ($row['qty_kg'] ?? 0);
             $row['received'] = (float) ($row['received_kg'] ?? 0);
-            $row['stage'] = $row['status_label'];
-            $row['progress'] = self::statusProgress($status);
         } elseif ($type === PurchaseOrderType::GREIGE) {
             $greige = self::findGreige((string) ($row['greige_sku'] ?? ''));
             $row['sku'] = $greige?->sku ?? ($row['greige_sku'] ?? '—');
@@ -962,9 +918,9 @@ class DemoData
             $row['qty_tan'] = (float) ($row['qty_tan'] ?? 0);
             $row['meters_per_tan'] = (int) ($row['meters_per_tan'] ?? self::METERS_PER_TAN_GREIGE);
             $row['received'] = (int) ($row['received'] ?? 0);
-            $row['stage'] = $row['status_label'];
-            $row['progress'] = self::statusProgress($status);
             $row['yarn_requirements'] = self::greigeYarnRequirements($row['sku'], $row['qty_meters']);
+            $row['manual_stage'] = DemoState::effectivePoStage((int) $row['id'])
+                ?: PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null);
         } else {
             $product = self::findProduct((int) ($row['product_id'] ?? 0));
             $row['product_id'] = (int) ($row['product_id'] ?? 0);
@@ -980,12 +936,13 @@ class DemoData
             }
             $row['qty'] = $row['qty_meters'];
             $row['received'] = (int) ($row['received'] ?? 0);
-            $row['stage'] = $row['stage'] ?? $row['status_label'];
-            $idx = array_search($row['stage'], self::PO_STAGES, true);
-            $row['progress'] = $idx === false
-                ? self::statusProgress($status)
-                : (int) round(($idx + 1) / count(self::PO_STAGES) * 100);
+            $row['manual_stage'] = DemoState::effectivePoStage((int) $row['id'])
+                ?: PurchaseOrderStages::normalizeProductManualStage($row['stage'] ?? null);
         }
+
+        $po = (object) $row;
+        $row['stage'] = PurchaseOrderDisplay::label($po);
+        $row['progress'] = PurchaseOrderDisplay::progressPercent($po);
 
         return (object) $row;
     }

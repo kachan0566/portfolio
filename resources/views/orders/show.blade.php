@@ -372,6 +372,42 @@
         </div>
         <div class="card__body">
 
+            {{-- 生産状況（糸・生機・製品） --}}
+            <h3 class="card__subtitle" style="font-size:13px;font-weight:600;margin:0 0 10px;">生産状況</h3>
+            <p class="field-hint" style="margin:0 0 12px;">この受注の製品に関わる糸・生機・製品発注の工程をまとめて表示します。</p>
+            @if ($productionStatus->isEmpty())
+                <p class="t-muted" style="margin:0 0 20px;font-size:13px;">進行中の関連発注はありません。</p>
+            @else
+                <div class="table-wrap" style="margin-bottom:20px;">
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                <th>種別</th>
+                                <th>発注番号</th>
+                                <th>品番</th>
+                                <th>工程</th>
+                                <th>入荷予定</th>
+                                <th style="width:72px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($productionStatus as $row)
+                                <tr>
+                                    <td><span class="badge badge-indigo badge--plain" style="font-size:10.5px;">{{ $row->type_label }}</span></td>
+                                    <td class="code-cell">{{ $row->code }}</td>
+                                    <td class="code-cell t-strong">{{ $row->sku }}</td>
+                                    <td><span class="badge badge-indigo badge--plain" style="font-size:10.5px;">{{ $row->label }}</span></td>
+                                    <td class="mono">{{ $row->expected_arrival }}</td>
+                                    <td>
+                                        <a href="{{ route('purchases.show', $row->purchase_id) }}" class="btn btn-secondary btn-sm">詳細</a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+
             {{-- この受注に紐づいた発注（生産意図） --}}
             <h3 class="card__subtitle" style="font-size:13px;font-weight:600;margin:0 0 10px;">この受注に紐づいた発注（生産意図）</h3>
             <p class="field-hint" style="margin:0 0 12px;">発注の紐づけ先を変えても、すでに登録した在庫引当の来歴は変わりません。</p>
@@ -385,7 +421,7 @@
                                 <th>発注番号</th>
                                 <th>仕入先</th>
                                 <th class="num">数量</th>
-                                <th>進捗段階</th>
+                                <th>工程</th>
                                 <th>入荷予定</th>
                                 <th style="width:180px;">紐づけ付け替え</th>
                                 <th style="width:72px;">操作</th>
@@ -438,7 +474,7 @@
                                     <th>発注番号</th>
                                     <th>仕入先</th>
                                     <th class="num">数量</th>
-                                    <th>進捗段階</th>
+                                    <th>工程</th>
                                     <th>入荷予定</th>
                                     <th style="width:72px;">操作</th>
                                 </tr>

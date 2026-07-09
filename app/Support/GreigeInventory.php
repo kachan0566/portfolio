@@ -110,32 +110,10 @@ class GreigeInventory
     }
 
     /**
-     * 製品発注の工程変更（レガシー互換）。
-     * 生機在庫は生機発注入荷で管理するため、ここでは製品在庫への移動のみ行う。
+     * @deprecated 旧8段階連動。新工程モデルでは入荷処理で在庫を更新する。
      */
     public static function handleStageTransition(int $poId, string $oldStage, string $newStage): void
     {
-        $oldIdx = array_search($oldStage, DemoData::PO_STAGES, true);
-        $newIdx = array_search($newStage, DemoData::PO_STAGES, true);
-        $dyeIdx = array_search('染機投入済', DemoData::PO_STAGES, true);
-
-        if ($oldIdx === false || $newIdx === false || $dyeIdx === false) {
-            return;
-        }
-
-        if ($oldIdx < $dyeIdx && $newIdx >= $dyeIdx) {
-            $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
-            if ($po !== null && ($po->type ?? '') === PurchaseOrderType::PRODUCT) {
-                $result = \App\Services\Fabric\TanRollRecorder::recordDyeingCompletion(
-                    $poId,
-                    (int) $po->product_id,
-                    $po->finish_date ?? null,
-                );
-                $meters = (int) round($result['total_meters']);
-                if ($meters > 0) {
-                    DemoState::applyDyeTransfer($poId, (int) $po->product_id, $meters);
-                }
-            }
-        }
+        // 互換のため残すが処理しない
     }
 }
