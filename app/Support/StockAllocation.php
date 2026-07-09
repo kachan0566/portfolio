@@ -2,10 +2,12 @@
 
 namespace App\Support;
 
+use App\Models\OrderAllocation;
 use Illuminate\Support\Collection;
 
 /**
- * 受注への在庫引当を JSON ファイルに記録する（デモ用）。
+ * 受注への在庫引当を記録する。
+ * DB（order_allocations）が投入済みなら DB を正とし、未投入時は JSON ファイルに保存する。
  *
  * 行ベースのデータ形式:
  * {
@@ -31,11 +33,33 @@ class StockAllocation
     /** @var list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>|null */
     private static ?array $linesCache = null;
 
+    /** @internal テスト用にメモリキャッシュを破棄する */
+    public static function resetCacheForTesting(): void
+    {
+        self::$linesCache = null;
+    }
+
     /**
      * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
      */
     public static function allLines(): array
     {
+        if (DemoData::usesOrderAllocationDatabase()) {
+            return OrderAllocation::query()
+                ->orderBy('id')
+                ->get()
+                ->map(fn (OrderAllocation $row) => [
+                    'product_id' => (int) $row->product_id,
+                    'order_id' => (int) $row->order_id,
+                    'po_id' => (int) ($row->purchase_order_id ?? 0),
+                    'qty_tan' => QtyHelper::roundTan((float) $row->qty_tan),
+                    'qty' => (int) $row->qty_m,
+                    'type' => (string) $row->allocation_type,
+                ])
+                ->values()
+                ->all();
+        }
+
         if (self::$linesCache !== null) {
             return self::$linesCache;
         }
@@ -185,13 +209,19 @@ class StockAllocation
      */
     private static function write(array $lines): void
     {
+        $lines = array_values($lines);
+
+        if (DemoData::usesOrderAllocationDatabase()) {
+            OrderAllocation::syncAll($lines);
+
+            return;
+        }
+
         $path = storage_path('app/'.self::FILE);
         $dir = dirname($path);
         if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-
-        $lines = array_values($lines);
 
         file_put_contents(
             $path,
