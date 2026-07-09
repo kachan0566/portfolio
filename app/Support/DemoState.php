@@ -497,13 +497,14 @@ class DemoState
 
         if (Schema::hasTable('purchase_orders')) {
             $po = PurchaseOrder::query()
-                ->with(['greigeDetail', 'productDetail'])
+                ->with(['lines'])
                 ->find($poId);
 
             if ($po !== null) {
+                $detail = $po->primaryLine();
                 $raw = match ($po->type) {
-                    PurchaseOrderType::GREIGE => $po->greigeDetail?->stage,
-                    PurchaseOrderType::PRODUCT => $po->productDetail?->stage,
+                    PurchaseOrderType::GREIGE => $detail?->stage,
+                    PurchaseOrderType::PRODUCT => $detail?->stage,
                     default => null,
                 };
 

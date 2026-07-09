@@ -13,7 +13,7 @@ use App\Support\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
 #[Fillable([
@@ -58,22 +58,15 @@ class PurchaseOrder extends Model
         return $this->belongsTo(Order::class);
     }
 
-    /** @return HasOne<YarnPurchaseOrder, $this> */
-    public function yarnDetail(): HasOne
+    /** @return HasMany<PurchaseOrderLine, $this> */
+    public function lines(): HasMany
     {
-        return $this->hasOne(YarnPurchaseOrder::class);
+        return $this->hasMany(PurchaseOrderLine::class)->orderBy('line_no');
     }
 
-    /** @return HasOne<GreigePurchaseOrder, $this> */
-    public function greigeDetail(): HasOne
+    public function primaryLine(): ?PurchaseOrderLine
     {
-        return $this->hasOne(GreigePurchaseOrder::class);
-    }
-
-    /** @return HasOne<ProductPurchaseOrder, $this> */
-    public function productDetail(): HasOne
-    {
-        return $this->hasOne(ProductPurchaseOrder::class);
+        return $this->lines->sortBy('line_no')->first();
     }
 
     /** @return Collection<int, object> */
@@ -84,9 +77,9 @@ class PurchaseOrder extends Model
                 'supplier',
                 'shipTo',
                 'order.customer',
-                'yarnDetail.material',
-                'greigeDetail.greige',
-                'productDetail.product.greige',
+                'lines.material',
+                'lines.greige',
+                'lines.product.greige',
             ])
             ->orderByDesc('due_date')
             ->orderByDesc('id')
@@ -101,9 +94,9 @@ class PurchaseOrder extends Model
                 'supplier',
                 'shipTo',
                 'order.customer',
-                'yarnDetail.material',
-                'greigeDetail.greige',
-                'productDetail.product.greige',
+                'lines.material',
+                'lines.greige',
+                'lines.product.greige',
             ])
             ->find($id);
 
@@ -114,6 +107,7 @@ class PurchaseOrder extends Model
     {
         $type = $this->type;
         $status = $this->status ?? PurchaseOrderStatus::ORDERED;
+        $detail = $this->primaryLine();
 
         $row = [
             'id' => $this->id,
@@ -132,6 +126,7 @@ class PurchaseOrder extends Model
             'due_date' => $this->due_date?->toDateString(),
             'eta' => $this->due_date?->toDateString(),
             'arrival_memo' => (string) ($this->arrival_memo ?? ''),
+            'line_count' => $this->lines->count(),
         ];
 
         $linkedOrderId = PurchaseOrderLink::orderIdForPurchase((int) $this->id, $this->order_id);
@@ -140,50 +135,47 @@ class PurchaseOrder extends Model
         $row['customer'] = $this->order?->customer?->name;
 
         if ($type === PurchaseOrderType::YARN) {
-            $detail = $this->yarnDetail;
             $material = $detail?->material;
             $row['material_id'] = $detail?->material_id;
-            $row['sku'] = $material?->sku ?? '—';
+            $row['sku'] = $this->summarizeLineSkus(fn ($line) => $line->material?->sku ?? '—');
             $row['product'] = $material?->name ?? '—';
             $row['unit'] = 'kg';
-            $row['qty_kg'] = (float) ($detail?->qty_kg ?? 0);
+            $row['qty_kg'] = (float) $this->lines->sum(fn ($line) => (float) ($line->qty_kg ?? 0));
             $row['qty'] = $row['qty_kg'];
-            $row['received_kg'] = (float) ($detail?->received_qty_kg ?? 0);
+            $row['received_kg'] = (float) $this->lines->sum(fn ($line) => (float) ($line->received_qty_kg ?? 0));
             $row['received'] = $row['received_kg'];
         } elseif ($type === PurchaseOrderType::GREIGE) {
-            $detail = $this->greigeDetail;
             $greige = $detail?->greige;
             $sku = $greige?->sku ?? '—';
             $row['greige_sku'] = $sku;
-            $row['sku'] = $sku;
+            $row['sku'] = $this->summarizeLineSkus(fn ($line) => $line->greige?->sku ?? '—');
             $row['product'] = $greige?->name ?? '—';
             $row['unit'] = '反';
-            $row['qty_meters'] = (int) ($detail?->qty_meters ?? 0);
+            $row['qty_meters'] = (int) $this->lines->sum(fn ($line) => (int) ($line->qty_meters ?? 0));
             $row['qty'] = $row['qty_meters'];
-            $row['qty_tan'] = (float) ($detail?->qty_tan ?? 0);
+            $row['qty_tan'] = (float) $this->lines->sum(fn ($line) => (float) ($line->qty_tan ?? 0));
             $row['meters_per_tan'] = (int) ($detail?->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
-            $row['received'] = (int) ($detail?->received_qty_m ?? 0);
+            $row['received'] = (int) $this->lines->sum(fn ($line) => (int) ($line->received_qty_m ?? 0));
             $row['yarn_requirements'] = DemoData::greigeYarnRequirements($sku, $row['qty_meters']);
             $row['manual_stage'] = DemoState::effectivePoStage((int) $this->id)
                 ?: PurchaseOrderStages::normalizeGreigeManualStage($detail?->stage);
         } else {
-            $detail = $this->productDetail;
             $product = $detail?->product;
             $productId = (int) ($detail?->product_id ?? 0);
             $row['product_id'] = $productId;
             $row['product'] = $product?->sku ?? '—';
-            $row['sku'] = $product?->sku ?? '—';
+            $row['sku'] = $this->summarizeLineSkus(fn ($line) => $line->product?->sku ?? '—');
             $row['unit'] = $product?->unit ?? '反';
-            $row['qty_meters'] = (int) ($detail?->qty_meters ?? 0);
-            $row['qty_tan'] = (float) ($detail?->qty_tan ?? 0);
-            if ($row['qty_tan'] <= 0 && $row['qty_meters'] > 0) {
+            $row['qty_meters'] = (int) $this->lines->sum(fn ($line) => (int) ($line->qty_meters ?? 0));
+            $row['qty_tan'] = (float) $this->lines->sum(fn ($line) => (float) ($line->qty_tan ?? 0));
+            if ($row['qty_tan'] <= 0 && $row['qty_meters'] > 0 && $productId > 0) {
                 $row['qty_tan'] = QtyHelper::tanCount($row['qty_meters'], $productId);
             }
-            if ($row['qty_meters'] <= 0 && $row['qty_tan'] > 0) {
+            if ($row['qty_meters'] <= 0 && $row['qty_tan'] > 0 && $productId > 0) {
                 $row['qty_meters'] = QtyHelper::metersFromTan($row['qty_tan'], $productId);
             }
             $row['qty'] = $row['qty_meters'];
-            $row['received'] = (int) ($detail?->received_qty_m ?? 0);
+            $row['received'] = (int) $this->lines->sum(fn ($line) => (int) ($line->received_qty_m ?? 0));
             $row['finish_date'] = $detail?->finish_date?->toDateString();
             $row['contact_date'] = $detail?->contact_date?->toDateString();
             $row['manual_stage'] = DemoState::effectivePoStage((int) $this->id)
@@ -195,5 +187,27 @@ class PurchaseOrder extends Model
         $row['progress'] = PurchaseOrderDisplay::progressPercent($po);
 
         return (object) $row;
+    }
+
+    /**
+     * @param  callable(PurchaseOrderLine): string  $skuResolver
+     */
+    private function summarizeLineSkus(callable $skuResolver): string
+    {
+        $skus = $this->lines
+            ->map($skuResolver)
+            ->filter(fn ($sku) => $sku !== '' && $sku !== '—')
+            ->unique()
+            ->values();
+
+        if ($skus->isEmpty()) {
+            return '—';
+        }
+
+        if ($skus->count() === 1) {
+            return (string) $skus->first();
+        }
+
+        return $skus->implode(', ');
     }
 }

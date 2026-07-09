@@ -941,6 +941,7 @@ class DemoData
     {
         try {
             return Schema::hasTable('purchase_orders')
+                && Schema::hasTable('purchase_order_lines')
                 && PurchaseOrder::query()->exists();
         } catch (\Throwable) {
             return false;
