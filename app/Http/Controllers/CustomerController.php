@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
 use App\Support\DemoData;
 use App\Support\ListSearch;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,7 @@ class CustomerController extends Controller
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
-        $customers = ListSearch::filter(DemoData::customers(), $search, [
+        $customers = ListSearch::filter(Customer::query()->orderBy('id')->get(), $search, [
             'code_fields' => [],
             'customer_field' => 'name',
             'sku_fields' => [],
@@ -39,7 +40,7 @@ class CustomerController extends Controller
 
     public function show(Request $request, int $customer): View
     {
-        $target = DemoData::customers()->firstWhere('id', $customer) ?? abort(404);
+        $target = Customer::query()->find($customer) ?? abort(404);
         $search = ListSearch::params($request);
         $orders = ListSearch::filter(
             DemoData::orders()->where('customer', $target->name)->values(),
