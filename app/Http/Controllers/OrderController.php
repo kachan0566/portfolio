@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\Product;
 use App\Support\AllocationConversion;
 use App\Support\DemoData;
 use App\Support\DemoState;
@@ -22,7 +25,7 @@ class OrderController extends Controller
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
-        $orders = ListSearch::filter(DemoData::orders(), $search, [
+        $orders = ListSearch::filter(Order::displayList(), $search, [
             'status_resolver' => function ($order, $status) {
                 if ($status === '出荷残あり') {
                     return $order->shipped < $order->qty;
@@ -34,20 +37,8 @@ class OrderController extends Controller
             ['order_date', 'desc'],
             ['id', 'desc'],
         ])->map(function ($order) {
-                $allocation = StockAllocation::statusForOrder($order);
-                $order->allocation_status = $allocation['status'];
-                $order->allocation_badge = $allocation['badge_class'];
-                $order->shippable_status = $allocation['shippable_status'];
-                $order->shippable_badge = $allocation['shippable_badge'];
-                $order->allocated = $allocation['allocated'];
-                $order->stock_allocated = $allocation['stock_allocated'];
-                $order->po_allocated = $allocation['po_allocated'];
-                $order->remaining = $allocation['remaining'];
-                $order->shippable = $allocation['shippable'];
-                $order->price = DemoData::findProduct($order->product_id)?->price ?? 0;
-
-                return $order;
-            });
+            return $this->enrichWithAllocation($order, withPrice: true);
+        });
 
         return view('orders.index', [
             'orders' => $orders,
@@ -57,20 +48,10 @@ class OrderController extends Controller
 
     public function show(int $order): View
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = $this->orderOrFail($order);
+        $target = $this->enrichWithAllocation($target);
 
-        $allocation = StockAllocation::statusForOrder($target);
-        $target->allocation_status = $allocation['status'];
-        $target->allocation_badge = $allocation['badge_class'];
-        $target->shippable_status = $allocation['shippable_status'];
-        $target->shippable_badge = $allocation['shippable_badge'];
-        $target->allocated = $allocation['allocated'];
-        $target->stock_allocated = $allocation['stock_allocated'];
-        $target->po_allocated = $allocation['po_allocated'];
-        $target->remaining = $allocation['remaining'];
-        $target->shippable = $allocation['shippable'];
-
-        $product = DemoData::findProduct($target->product_id) ?? abort(404);
+        $product = Product::query()->find($target->product_id)?->toDisplayObject() ?? abort(404);
         $effectiveStock = DemoState::effectiveStock($target->product_id);
 
         $shipRate = $target->qty > 0
@@ -105,10 +86,13 @@ class OrderController extends Controller
         $freePurchaseOrders = $productPurchaseOrders
             ->where('order_id', null)
             ->values();
-        $siblingOrders = DemoData::orders()
+        $siblingOrders = Order::query()
+            ->with(['customer', 'product'])
             ->where('product_id', $target->product_id)
             ->where('id', '!=', $target->id)
-            ->values();
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Order $row) => $row->toDisplayObject());
 
         $allocationLines = StockAllocation::linesForOrder($target->id);
         $stockAllocationLines = StockAllocation::stockLinesForOrder($target->id);
@@ -127,24 +111,20 @@ class OrderController extends Controller
             default => 'none',
         };
 
-        $sameProductOrders = DemoData::orders()
+        $sameProductOrders = Order::query()
+            ->with(['customer', 'product'])
             ->where('product_id', $target->product_id)
-            ->map(function ($o) {
-                $alloc = StockAllocation::statusForOrder($o);
-                $o->allocation_status = $alloc['status'];
-                $o->allocation_badge = $alloc['badge_class'];
-                $o->allocated = $alloc['allocated'];
-                $o->stock_allocated = $alloc['stock_allocated'];
-                $o->po_allocated = $alloc['po_allocated'];
-                $o->remaining = $alloc['remaining'];
-                $o->allocation_lines = StockAllocation::linesForOrder($o->id);
-                $o->stock_lines = StockAllocation::stockLinesForOrder($o->id);
-                $o->po_lines = StockAllocation::poLinesForOrder($o->id);
+            ->orderBy('due_date')
+            ->get()
+            ->map(function (Order $row) {
+                $order = $this->enrichWithAllocation($row->toDisplayObject());
+                $order->allocation_lines = StockAllocation::linesForOrder($order->id);
+                $order->stock_lines = StockAllocation::stockLinesForOrder($order->id);
+                $order->po_lines = StockAllocation::poLinesForOrder($order->id);
 
-                return $o;
+                return $order;
             })
             ->filter(fn ($o) => $o->remaining > 0)
-            ->sortBy('due_date')
             ->values();
 
         $poOptions = StockAllocation::poOptionsFromPurchases($productPurchaseOrders, $target->product_id);
@@ -197,8 +177,8 @@ class OrderController extends Controller
     public function create(): View
     {
         return view('orders.create', [
-            'customers' => DemoData::customers(),
-            'products' => DemoData::products(),
+            'customers' => Customer::query()->orderBy('id')->get(),
+            'products' => Product::displayCatalog(),
         ]);
     }
 
@@ -206,7 +186,7 @@ class OrderController extends Controller
     {
         $productId = (int) $request->input('product_id');
         $mode = (string) $request->input('order_qty_mode', 'tan');
-        $customer = DemoData::customers()->firstWhere('id', (int) $request->input('customer_id'));
+        $customer = Customer::query()->find((int) $request->input('customer_id'));
 
         $resolved = FabricQuantity::resolve(
             $request->input('qty_tan'),
@@ -229,7 +209,6 @@ class OrderController extends Controller
             'order_qty_mode' => $mode,
             'qty_tan' => $mode === 'tan' ? (int) $resolved->qty_tan : 0,
             'qty_meters' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
-            'meters_overridden' => $resolved->meters_overridden,
             'qty' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
             'shipped' => 0,
             'order_date' => $request->input('order_date'),
@@ -245,18 +224,18 @@ class OrderController extends Controller
 
     public function edit(int $order): View
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = $this->orderOrFail($order);
 
         return view('orders.edit', [
             'order' => $target,
-            'customers' => DemoData::customers(),
-            'products' => DemoData::products(),
+            'customers' => Customer::query()->orderBy('id')->get(),
+            'products' => Product::displayCatalog(),
         ]);
     }
 
     public function update(StoreOrderRequest $request, int $order): RedirectResponse
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = $this->orderOrFail($order);
         $productId = (int) $request->input('product_id');
         $mode = (string) $request->input('order_qty_mode', 'tan');
 
@@ -269,7 +248,7 @@ class OrderController extends Controller
             $mode === 'meters' ? FabricQuantity::CONTEXT_DEFAULT : FabricQuantity::CONTEXT_ORDER,
         );
 
-        $customer = DemoData::customers()->firstWhere('id', (int) $request->input('customer_id'));
+        $customer = Customer::query()->find((int) $request->input('customer_id'));
 
         OrderOverlay::patch($order, [
             'customer_id' => (int) $request->input('customer_id'),
@@ -278,7 +257,6 @@ class OrderController extends Controller
             'order_qty_mode' => $mode,
             'qty_tan' => $mode === 'tan' ? (int) $resolved->qty_tan : 0,
             'qty_meters' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
-            'meters_overridden' => $resolved->meters_overridden,
             'qty' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
             'order_date' => $request->input('order_date'),
             'due_date' => $request->input('due_date'),
@@ -297,7 +275,7 @@ class OrderController extends Controller
 
     public function linkPurchase(int $order, int $purchase): RedirectResponse
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = $this->orderOrFail($order);
         $po = DemoData::purchaseOrders()->firstWhere('id', $purchase) ?? abort(404);
 
         if ($po->product_id !== $target->product_id) {
@@ -366,7 +344,7 @@ class OrderController extends Controller
 
     public function clearAllocation(int $order): RedirectResponse
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = $this->orderOrFail($order);
 
         if (StockAllocation::get($order) === 0) {
             return redirect()->route('orders.show', $order)
@@ -381,7 +359,7 @@ class OrderController extends Controller
 
     public function saveAllocation(Request $request, int $order): RedirectResponse
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = $this->orderOrFail($order);
         $input = $request->input('allocations', []);
 
         $error = StockAllocation::validateSubmission($target->product_id, $input);
@@ -429,7 +407,7 @@ class OrderController extends Controller
     {
         $po = DemoData::purchaseOrders()->firstWhere('id', $purchase) ?? abort(404);
         $newOrderId = (int) $request->input('new_order_id');
-        $newOrder = DemoData::orders()->firstWhere('id', $newOrderId) ?? abort(404);
+        $newOrder = $this->orderOrFail($newOrderId);
 
         if ($po->product_id !== $newOrder->product_id) {
             return redirect()->back()
@@ -440,5 +418,30 @@ class OrderController extends Controller
 
         return redirect()->back()
             ->with('success', "発注 {$po->code} の紐づけ先を {$newOrder->code} に変更しました。（在庫引当の来歴はそのままです）");
+    }
+
+    private function orderOrFail(int $orderId): object
+    {
+        return Order::findForDisplay($orderId) ?? abort(404);
+    }
+
+    private function enrichWithAllocation(object $order, bool $withPrice = false): object
+    {
+        $allocation = StockAllocation::statusForOrder($order);
+        $order->allocation_status = $allocation['status'];
+        $order->allocation_badge = $allocation['badge_class'];
+        $order->shippable_status = $allocation['shippable_status'];
+        $order->shippable_badge = $allocation['shippable_badge'];
+        $order->allocated = $allocation['allocated'];
+        $order->stock_allocated = $allocation['stock_allocated'];
+        $order->po_allocated = $allocation['po_allocated'];
+        $order->remaining = $allocation['remaining'];
+        $order->shippable = $allocation['shippable'];
+
+        if ($withPrice) {
+            $order->price = Product::query()->find($order->product_id)?->price ?? 0;
+        }
+
+        return $order;
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Support\DemoData;
+use App\Models\Order;
 use App\Support\ListSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +22,7 @@ class CustomerController extends Controller
 
         return view('customers.index', [
             'customers' => $customers,
-            'orders' => DemoData::orders(),
+            'orders' => Order::displayList(),
             'search' => $search,
         ]);
     }
@@ -43,7 +43,13 @@ class CustomerController extends Controller
         $target = Customer::query()->find($customer) ?? abort(404);
         $search = ListSearch::params($request);
         $orders = ListSearch::filter(
-            DemoData::orders()->where('customer', $target->name)->values(),
+            Order::query()
+                ->with(['customer', 'product'])
+                ->where('customer_id', $target->id)
+                ->orderByDesc('order_date')
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn (Order $order) => $order->toDisplayObject()),
             $search
         );
 

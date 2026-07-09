@@ -347,7 +347,6 @@
 | `order_qty_mode`    | string(16)       | NO   | `'tan'` | `tan` / `meters`         |
 | `qty_tan`           | unsignedInteger  | NO   | 0       | 受注反数（整数）                 |
 | `qty_meters`        | unsignedInteger  | NO   | 0       | 受注m（`meters` モード時はこちらが正） |
-| `meters_overridden` | boolean          | NO   | false   | m を手入力したか                |
 | `shipped_qty_tan`   | decimal(8,2)     | NO   | 0       | 出荷済み反数合計                 |
 | `shipped_qty_m`     | unsignedInteger  | NO   | 0       | 出荷済み**実測m**合計            |
 | `order_date`        | date             | NO   |         | 受注日                      |
@@ -365,6 +364,8 @@
 
 - `order_qty_mode = tan` → `shipped_qty_tan >= qty_tan`
 - `order_qty_mode = meters` → `shipped_qty_m >= qty_meters`
+
+**算出（DB列なし）:** `meters_overridden` は `Order::metersOverridden()` で算出（`meters` モード、または反数モードで標準換算mと不一致のとき `true`）。
 
 **移行元:** `DemoData::orders()`（`customer` 文字列 → `customer_id`）
 
