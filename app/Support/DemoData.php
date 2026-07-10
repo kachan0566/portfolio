@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\OrderAllocation;
 use App\Models\PurchaseOrder;
+use App\Models\Receiving;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -1119,18 +1120,26 @@ class DemoData
         });
     }
 
-    /** 入荷一覧 */
-    public static function receivings(): Collection
+    /** 入荷の生データ（DemoState 参照なし） */
+    public static function baseReceivingRows(): Collection
     {
-        $rows = [
+        return collect([
             ['id' => 1, 'code' => 'RC-2606-001', 'po_code' => 'PO-2606-001', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => '紡績ワークス', 'product_id' => 1, 'qty' => 200, 'date' => '2026-06-08'],
             ['id' => 2, 'code' => 'RC-2606-002', 'po_code' => 'PO-G-2606-002', 'po_type' => PurchaseOrderType::GREIGE, 'supplier' => '東洋織物', 'greige_sku' => 'KB-T', 'qty_meters' => 200, 'date' => '2026-06-18'],
             ['id' => 3, 'code' => 'RC-2606-003', 'po_code' => 'PO-2606-002', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => 'ケミカル商会', 'product_id' => 3, 'qty' => 150, 'date' => '2026-06-14'],
             ['id' => 4, 'code' => 'RC-2606-004', 'po_code' => 'PO-2606-008', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => '紡績ワークス', 'product_id' => 7, 'qty' => 120, 'date' => '2026-06-25'],
             ['id' => 5, 'code' => 'RC-2606-005', 'po_code' => 'PO-Y-2606-002', 'po_type' => PurchaseOrderType::YARN, 'supplier' => '紡績ワークス', 'material_id' => 2, 'qty_kg' => 150.0, 'date' => '2026-06-16'],
-        ];
+        ]);
+    }
 
-        return collect($rows)->map(function ($r) {
+    /** 入荷一覧 */
+    public static function receivings(): Collection
+    {
+        if (self::usesReceivingDatabase()) {
+            return Receiving::displayList();
+        }
+
+        return self::baseReceivingRows()->map(function ($r) {
             $r['po_type'] = $r['po_type'] ?? PurchaseOrderType::PRODUCT;
 
             if ($r['po_type'] === PurchaseOrderType::YARN) {
@@ -1151,6 +1160,36 @@ class DemoData
 
             return (object) $r;
         });
+    }
+
+    public static function usesReceivingDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('receivings')
+                && Receiving::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function usesGreigeRollDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('greige_rolls')
+                && \App\Models\GreigeRoll::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function usesProductRollDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('product_rolls')
+                && \App\Models\ProductRoll::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /** 在庫移動履歴 */

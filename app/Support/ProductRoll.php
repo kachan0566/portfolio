@@ -2,10 +2,14 @@
 
 namespace App\Support;
 
+use App\Models\ProductRoll as ProductRollModel;
+use App\Models\PurchaseOrderLine;
+use App\Models\ReceivingLine;
 use Illuminate\Support\Collection;
 
 /**
  * 製品の物理反（1在庫単位 = 1レコード）。出荷は丸ごと。
+ * DB（product_rolls）が投入済みなら DB を正とし、未投入時は JSON ファイルに保存する。
  */
 class ProductRoll
 {
@@ -20,11 +24,27 @@ class ProductRoll
     /** @var list<array<string, mixed>>|null */
     private static ?array $cache = null;
 
+    /** @internal テスト用にメモリキャッシュを破棄する */
+    public static function resetCacheForTesting(): void
+    {
+        self::$cache = null;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
     public static function all(): array
     {
+        if (DemoData::usesProductRollDatabase()) {
+            return ProductRollModel::query()
+                ->with(['receivingLine'])
+                ->orderBy('id')
+                ->get()
+                ->map(fn (ProductRollModel $roll) => self::normalizeRoll($roll->toSupportArray()))
+                ->values()
+                ->all();
+        }
+
         if (self::$cache !== null) {
             return self::$cache;
         }
@@ -103,6 +123,32 @@ class ProductRoll
      */
     public static function create(array $attributes): object
     {
+        if (DemoData::usesProductRollDatabase()) {
+            $receivingLineId = self::resolveReceivingLineId(
+                (int) ($attributes['receiving_id'] ?? 0),
+                (int) ($attributes['purchase_order_id'] ?? 0),
+            );
+
+            if ($receivingLineId > 0 && (int) ($attributes['product_id'] ?? 0) > 0) {
+                $roll = ProductRollModel::query()->create([
+                'code' => (string) ($attributes['code'] ?? ''),
+                'product_id' => (int) ($attributes['product_id'] ?? 0),
+                'parent_greige_roll_id' => $attributes['parent_greige_roll_id'] ?? null,
+                'purchase_order_id' => $attributes['purchase_order_id'] ?? null,
+                'receiving_line_id' => $receivingLineId,
+                'tan_qty' => QtyHelper::roundReceivingTan((float) ($attributes['tan_qty'] ?? 1.0)),
+                'actual_qty_m' => round((float) ($attributes['actual_qty_m'] ?? 0), 2),
+                'nominal_meters' => (int) ($attributes['nominal_meters'] ?? DemoData::METERS_PER_TAN_PRODUCT),
+                'status' => (string) ($attributes['status'] ?? self::STATUS_IN_STOCK),
+                'received_date' => (string) ($attributes['received_date'] ?? date('Y-m-d')),
+                ]);
+
+                $roll->load('receivingLine');
+
+                return (object) self::normalizeRoll($roll->toSupportArray());
+            }
+        }
+
         $rolls = self::all();
         $nextId = (int) (collect($rolls)->max('id') ?? 0) + 1;
 
@@ -133,6 +179,35 @@ class ProductRoll
 
     public static function update(int $id, array $attributes): ?object
     {
+        if (DemoData::usesProductRollDatabase()) {
+            $roll = ProductRollModel::query()->with('receivingLine')->find($id);
+            if ($roll === null) {
+                return null;
+            }
+
+            $payload = [];
+            foreach (['code', 'product_id', 'parent_greige_roll_id', 'purchase_order_id', 'tan_qty', 'actual_qty_m', 'nominal_meters', 'status', 'received_date'] as $key) {
+                if (array_key_exists($key, $attributes)) {
+                    $payload[$key] = $attributes[$key];
+                }
+            }
+
+            if (isset($attributes['receiving_id']) || isset($attributes['purchase_order_id'])) {
+                $receivingLineId = self::resolveReceivingLineId(
+                    (int) ($attributes['receiving_id'] ?? $roll->receivingLine?->receiving_id ?? 0),
+                    (int) ($attributes['purchase_order_id'] ?? $roll->purchase_order_id ?? 0),
+                );
+                if ($receivingLineId > 0) {
+                    $payload['receiving_line_id'] = $receivingLineId;
+                }
+            }
+
+            $roll->update($payload);
+            $roll->load('receivingLine');
+
+            return (object) self::normalizeRoll($roll->fresh('receivingLine')->toSupportArray());
+        }
+
         $rolls = self::all();
         $updated = null;
 
@@ -158,6 +233,15 @@ class ProductRoll
      */
     public static function replaceAll(array $rolls): void
     {
+        if (DemoData::usesProductRollDatabase()) {
+            ProductRollModel::query()->delete();
+            foreach (self::normalizeRolls($rolls) as $roll) {
+                self::create($roll);
+            }
+
+            return;
+        }
+
         self::persist(self::normalizeRolls($rolls));
     }
 
@@ -221,5 +305,33 @@ class ProductRoll
             'status' => (string) ($roll['status'] ?? self::STATUS_IN_STOCK),
             'received_date' => (string) ($roll['received_date'] ?? date('Y-m-d')),
         ];
+    }
+
+    private static function resolveReceivingLineId(int $receivingId, int $purchaseOrderId): int
+    {
+        if ($receivingId > 0) {
+            $line = ReceivingLine::query()->where('receiving_id', $receivingId)->orderBy('line_no')->first();
+            if ($line !== null) {
+                return (int) $line->id;
+            }
+        }
+
+        if ($purchaseOrderId > 0) {
+            $poLine = PurchaseOrderLine::query()
+                ->where('purchase_order_id', $purchaseOrderId)
+                ->orderBy('line_no')
+                ->first();
+            if ($poLine !== null) {
+                $line = ReceivingLine::query()
+                    ->where('purchase_order_line_id', $poLine->id)
+                    ->orderBy('line_no')
+                    ->first();
+                if ($line !== null) {
+                    return (int) $line->id;
+                }
+            }
+        }
+
+        return 0;
     }
 }
