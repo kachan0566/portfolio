@@ -36,15 +36,11 @@
 | 論理削除（任意）     | `softDeletes()`                    | マスタのみ検討                            |
 
 
-
-
 ### 外部キーの方針
 
 - 参照先が消えたら困る列 → `constrained()` + `restrictOnDelete()`（デフォルト）
 - 子明細が親と一緒に消えてよい列 → `cascadeOnDelete()`
 - 任意の紐づけ（生産意図など）→ `nullable()` + `nullOnDelete()`
-
-
 
 ### 在庫の持ち方（再確認）
 
@@ -57,8 +53,6 @@
 
 
 ---
-
-
 
 ## 定数値一覧（DB に保存する文字列）
 
@@ -74,8 +68,6 @@
 | `product` | 製品発注 |
 
 
-
-
 ### 発注ステータス `purchase_orders.status`
 
 
@@ -87,10 +79,8 @@
 | `received`  | 入荷完了  |
 | `cancelled` | キャンセル |
 
+
 **画面表示との関係:** `status` は在庫・引当の判断用。一覧の **「工程」列** は `status` と種別ごとの進捗を **1ラベルにまとめた表示**（`PurchaseOrderDisplay::label()`）とする。DB に表示用列は持たない。
-
-
-
 
 ### 発注工程（種別ごと・画面表示）
 
@@ -100,13 +90,15 @@
 
 #### 表示ラベルの共通ルール
 
-| 条件 | 表示 |
-| --- | --- |
-| `status = cancelled` | キャンセル |
-| `status = draft` | 下書き |
-| `status = received` | 入荷完了 |
-| 進行中（`ordered` / `partial`） | **工程名**（下表） |
-| 進行中かつ分納 | **工程名（一部入荷）** |
+
+| 条件                         | 表示            |
+| -------------------------- | ------------- |
+| `status = cancelled`       | キャンセル         |
+| `status = draft`           | 下書き           |
+| `status = received`        | 入荷完了          |
+| 進行中（`ordered` / `partial`） | **工程名**（下表）   |
+| 進行中かつ分納                    | **工程名（一部入荷）** |
+
 
 分納判定: `status = partial` または `received_qty < ordered_qty`（種別ごとの数量列で比較）。
 
@@ -114,30 +106,36 @@
 
 #### 糸発注（すべて自動。`stage` 列は持たない）
 
-| 順 | 工程名 | 判定（概要） |
-| --- | --- | --- |
-| 1 | 糸発注済 | 織工場入荷 0 |
-| 2 | 糸出荷済 | 紡績出荷登録あり・入荷 0（将来。`shipped_at` 等） |
-| 3 | 織工場への糸入荷済 | `received_qty_kg > 0` |
-| — | 入荷完了 | `status = received` |
+
+| 順   | 工程名       | 判定（概要）                           |
+| --- | --------- | -------------------------------- |
+| 1   | 糸発注済      | 織工場入荷 0                          |
+| 2   | 糸出荷済      | 紡績出荷登録あり・入荷 0（将来。`shipped_at` 等） |
+| 3   | 織工場への糸入荷済 | `received_qty_kg > 0`            |
+| —   | 入荷完了      | `status = received`              |
+
 
 #### 生機発注（糸入荷・生機出荷は自動、織編のみ手動）
 
-| 順 | 工程名 | 手動/自動 | 判定（概要） |
-| --- | --- | --- | --- |
-| 1 | 発注済 | 自動 | レシピ必要糸がまだすべて織工場入荷完了でない |
-| 2 | 糸入荷済 | 自動 | 必要糸品番ごとに **糸発注がすべて入荷完了**（`GreigeYarnReadiness`） |
-| 3 | 織編機投入済 | **手動** | `greige_purchase_orders.stage` に保存 |
-| 4 | 生機出荷済 | 自動 | 染工場への入荷開始（`received_qty_m > 0`）。手動工程より優先 |
-| — | 入荷完了 | 自動 | `status = received` |
+
+| 順   | 工程名    | 手動/自動  | 判定（概要）                                          |
+| --- | ------ | ------ | ----------------------------------------------- |
+| 1   | 発注済    | 自動     | レシピ必要糸がまだすべて織工場入荷完了でない                          |
+| 2   | 糸入荷済   | 自動     | 必要糸品番ごとに **糸発注がすべて入荷完了**（`GreigeYarnReadiness`） |
+| 3   | 織編機投入済 | **手動** | `purchase_order_lines.stage` に保存                |
+| 4   | 生機出荷済  | 自動     | 染工場への入荷開始（`received_qty_m > 0`）。手動工程より優先        |
+| —   | 入荷完了   | 自動     | `status = received`                             |
+
 
 #### 製品発注（染機投入のみ手動、以降は自動）
 
-| 順 | 工程名 | 手動/自動 | 判定（概要） |
-| --- | --- | --- | --- |
-| 1 | 染機投入済 | **手動** | `product_purchase_orders.stage`（未設定時もここ扱い） |
-| 2 | 製品在庫中 | 自動 | 一部入荷あり（`partial` 等） |
-| — | 入荷完了 | 自動 | `status = received` |
+
+| 順   | 工程名   | 手動/自動  | 判定（概要）                                  |
+| --- | ----- | ------ | --------------------------------------- |
+| 1   | 染機投入済 | **手動** | `purchase_order_lines.stage`（未設定時もここ扱い） |
+| 2   | 製品在庫中 | 自動     | 一部入荷あり（`partial` 等）                     |
+| —   | 入荷完了  | 自動     | `status = received`                     |
+
 
 `製品在庫中`・`生機出荷済` など **入荷から導出する工程は DB に保存しない**。
 
@@ -159,15 +157,16 @@
 
 工程ごとの予定日を **別テーブルには持たない**。画面・在庫予想は次の列だけで足りる。
 
-| 種別 | 保存先 | 一覧の「入荷予定日」 |
-| --- | --- | --- |
-| 糸・生機 | `purchase_orders.due_date` | 同上 |
-| 製品 | `product_purchase_orders.finish_date` | 同上 |
+
+| 種別   | 保存先                                       | 一覧の「入荷予定日」 |
+| ---- | ----------------------------------------- | ---------- |
+| 糸・生機 | `purchase_orders.due_date`                | 同上         |
+| 製品   | `purchase_order_lines.finish_date`（明細行ごと） | 同上         |
+
 
 旧デモの `schedule` 連想配列（8段階キー）は **移行しない・削除**。
 
 将来、工程別ガントや予定日編集が必要になったときだけ、テーブル追加または JSON 列を検討する。
-
 
 ### 受注数量モード `orders.order_qty_mode`
 
@@ -178,8 +177,6 @@
 | `meters` | メートル指定受注 |
 
 
-
-
 ### 引当種別 `order_allocations.allocation_type`
 
 
@@ -187,8 +184,6 @@
 | ------- | ----------- |
 | `stock` | 現在庫から引当     |
 | `po`    | 発注（未入荷）から引当 |
-
-
 
 
 ### 生機反ステータス `greige_rolls.status`
@@ -201,8 +196,6 @@
 | `consumed`           | 使い切り      |
 
 
-
-
 ### 製品反ステータス `product_rolls.status`
 
 
@@ -210,8 +203,6 @@
 | ---------- | ---- |
 | `in_stock` | 在庫あり |
 | `shipped`  | 出荷済み |
-
-
 
 
 ### 仕入先種別 `suppliers.type`
@@ -236,15 +227,9 @@
 | `adjustment`  | 棚卸・調整    |
 
 
-`reference_type` はポリモーフィック風に `receiving` / `purchase_order` / `manual` などを文字列で保持。
-
-### 入荷明細種別 `receiving_lines.line_type`
-
-`yarn` / `greige` / `product`（発注種別と揃える）
+`reference_type` はポリモーフィック風に `receiving_line` / `purchase_order` / `manual` などを文字列で保持。入荷由来は `receiving_line` + `reference_id = receiving_lines.id`。
 
 ---
-
-
 
 ## テーブル定義
 
@@ -252,11 +237,7 @@
 
 ---
 
-
-
 ### マスタ
-
-
 
 #### `customers`（得意先）【新規】
 
@@ -278,8 +259,6 @@
 **移行元:** `DemoData::customers()`
 
 ---
-
-
 
 #### `suppliers`（仕入先）【新規】
 
@@ -303,8 +282,6 @@
 
 ---
 
-
-
 #### `ship_tos`（納入先）【新規】
 
 
@@ -324,8 +301,6 @@
 **移行元:** `DemoData::shipTos()`
 
 ---
-
-
 
 #### `greiges`（生機マスタ）【新規】
 
@@ -349,8 +324,6 @@
 **移行元:** `DemoData::greiges()`
 
 ---
-
-
 
 #### `products`（製品マスタ）【既存・拡張】
 
@@ -387,8 +360,6 @@
 
 ---
 
-
-
 #### `materials`（原材料マスタ）【既存・拡張】
 
 **既存列:** `id`, `name`, `unit`, `timestamps`
@@ -408,11 +379,7 @@
 
 ---
 
-
-
 ### 取引
-
-
 
 #### `orders`（受注）【新規】
 
@@ -450,8 +417,6 @@
 
 ---
 
-
-
 #### `purchase_orders`（発注・共通ヘッダ）【新規】
 
 
@@ -474,92 +439,56 @@
 **ユニーク:** `code`  
 **インデックス:** `type`, `status`, `supplier_id`, `order_id`, `due_date`
 
-**制約（アプリ or DB）:** `type` と子テーブルは 1対1。`type = yarn` なら `yarn_purchase_orders` が必ず1行。
+**制約（アプリ）:** 親の `type` に応じて明細行の品目 FK が1つだけ NOT NULL。1発注に **複数明細行** 可（同一種別のみ。糸・生機・製品の混在はしない）。
 
 **一覧の JOIN 方針**
 
 ```sql
--- イメージ（3種を UNION せず親＋LEFT JOIN）
-SELECT po.*, ypo.*, gpo.*, ppo.*
+SELECT po.*, pol.*
 FROM purchase_orders po
-LEFT JOIN yarn_purchase_orders ypo ON ypo.purchase_order_id = po.id
-LEFT JOIN greige_purchase_orders gpo ON gpo.purchase_order_id = po.id
-LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
+JOIN purchase_order_lines pol ON pol.purchase_order_id = po.id
+ORDER BY po.id, pol.line_no;
 ```
 
-**移行元:** `DemoData::purchaseOrders()` の共通部分 + `PurchaseOrderLink` JSON の `order_id`
+**移行元:** 旧 `yarn_` / `greige_` / `product_purchase_orders` を1行ずつ `line_no = 1` で統合。
 
 ---
 
+#### `purchase_order_lines`（発注明細）【新規】
 
 
-#### `yarn_purchase_orders`（糸発注・種別詳細）【新規】
+| 列名                  | 型                      | NULL | デフォルト   | 説明                               |
+| ------------------- | ---------------------- | ---- | ------- | -------------------------------- |
+| `id`                | bigint PK              | NO   | auto    | 入荷明細 `receiving_lines` の紐づけ先にも使う |
+| `purchase_order_id` | FK → `purchase_orders` | NO   | cascade | 親発注                              |
+| `line_no`           | unsignedSmallInteger   | NO   |         | 発注内の行番号（1始まり）                    |
+| `material_id`       | FK → `materials`       | YES  | null    | 糸発注時                             |
+| `greige_id`         | FK → `greiges`         | YES  | null    | 生機発注時                            |
+| `product_id`        | FK → `products`        | YES  | null    | 製品発注時                            |
+| `qty_kg`            | decimal(12,3)          | YES  | null    | 糸発注量                             |
+| `received_qty_kg`   | decimal(12,3)          | YES  | null    | 糸入荷済み                            |
+| `qty_tan`           | unsignedInteger        | YES  | null    | 発注反数（整数）                         |
+| `meters_per_tan`    | unsignedInteger        | YES  | null    | 生機：発注時スナップショット                   |
+| `qty_meters`        | unsignedInteger        | YES  | null    | 見積m                              |
+| `received_qty_tan`  | decimal(8,2)           | YES  | null    | 入荷済み反数                           |
+| `received_qty_m`    | unsignedInteger        | YES  | null    | 入荷済み実測m合計                        |
+| `stage`             | string(50)             | YES  | null    | 生機・製品の手動工程（`織編機投入済` / `染機投入済`）   |
+| `finish_date`       | date                   | YES  | null    | 製品：上がり予定日（一覧の入荷予定・在庫予想）          |
+| `contact_date`      | date                   | YES  | null    | 製品：連絡日                           |
+| `created_at`        | timestamp              | YES  |         |                                  |
+| `updated_at`        | timestamp              | YES  |         |                                  |
 
 
-| 列名                  | 型                         | NULL | デフォルト | 説明    |
-| ------------------- | ------------------------- | ---- | ----- | ----- |
-| `purchase_order_id` | FK → `purchase_orders` PK | NO   |       | 親と1対1 |
-| `material_id`       | FK → `materials`          | NO   |       | 糸品番   |
-| `qty_kg`            | decimal(12,3)             | NO   | 0     | 発注量   |
-| `received_qty_kg`   | decimal(12,3)             | NO   | 0     | 入荷済み量 |
+**ユニーク:** `(purchase_order_id, line_no)`  
+**インデックス:** `purchase_order_id`, `material_id`, `greige_id`, `product_id`
 
+**制約（アプリ）:** 親 `purchase_orders.type` と整合。`yarn` なら `material_id` + `qty_kg` のみ使用、など。
 
-**主キー:** `purchase_order_id`（= 親 id）
+**工程:** 糸は `stage` なし（入荷から自動計算）。生機・製品は旧子テーブルと同様 `PurchaseOrderDisplay` で表示。
 
-**工程:** 画面表示はすべて **入荷数量から自動計算**（`stage` 列は持たない）。将来、紡績出荷日を持つ場合は `shipped_at`（date, NULL）を追加し「糸出荷済」判定に使う。
-
----
-
-
-
-#### `greige_purchase_orders`（生機発注・種別詳細）【新規】
-
-
-| 列名                  | 型                         | NULL | デフォルト | 説明                              |
-| ------------------- | ------------------------- | ---- | ----- | ------------------------------- |
-| `purchase_order_id` | FK → `purchase_orders` PK | NO   |       |                                 |
-| `greige_id`         | FK → `greiges`            | NO   |       |                                 |
-| `qty_tan`           | unsignedInteger           | NO   | 0     | 発注反数（整数）                        |
-| `meters_per_tan`    | unsignedInteger           | NO   |       | **発注時スナップショット**                 |
-| `qty_meters`        | unsignedInteger           | NO   | 0     | 見積m（`qty_tan × meters_per_tan`） |
-| `received_qty_tan`  | decimal(8,2)              | NO   | 0     | 入荷済み反数                          |
-| `received_qty_m`    | unsignedInteger           | NO   | 0     | 入荷済み実測m合計                       |
-| `stage`             | string(50)                | YES  | null  | **手動**: `織編機投入済` のみ。それ以外は NULL |
-
-
-**主キー:** `purchase_order_id`  
-**インデックス:** `greige_id`
-
-**工程:** `糸入荷済`・`生機出荷済` は **保存せず** 入荷記録・糸 readiness から `PurchaseOrderDisplay` で計算。染工場入荷が始まったら手動 `stage` より `生機出荷済` を優先表示。
+**廃止:** `yarn_purchase_orders`, `greige_purchase_orders`, `product_purchase_orders`（2026-07 マイグレーションで `purchase_order_lines` に統合）
 
 ---
-
-
-
-#### `product_purchase_orders`（製品発注・種別詳細）【新規】
-
-
-| 列名                  | 型                         | NULL | デフォルト | 説明            |
-| ------------------- | ------------------------- | ---- | ----- | ------------- |
-| `purchase_order_id` | FK → `purchase_orders` PK | NO   |       |               |
-| `product_id`        | FK → `products`           | NO   |       |               |
-| `qty_tan`           | unsignedInteger           | NO   | 0     | 発注反数（整数）      |
-| `qty_meters`        | unsignedInteger           | NO   | 0     | 見積m           |
-| `received_qty_tan`  | decimal(8,2)              | NO   | 0     |               |
-| `received_qty_m`    | unsignedInteger           | NO   | 0     |               |
-| `stage`             | string(50)                | YES  | null  | **手動**: `染機投入済` のみ保存           |
-| `finish_date`       | date                      | YES  | null  | 上がり予定日（一覧の入荷予定日・在庫予想に使用）   |
-| `contact_date`      | date                      | YES  | null  | 連絡日                           |
-
-
-**主キー:** `purchase_order_id`  
-**インデックス:** `product_id`, `stage`
-
-**工程:** `製品在庫中` は入荷開始後に自動。`入荷完了` は `status = received`。旧8段階 `stage`（原材料〜生機出荷済）は移行時に `染機投入済` へ正規化。
-
----
-
-
 
 #### `order_allocations`（受注への引当）【新規】
 
@@ -583,56 +512,49 @@ LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
 
 ---
 
-
-
 #### `receivings`（入荷ヘッダ）【新規】
 
 
-| 列名                  | 型                      | NULL | デフォルト | 説明         |
-| ------------------- | ---------------------- | ---- | ----- | ---------- |
-| `id`                | bigint PK              | NO   | auto  |            |
-| `code`              | string(30)             | NO   |       | 入荷番号（RC-…） |
-| `purchase_order_id` | FK → `purchase_orders` | NO   |       | 元発注        |
-| `received_date`     | date                   | NO   |       | 入荷日        |
-| `note`              | text                   | YES  | null  |            |
-| `created_at`        | timestamp              | YES  |       |            |
-| `updated_at`        | timestamp              | YES  |       |            |
+| 列名              | 型          | NULL | デフォルト | 説明         |
+| --------------- | ---------- | ---- | ----- | ---------- |
+| `id`            | bigint PK  | NO   | auto  |            |
+| `code`          | string(30) | NO   |       | 入荷番号（RC-…） |
+| `received_date` | date       | NO   |       | 入荷日        |
+| `note`          | text       | YES  | null  |            |
+| `created_at`    | timestamp  | YES  |       |            |
+| `updated_at`    | timestamp  | YES  |       |            |
 
 
 **ユニーク:** `code`  
-**インデックス:** `purchase_order_id`, `received_date`
+**インデックス:** `received_date`
+
+**設計メモ:** 仕入先・品目は `receiving_lines` → `purchase_order_lines` → `purchase_orders` 経由で辿る。ヘッダに `purchase_order_id` / `supplier_id` は持たない（1回の入荷で複数発注明細行をまとめられるようにするため）。
 
 **移行元:** `DemoData::receivings()` のヘッダ部分
 
 ---
 
-
-
 #### `receiving_lines`（入荷明細サマリ）【新規】
 
 
-| 列名             | 型                 | NULL | デフォルト   | 説明                            |
-| -------------- | ----------------- | ---- | ------- | ----------------------------- |
-| `id`           | bigint PK         | NO   | auto    |                               |
-| `receiving_id` | FK → `receivings` | NO   | cascade |                               |
-| `line_type`    | string(16)        | NO   |         | `yarn` / `greige` / `product` |
-| `product_id`   | FK → `products`   | YES  | null    | 製品入荷時                         |
-| `greige_id`    | FK → `greiges`    | YES  | null    | 生機入荷時                         |
-| `material_id`  | FK → `materials`  | YES  | null    | 糸入荷時                          |
-| `qty_tan`      | decimal(8,2)      | YES  | null    | 反数合計                          |
-| `qty_m`        | unsignedInteger   | YES  | null    | 実測m合計                         |
-| `qty_kg`       | decimal(12,3)     | YES  | null    | 糸kg合計                         |
-| `created_at`   | timestamp         | YES  |         |                               |
-| `updated_at`   | timestamp         | YES  |         |                               |
+| 列名                       | 型                           | NULL | デフォルト   | 説明            |
+| ------------------------ | --------------------------- | ---- | ------- | ------------- |
+| `id`                     | bigint PK                   | NO   | auto    |               |
+| `receiving_id`           | FK → `receivings`           | NO   | cascade |               |
+| `purchase_order_line_id` | FK → `purchase_order_lines` | NO   |         | どの発注明細に対する入荷か |
+| `line_no`                | unsignedSmallInteger        | NO   |         | 入荷内の行番号（1始まり） |
+| `created_at`             | timestamp                   | YES  |         |               |
+| `updated_at`             | timestamp                   | YES  |         |               |
 
 
-**制約（アプリ）:** `line_type` に応じて **1つだけ** の FK（`product_id` / `greige_id` / `material_id`）が NOT NULL。
+**ユニーク:** `(receiving_id, line_no)`  
+**インデックス:** `purchase_order_line_id`
+
+**制約（アプリ）:** 品目・数量の正は `greige_rolls` / `product_rolls` / `yarn_stock_movements`（`reference_type = receiving_line`）。`qty_`* 列は持たない。種別（糸/生機/製品）は紐づく `purchase_order_lines` と親 `purchase_orders.type` から導出する。
 
 **移行元:** 入荷一覧の品目サマリ。反ごとの実測は `greige_rolls` / `product_rolls` へ。
 
 ---
-
-
 
 #### `shipments`（出荷実績）【新規】
 
@@ -659,29 +581,25 @@ LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
 
 ---
 
-
-
 ### 在庫・反明細
-
-
 
 #### `greige_rolls`（生機の物理反）【新規】
 
 
-| 列名                  | 型                      | NULL | デフォルト        | 説明          |
-| ------------------- | ---------------------- | ---- | ------------ | ----------- |
-| `id`                | bigint PK              | NO   | auto         |             |
-| `code`              | string(30)             | NO   |              | 反番号（GR-…）   |
-| `greige_id`         | FK → `greiges`         | NO   |              |             |
-| `purchase_order_id` | FK → `purchase_orders` | YES  | null         | 由来発注        |
-| `receiving_id`      | FK → `receivings`      | YES  | null         | 入荷イベント      |
-| `tan_qty`           | decimal(8,2)           | NO   | 1.00         | 反数（0.25刻み可） |
-| `actual_qty_m`      | decimal(12,2)          | NO   | 0            | **織り実測m**   |
-| `nominal_meters`    | unsignedInteger        | YES  | null         | 参考：標準長（表示用） |
-| `status`            | string(32)             | NO   | `'in_stock'` |             |
-| `received_date`     | date                   | NO   |              | FIFO 用      |
-| `created_at`        | timestamp              | YES  |              |             |
-| `updated_at`        | timestamp              | YES  |              |             |
+| 列名                  | 型                      | NULL | デフォルト        | 説明               |
+| ------------------- | ---------------------- | ---- | ------------ | ---------------- |
+| `id`                | bigint PK              | NO   | auto         |                  |
+| `code`              | string(30)             | NO   |              | 反番号（GR-…）        |
+| `greige_id`         | FK → `greiges`         | NO   |              |                  |
+| `purchase_order_id` | FK → `purchase_orders` | YES  | null         | 由来発注（照会・引当のため保持） |
+| `receiving_line_id` | FK → `receiving_lines` | NO   |              | 入荷明細行            |
+| `tan_qty`           | decimal(8,2)           | NO   | 1.00         | 反数（0.25刻み可）      |
+| `actual_qty_m`      | decimal(12,2)          | NO   | 0            | **織り実測m**        |
+| `nominal_meters`    | unsignedInteger        | YES  | null         | 参考：標準長（表示用）      |
+| `status`            | string(32)             | NO   | `'in_stock'` |                  |
+| `received_date`     | date                   | NO   |              | FIFO 用           |
+| `created_at`        | timestamp              | YES  |              |                  |
+| `updated_at`        | timestamp              | YES  |              |                  |
 
 
 **ユニーク:** `code`  
@@ -693,8 +611,6 @@ LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
 
 ---
 
-
-
 #### `product_rolls`（製品の物理反）【新規】
 
 
@@ -704,7 +620,7 @@ LEFT JOIN product_purchase_orders ppo ON ppo.purchase_order_id = po.id
 | `code`                  | string(30)             | NO   |              | 反番号（PR-…） |
 | `product_id`            | FK → `products`        | NO   |              |           |
 | `purchase_order_id`     | FK → `purchase_orders` | YES  | null         |           |
-| `receiving_id`          | FK → `receivings`      | YES  | null         |           |
+| `receiving_line_id`     | FK → `receiving_lines` | NO   |              | 入荷明細行     |
 | `parent_greige_roll_id` | FK → `greige_rolls`    | YES  | null         | 染色元の生機反   |
 | `tan_qty`               | decimal(8,2)           | NO   | 1.00         | 0.25刻み可   |
 | `actual_qty_m`          | decimal(12,2)          | NO   | 0            | **染め実測m** |
@@ -732,8 +648,6 @@ GROUP BY product_id;
 **移行元:** `ProductRoll` JSON / 旧 `inbound_lots`（段階7で置き換え）
 
 ---
-
-
 
 #### `shipment_plans`（出荷予定）【既存・拡張】
 
@@ -768,8 +682,6 @@ GROUP BY product_id;
 
 ---
 
-
-
 #### `shipment_roll_allocations`（出荷時の反消費）【新規】
 
 
@@ -791,8 +703,6 @@ GROUP BY product_id;
 **移行元:** `ShipmentRollAllocation` JSON / 旧 `shipment_lot_consumptions`
 
 ---
-
-
 
 #### `yarn_stock_movements`（糸入出庫履歴）【新規】
 
@@ -819,11 +729,7 @@ GROUP BY product_id;
 
 ---
 
-
-
 ### 原価・レシピ
-
-
 
 #### `product_recipes`（製品レシピ＝染色加工料）【新規】
 
@@ -841,8 +747,6 @@ GROUP BY product_id;
 
 ---
 
-
-
 #### `greige_recipes`（生機レシピ・ヘッダ）【新規】
 
 
@@ -857,8 +761,6 @@ GROUP BY product_id;
 
 
 ---
-
-
 
 #### `greige_recipe_lines`（生機レシピ明細）【新規】
 
@@ -879,8 +781,6 @@ GROUP BY product_id;
 
 ---
 
-
-
 #### `material_prices`（糸の月次単価）【新規】
 
 
@@ -900,11 +800,7 @@ GROUP BY product_id;
 
 ---
 
-
-
 ### 予測
-
-
 
 #### `forecast_manual_adjustments`【既存】
 
@@ -925,23 +821,17 @@ GROUP BY product_id;
 
 ---
 
-
-
 #### `month_end_forecasts`【既存】
 
 マイグレーション済み。変更不要。
 
 ---
 
-
-
 #### `month_end_forecast_lines`【既存】
 
 マイグレーション済み。変更不要。
 
 ---
-
-
 
 #### `sales_forecasts`（売上見通し・提出版ヘッダ）【新規】
 
@@ -968,8 +858,6 @@ GROUP BY product_id;
 
 ---
 
-
-
 #### `sales_forecast_lines`（売上見通し明細）【新規】
 
 
@@ -994,11 +882,7 @@ GROUP BY product_id;
 
 ---
 
-
-
 ### 認証
-
-
 
 #### `users`【既存】
 
@@ -1006,11 +890,7 @@ Laravel 標準。変更不要。
 
 ---
 
-
-
 ### 廃止予定
-
-
 
 #### `inbound_lots`【既存・廃止予定】
 
@@ -1022,8 +902,6 @@ m 単位のかたまり在庫。→ `product_rolls` へ移行後にテーブル�
 
 ---
 
-
-
 ## 実装段階とマイグレーション順
 
 `DBplan.md` の段階に対応する。**1段階 = 1〜2個のマイグレーションファイル** が目安。
@@ -1034,15 +912,13 @@ m 単位のかたまり在庫。→ `product_rolls` へ移行後にテーブル�
 | 1   | `customers`, `suppliers`, `ship_tos`, `greiges` 作成               | なし             |
 | 2   | `products`, `materials` に列追加                                     | 段階1（`greiges`） |
 | 3   | `orders` 作成                                                      | 段階1・2          |
-| 4   | `purchase_orders` + 子3（糸・生機・製品）                              | 段階1〜3          |
+| 4   | `purchase_orders` + `purchase_order_lines`                       | 段階1〜3          |
 | 5   | `order_allocations`                                              | 段階3・4          |
-| 6   | `receivings`, `receiving_lines`, `greige_rolls`, `product_rolls` | 段階4            |
+| 6   | `receivings`, `receiving_lines`, `greige_rolls`, `product_rolls` | 段階4（**実装済み 2026-07**） |
 | 7   | `shipments`, `shipment_roll_allocations`、旧テーブルデータ移行              | 段階3・6          |
 | 7b  | `shipment_plans.order_id` FK 化 + 反数列追加                           | 段階3            |
 | 8   | レシピ3 + `material_prices` + `yarn_stock_movements`                | 段階1・2          |
 | 9   | `sales_forecasts`, `sales_forecast_lines`                        | 段階2・3          |
-
-
 
 
 ### 段階1のマイグレーション例（学習用）
@@ -1073,8 +949,6 @@ Schema::create('greiges', function (Blueprint $table) {
 });
 ```
 
-
-
 ### 段階2の拡張例
 
 ```php
@@ -1090,8 +964,6 @@ Schema::table('products', function (Blueprint $table) {
 
 ---
 
-
-
 ## シーダー方針
 
 
@@ -1106,18 +978,12 @@ Schema::table('products', function (Blueprint $table) {
 
 ---
 
-
-
 ## よくある疑問（壁打ち用）
-
-
 
 ### Q. `purchase_orders.order_id` と `order_allocations` の違いは？
 
 - `order_id` … 「この発注はどの受注のためか」という**意図・メモ**（1発注1受注が多いが必須ではない）
 - `order_allocations` … 「何反／何m をどの受注に充てるか」という**数量の引当**（複数行・在庫/発注の両方）
-
-
 
 ### Q. なぜ `greige_rolls` と `product_rolls` を分ける？
 
@@ -1128,15 +994,11 @@ Schema::table('products', function (Blueprint $table) {
 - `qty_meters` … 発注・受注時の**見積**（標準長 × 反数など）
 - `actual_qty_m` … 入荷後に現場が測った**実測**（請求・在庫の正）
 
-
-
 ### Q. 最初に壁打ちするならどのテーブル？
 
 `customers` + `orders`。マスタと取引の分離がこのアプリの設計の芯。
 
 ---
-
-
 
 ## デモデータ移行チェックリスト
 
@@ -1149,10 +1011,10 @@ Schema::table('products', function (Blueprint $table) {
 - [ ] `DemoData::products()` → `products`（`greige_id` 変換）
 - [ ] `DemoData::materials()` → `materials`
 - [ ] `DemoData::orders()` → `orders`
-- [x] `DemoData::purchaseOrders()` → `purchase_orders` + 子3テーブル（旧 `schedule` は移行しない）
+- [x] `DemoData::purchaseOrders()` → `purchase_orders` + `purchase_order_lines`（旧 子3テーブルは統合済み）
 - [ ] `StockAllocation` JSON → `order_allocations`
-- [ ] `DemoData::receivings()` → `receivings` + `receiving_lines` + 反明細
-- [ ] `GreigeRoll` / `ProductRoll` JSON → `greige_rolls` / `product_rolls`
+- [x] `DemoData::receivings()` → `receivings` + `receiving_lines` + 反明細
+- [x] `GreigeRoll` / `ProductRoll` JSON → `greige_rolls` / `product_rolls`
 - [ ] `DemoData::shipments()` → `shipments` + `shipment_roll_allocations`
 - [ ] `inbound_lots` → `product_rolls`（段階7）
 - [ ] レシピ・単価・糸在庫 → 原価系テーブル
@@ -1160,4 +1022,4 @@ Schema::table('products', function (Blueprint $table) {
 
 ---
 
-*最終更新：* 発注工程を種別ごとに分割（`PurchaseOrderStages` / `PurchaseOrderDisplay`）。`purchase_order_schedule_events` は採用せず、入荷予定は `due_date` / `finish_date` のみ。
+*最終更新：* 段階6（`receivings` + `receiving_lines` + `greige_rolls` + `product_rolls`）実装済み。糸入荷数量は段階8の `yarn_stock_movements` まで `baseReceivingRows` 参照。
