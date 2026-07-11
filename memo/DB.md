@@ -534,25 +534,74 @@ ORDER BY po.id, pol.line_no;
 
 ---
 
-#### `receiving_lines`（入荷明細サマリ）【新規】
+#### `receiving_lines`（入荷明細）【新規】
 
 
-| 列名                       | 型                           | NULL | デフォルト   | 説明            |
-| ------------------------ | --------------------------- | ---- | ------- | ------------- |
-| `id`                     | bigint PK                   | NO   | auto    |               |
-| `receiving_id`           | FK → `receivings`           | NO   | cascade |               |
-| `purchase_order_line_id` | FK → `purchase_order_lines` | NO   |         | どの発注明細に対する入荷か |
-| `line_no`                | unsignedSmallInteger        | NO   |         | 入荷内の行番号（1始まり） |
-| `created_at`             | timestamp                   | YES  |         |               |
-| `updated_at`             | timestamp                   | YES  |         |               |
+| 列名                       | 型                           | NULL | デフォルト   | 説明                              |
+| ------------------------ | --------------------------- | ---- | ------- | ------------------------------- |
+| `id`                     | bigint PK                   | NO   | auto    |                                 |
+| `receiving_id`           | FK → `receivings`           | NO   | cascade |                                 |
+| `purchase_order_line_id` | FK → `purchase_order_lines` | NO   |         | どの発注明細に対する入荷か                   |
+| `line_no`                | unsignedSmallInteger        | NO   |         | 入荷内の行番号（1始まり）                    |
+| `qty_tan`                | decimal(8,2)                | NO   | 0       | 反数合計（表示用キャッシュ）                   |
+| `qty_m`                  | unsignedInteger             | NO   | 0       | 実測m合計（表示用キャッシュ）                  |
+| `qty_kg`                 | decimal(12,3)               | NO   | 0       | 糸kg合計（表示用キャッシュ。段階8まで直接セットも可）   |
+| `created_at`             | timestamp                   | YES  |         |                                 |
+| `updated_at`             | timestamp                   | YES  |         |                                 |
 
 
 **ユニーク:** `(receiving_id, line_no)`  
 **インデックス:** `purchase_order_line_id`
 
-**制約（アプリ）:** 品目・数量の正は `greige_rolls` / `product_rolls` / `yarn_stock_movements`（`reference_type = receiving_line`）。`qty_`* 列は持たない。種別（糸/生機/製品）は紐づく `purchase_order_lines` と親 `purchase_orders.type` から導出する。
+**制約（アプリ）:**
+
+- **在庫の正**は `greige_rolls` / `product_rolls` / `yarn_stock_movements`（`reference_type = receiving_line`）
+- `qty_*` は **手入力しない**。入荷登録・反明細更新時に `ReceivingLineTotals::sync()` で下位テーブルから自動同期する **表示用キャッシュ**
+- 種別（糸/生機/製品）は紐づく `purchase_order_lines` と親 `purchase_orders.type` から導出する（`line_type` 列は持たない）
+- 1入荷に **複数行** 可（同一種別の複数品番・複数発注明細行）。糸と製品の混在はしない
 
 **移行元:** 入荷一覧の品目サマリ。反ごとの実測は `greige_rolls` / `product_rolls` へ。
+
+---
+
+#### `receiving_roll_amendments`（入荷反明細の変更履歴）【将来・段階6c以降】
+
+反明細（`greige_rolls` / `product_rolls`）修正時に、**どの反が変わったか**と**変更前の入荷明細合計**を残す。
+
+
+| 列名                   | 型                      | NULL | 説明                                       |
+| -------------------- | ---------------------- | ---- | ---------------------------------------- |
+| `id`                 | bigint PK              | NO   |                                          |
+| `receiving_line_id`  | FK → `receiving_lines` | NO   | どの入荷明細行か                                 |
+| `roll_type`          | string(16)             | NO   | `greige_roll` / `product_roll`           |
+| `roll_id`            | unsignedBigInteger     | NO   | 対象反の id                                  |
+| `roll_code`          | string(30)             | NO   | 反番号（スナップショット）                            |
+| `field`              | string(32)             | NO   | `tan_qty` / `actual_qty_m` など            |
+| `old_value`          | decimal(12,3)          | NO   | 変更前（その反の値）                               |
+| `new_value`          | decimal(12,3)          | NO   | 変更後（その反の値）                               |
+| `line_qty_tan_before` | decimal(8,2)         | NO   | 変更前の入荷明細合計（反数）                           |
+| `line_qty_m_before`  | unsignedInteger        | NO   | 変更前の入荷明細合計（実測m）                         |
+| `line_qty_tan_after` | decimal(8,2)           | YES  | 変更後合計（照合用・任意）                            |
+| `line_qty_m_after`   | unsignedInteger        | YES  | 変更後合計（照合用・任意）                            |
+| `reason`             | text                   | YES  | 修正理由                                     |
+| `changed_at`         | timestamp              | NO   |                                          |
+| `created_at`         | timestamp              | YES  |                                          |
+| `updated_at`         | timestamp              | YES  |                                          |
+
+
+**運用:** 合計・明細画面は常に **最新**（`receiving_lines.qty_*` + rolls）。履歴画面で amendments を表示。反修正 UI 実装時にマイグレーション追加。
+
+### 複数明細行 UI（段階6d・設計メモ）
+
+DB は複数行対応済み。UI 拡張時の方針：
+
+| 画面 | 現状（6b） | 将来（6d） |
+| --- | --- | --- |
+| 入荷登録 | 発注1件 → `receiving_lines` 1行 | 発注明細行を複数選択 → `line_no` ごとに行作成 |
+| 入荷一覧 | 1入荷1行（`lines->first()`） | 明細行ごとに1行、またはヘッダ＋ネスト表示 |
+| 合計表示 | `receiving_lines.qty_*` | 行ごとの `qty_*`（B案のまま） |
+
+**制約:** 1入荷に紐づく明細はすべて同一 `purchase_orders.type`。登録時にアプリで検証する。
 
 ---
 
@@ -915,7 +964,10 @@ m 単位のかたまり在庫。→ `product_rolls` へ移行後にテーブル�
 | 4   | `purchase_orders` + `purchase_order_lines`                       | 段階1〜3          |
 | 5   | `order_allocations`                                              | 段階3・4          |
 | 6   | `receivings`, `receiving_lines`, `greige_rolls`, `product_rolls` | 段階4（**実装済み 2026-07**） |
-| 7   | `shipments`, `shipment_roll_allocations`、旧テーブルデータ移行              | 段階3・6          |
+| 6b  | `receiving_lines.qty_*` 追加、入荷登録 DB 化、発注残 DB 読み取り                 | 段階6（**実装済み 2026-07**） |
+| 6c  | `receiving_roll_amendments` + 反明細修正 UI                        | 段階6b・将来       |
+| 6d  | 入荷・発注の複数明細行 UI（同一種別のみ）                                      | 段階6b・将来       |
+| 7   | `shipments`, `shipment_roll_allocations`、旧テーブルデータ移行              | 段階3・6b         |
 | 7b  | `shipment_plans.order_id` FK 化 + 反数列追加                           | 段階3            |
 | 8   | レシピ3 + `material_prices` + `yarn_stock_movements`                | 段階1・2          |
 | 9   | `sales_forecasts`, `sales_forecast_lines`                        | 段階2・3          |
@@ -998,6 +1050,31 @@ Schema::table('products', function (Blueprint $table) {
 
 `customers` + `orders`。マスタと取引の分離がこのアプリの設計の芯。
 
+### Q. 入荷の複数品目はどう扱う？
+
+- **DB**は対応済み：`receivings` 1件に `receiving_lines` 複数行（`(receiving_id, line_no)` ユニーク）
+- **アプリ（段階6b）**は 1入荷1明細行（`line_no = 1`）で運用。一覧も `lines->first()` 表示
+- **段階6d（将来）**で入荷登録・一覧を明細行単位に拡張。発注の複数明細行 UI（段階6d）とセット
+- **非対応:** 1入荷に糸＋製品など **種別の混在**（1発注＝同一 `purchase_orders.type` のみ）
+
+### Q. `receiving_lines.qty_*` と rolls の関係は？
+
+- rolls / movements が **在庫の正**
+- `qty_*` は **一覧・明細用キャッシュ**（`ReceivingLineTotals::sync` で自動更新。手入力しない）
+- 反明細修正時は **最新を表示**し、変更内容は `receiving_roll_amendments` に履歴として残す（段階6c）
+
+---
+
+## 段階6b 完了条件（段階7着手前）
+
+- [x] `receiving_lines` に `qty_tan` / `qty_m` / `qty_kg`（B案キャッシュ）
+- [x] `ReceivingLineTotals::sync` + `PurchaseOrderLineReceiver`（発注明細 `received_qty_*` 同期）
+- [x] `ReceivingRegistrar` による入荷登録 DB 化（1明細・現 UI）
+- [x] `DemoState::effectiveReceivedQty` / `poRemaining` が DB 優先
+- [x] 入荷一覧が `receiving_lines.qty_*` を表示
+- [ ] 糸入荷の正は段階8の `yarn_stock_movements` まで `qty_kg` キャッシュで暫定
+- [ ] 変更履歴・複数明細 UI は段階6c / 6d
+
 ---
 
 ## デモデータ移行チェックリスト
@@ -1022,4 +1099,4 @@ Schema::table('products', function (Blueprint $table) {
 
 ---
 
-*最終更新：* 段階6（`receivings` + `receiving_lines` + `greige_rolls` + `product_rolls`）実装済み。糸入荷数量は段階8の `yarn_stock_movements` まで `baseReceivingRows` 参照。
+*最終更新：* 段階6b（B案 `qty_*` キャッシュ、入荷 DB 化、発注残 DB 読み取り）実装済み。変更履歴は段階6c、複数明細 UI は段階6d。糸の正は段階8まで `qty_kg` 暫定。

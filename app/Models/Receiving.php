@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Support\DemoData;
 use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -65,30 +64,27 @@ class Receiving extends Model
         ];
 
         if ($type === PurchaseOrderType::YARN) {
-            $base = DemoData::baseReceivingRows()->firstWhere('id', $this->id);
             $material = $poLine?->material;
             $row['material_id'] = $poLine?->material_id;
             $row['sku'] = $material?->sku ?? '—';
             $row['unit'] = 'kg';
-            $row['qty_kg'] = (float) (is_array($base) ? ($base['qty_kg'] ?? $base['qty'] ?? 0) : ($base?->qty_kg ?? $base?->qty ?? 0));
+            $row['qty_kg'] = (float) ($line?->qty_kg ?? 0);
             $row['qty'] = $row['qty_kg'];
         } elseif ($type === PurchaseOrderType::GREIGE) {
             $greige = $poLine?->greige;
-            $rolls = $line?->greigeRolls ?? collect();
             $row['greige_sku'] = $greige?->sku ?? '—';
             $row['sku'] = $row['greige_sku'];
             $row['unit'] = '反';
-            $row['qty_meters'] = (int) round($rolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
-            $row['qty_tan'] = QtyHelper::roundReceivingTan((float) $rolls->sum(fn ($roll) => (float) $roll->tan_qty));
+            $row['qty_meters'] = (int) ($line?->qty_m ?? 0);
+            $row['qty_tan'] = (float) ($line?->qty_tan ?? 0);
             $row['qty'] = $row['qty_meters'];
         } else {
             $product = $poLine?->product;
-            $rolls = $line?->productRolls ?? collect();
             $row['product_id'] = $poLine?->product_id;
             $row['sku'] = $product?->sku ?? '—';
             $row['unit'] = $product?->unit ?? '反';
-            $row['qty'] = (int) round($rolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
-            $row['qty_tan'] = QtyHelper::roundReceivingTan((float) $rolls->sum(fn ($roll) => (float) $roll->tan_qty));
+            $row['qty'] = (int) ($line?->qty_m ?? 0);
+            $row['qty_tan'] = (float) ($line?->qty_tan ?? 0);
         }
 
         return (object) $row;

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Fabric\TanRollRecorder;
+use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\FabricQuantity;
@@ -25,29 +26,32 @@ class ReceivingController extends Controller
             'date_field' => 'date',
         ]);
 
-        $extra = collect(DemoState::extraReceivings())->map(function ($r) {
-            $r = (array) $r;
-            $type = $r['po_type'] ?? PurchaseOrderType::PRODUCT;
-            if ($type === PurchaseOrderType::YARN) {
-                $material = DemoData::findMaterial((int) ($r['material_id'] ?? 0));
-                $r['sku'] = $material?->sku ?? '—';
-                $r['unit'] = 'kg';
-                $r['qty'] = $r['qty_kg'] ?? $r['qty'] ?? 0;
-            } elseif ($type === PurchaseOrderType::GREIGE) {
-                $r['sku'] = $r['greige_sku'] ?? '—';
-                $r['unit'] = 'm';
-                $r['qty'] = $r['qty_meters'] ?? $r['qty'] ?? 0;
-            } else {
-                $product = DemoData::findProduct((int) ($r['product_id'] ?? 0));
-                $r['sku'] = $product?->sku ?? '—';
-                $r['unit'] = 'm';
-            }
+        if (! DemoData::usesReceivingDatabase()) {
+            $extra = collect(DemoState::extraReceivings())->map(function ($r) {
+                $r = (array) $r;
+                $type = $r['po_type'] ?? PurchaseOrderType::PRODUCT;
+                if ($type === PurchaseOrderType::YARN) {
+                    $material = DemoData::findMaterial((int) ($r['material_id'] ?? 0));
+                    $r['sku'] = $material?->sku ?? '—';
+                    $r['unit'] = 'kg';
+                    $r['qty'] = $r['qty_kg'] ?? $r['qty'] ?? 0;
+                } elseif ($type === PurchaseOrderType::GREIGE) {
+                    $r['sku'] = $r['greige_sku'] ?? '—';
+                    $r['unit'] = 'm';
+                    $r['qty'] = $r['qty_meters'] ?? $r['qty'] ?? 0;
+                } else {
+                    $product = DemoData::findProduct((int) ($r['product_id'] ?? 0));
+                    $r['sku'] = $product?->sku ?? '—';
+                    $r['unit'] = 'm';
+                }
 
-            return (object) array_merge($r, ['po_type' => $type]);
-        });
+                return (object) array_merge($r, ['po_type' => $type]);
+            });
+            $receivings = $receivings->concat($extra)->sortByDesc('date')->values();
+        }
 
         return view('receivings.index', [
-            'receivings' => $receivings->concat($extra)->sortByDesc('date')->values(),
+            'receivings' => $receivings,
             'search' => $search,
         ]);
     }
@@ -92,6 +96,12 @@ class ReceivingController extends Controller
                 return redirect()->route('receivings.create', ['type' => $poType])
                     ->with('error', '入荷数量は 0.01〜'.number_format($remaining, 2).'kg の範囲で入力してください。');
             }
+
+            if (DemoData::usesReceivingDatabase() && DemoData::usesPurchaseOrderDatabase()) {
+                $result = ReceivingRegistrar::register($poId, $date, $poType, qtyKg: $qty);
+
+                return redirect()->route('receivings.index')->with('success', $result['message']);
+            }
         } else {
             $productId = $poType === PurchaseOrderType::PRODUCT ? (int) $po->product_id : null;
             $greigeSku = $poType === PurchaseOrderType::GREIGE
@@ -123,8 +133,37 @@ class ReceivingController extends Controller
                 return redirect()->route('receivings.create', ['type' => $poType])
                     ->with('error', '反ごとの実測mを入力してください。');
             }
+
+            if (DemoData::usesReceivingDatabase() && DemoData::usesPurchaseOrderDatabase()) {
+                $result = ReceivingRegistrar::register(
+                    $poId,
+                    $date,
+                    $poType,
+                    qtyTan: $qtyTan,
+                    qtyMeters: $qty,
+                    rollLines: $rollLines,
+                );
+
+                return redirect()->route('receivings.index')->with('success', $result['message']);
+            }
         }
 
+        return $this->storeLegacy($request, $po, $poId, $poType, $date, $qty ?? 0, $qtyTan ?? 0, $rollLines);
+    }
+
+    /**
+     * @param  list<array{tan_qty: float, actual_qty_m: float}>  $rollLines
+     */
+    private function storeLegacy(
+        Request $request,
+        object $po,
+        int $poId,
+        string $poType,
+        string $date,
+        float $qty,
+        float $qtyTan,
+        array $rollLines,
+    ): RedirectResponse {
         $seq = DemoData::receivings()->count() + count(DemoState::extraReceivings()) + 1;
         $code = 'RC-'.date('ymd').'-'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
 
@@ -144,12 +183,12 @@ class ReceivingController extends Controller
             $receiving['sku'] = $material?->sku ?? '—';
         } elseif ($poType === PurchaseOrderType::GREIGE) {
             $receiving['greige_sku'] = $po->greige_sku ?? $po->sku;
-            $receiving['qty_meters'] = $qty;
+            $receiving['qty_meters'] = (int) $qty;
             $receiving['qty_tan'] = $qtyTan;
             $receiving['sku'] = $receiving['greige_sku'];
         } else {
             $receiving['product_id'] = (int) $po->product_id;
-            $receiving['qty'] = $qty;
+            $receiving['qty'] = (int) $qty;
             $receiving['qty_tan'] = $qtyTan;
             $receiving['sku'] = $po->sku;
         }
@@ -206,7 +245,6 @@ class ReceivingController extends Controller
 
         $lines = [];
         $tanSum = 0.0;
-        $mSum = 0.0;
 
         foreach ($rollsInput as $row) {
             if (! is_array($row)) {
@@ -222,7 +260,6 @@ class ReceivingController extends Controller
             }
             $lines[] = ['tan_qty' => $tanQty, 'actual_qty_m' => $actualM];
             $tanSum += $tanQty;
-            $mSum += $actualM;
         }
 
         if ($lines === []) {

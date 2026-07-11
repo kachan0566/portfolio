@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'receiving_id',
     'purchase_order_line_id',
     'line_no',
+    'qty_tan',
+    'qty_m',
+    'qty_kg',
 ])]
 class ReceivingLine extends Model
 {
@@ -20,6 +23,9 @@ class ReceivingLine extends Model
             'receiving_id' => 'integer',
             'purchase_order_line_id' => 'integer',
             'line_no' => 'integer',
+            'qty_tan' => 'decimal:2',
+            'qty_m' => 'integer',
+            'qty_kg' => 'decimal:3',
         ];
     }
 

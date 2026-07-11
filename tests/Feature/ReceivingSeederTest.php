@@ -65,6 +65,12 @@ class ReceivingSeederTest extends TestCase
 
         $this->assertGreaterThan(0, $productRolls->count());
         $this->assertSame(200, (int) round($productRolls->sum(fn ($roll) => (float) $roll->actual_qty_m)));
+
+        $line = ReceivingLine::query()
+            ->whereHas('receiving', fn ($q) => $q->where('code', 'RC-2606-001'))
+            ->first();
+        $this->assertNotNull($line);
+        $this->assertSame(200, (int) $line->qty_m);
     }
 
     public function test_demo_data_receivings_reads_from_database_after_seed(): void
@@ -82,6 +88,12 @@ class ReceivingSeederTest extends TestCase
         $yarnReceiving = $receivings->firstWhere('code', 'RC-2606-005');
         $this->assertSame(PurchaseOrderType::YARN, $yarnReceiving->po_type);
         $this->assertSame(150.0, (float) $yarnReceiving->qty_kg);
+
+        $yarnLine = ReceivingLine::query()
+            ->whereHas('receiving', fn ($q) => $q->where('code', 'RC-2606-005'))
+            ->first();
+        $this->assertNotNull($yarnLine);
+        $this->assertSame(150.0, (float) $yarnLine->qty_kg);
     }
 
     public function test_greige_roll_support_reads_from_database_after_seed(): void

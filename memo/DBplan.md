@@ -332,12 +332,14 @@ erDiagram
 
 - **何のため？** 入荷イベントと発注明細行を紐づける（どの発注明細に対する入荷か）
 - **1行は何？** 1入荷の1発注明細行分
-- **なぜ分けた？** 品目・数量の正は `greige_rolls` / `product_rolls` / `yarn_stock_movements` に持つ。入荷明細は紐づけの役割に徹する
+- **なぜ分けた？** 在庫の正は `greige_rolls` / `product_rolls` / `yarn_stock_movements`。`qty_*` は一覧用キャッシュ（`ReceivingLineTotals::sync`）
 - **つながり** ← `receivings`, `purchase_order_lines`、→ `greige_rolls`, `product_rolls`
 
-主要列：`receiving_id`, `purchase_order_line_id`, `line_no`
+主要列：`receiving_id`, `purchase_order_line_id`, `line_no`, `qty_tan`, `qty_m`, `qty_kg`（表示用キャッシュ）
 
-種別（糸/生機/製品）は紐づく `purchase_order_lines` と親 `purchase_orders.type` から導出する。`qty_*` 列は持たない。
+種別は紐づく `purchase_order_lines` と親 `purchase_orders.type` から導出。1入荷に複数行可（同一種別のみ）。糸＋製品の混在はしない。
+
+**将来:** `receiving_roll_amendments`（反明細修正履歴・段階6c）、複数明細行 UI（段階6d）
 
 ---
 
@@ -589,7 +591,10 @@ erDiagram
 | 4   | `purchase_orders` + `purchase_order_lines`                       | 発注画面・受注との紐づけ（**実装済み 2026-07**） |
 | 5   | `order_allocations`                                              | 引当画面。JSON置き換え    |
 | 6   | `receivings`, `receiving_lines`, `greige_rolls`, `product_rolls` | 入荷・反明細（**実装済み 2026-07**） |
-| 7   | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` 廃止     | 出荷・FIFOを反単位に     |
+| 6b  | `receiving_lines.qty_*`、入荷 DB 化、発注残 DB 読み取り | **実装済み 2026-07** |
+| 6c  | `receiving_roll_amendments` + 反明細修正 UI | 将来 |
+| 6d  | 入荷・発注の複数明細行 UI | 将来 |
+| 7   | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` 廃止 | 段階6b 完了後 |
 | 8   | レシピ・単価・糸在庫                                                       | 原価画面             |
 | 9   | `sales_forecasts` 系                                              | 売上見通しの JSON 置き換え |
 
@@ -645,4 +650,4 @@ erDiagram
 
 ---
 
-*最終更新：段階6（入荷・反明細）実装済み。繊維業務ルール（反明細・生機/製品分離・0.25反入荷）を反映。*
+*最終更新：段階6b（B案 qty キャッシュ、ReceivingRegistrar、発注残 DB 読み取り）実装済み。変更履歴は段階6c、複数明細 UI は段階6d。*

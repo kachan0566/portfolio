@@ -124,10 +124,13 @@ class ProductRoll
     public static function create(array $attributes): object
     {
         if (DemoData::usesProductRollDatabase()) {
-            $receivingLineId = self::resolveReceivingLineId(
-                (int) ($attributes['receiving_id'] ?? 0),
-                (int) ($attributes['purchase_order_id'] ?? 0),
-            );
+            $receivingLineId = (int) ($attributes['receiving_line_id'] ?? 0);
+            if ($receivingLineId <= 0) {
+                $receivingLineId = self::resolveReceivingLineId(
+                    (int) ($attributes['receiving_id'] ?? 0),
+                    (int) ($attributes['purchase_order_id'] ?? 0),
+                );
+            }
 
             if ($receivingLineId > 0 && (int) ($attributes['product_id'] ?? 0) > 0) {
                 $roll = ProductRollModel::query()->create([

@@ -122,10 +122,13 @@ class GreigeRoll
         if (DemoData::usesGreigeRollDatabase()) {
             $greigeSku = (string) ($attributes['greige_sku'] ?? '');
             $greige = DemoData::findGreige($greigeSku);
-            $receivingLineId = self::resolveReceivingLineId(
-                (int) ($attributes['receiving_id'] ?? 0),
-                (int) ($attributes['purchase_order_id'] ?? 0),
-            );
+            $receivingLineId = (int) ($attributes['receiving_line_id'] ?? 0);
+            if ($receivingLineId <= 0) {
+                $receivingLineId = self::resolveReceivingLineId(
+                    (int) ($attributes['receiving_id'] ?? 0),
+                    (int) ($attributes['purchase_order_id'] ?? 0),
+                );
+            }
 
             if ($greige !== null && $receivingLineId > 0) {
                 $roll = GreigeRollModel::query()->create([

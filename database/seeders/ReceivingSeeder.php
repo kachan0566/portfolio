@@ -9,6 +9,8 @@ use App\Models\PurchaseOrderLine;
 use App\Models\Receiving;
 use App\Models\ReceivingLine;
 use App\Services\Fabric\TanRollRecorder;
+use App\Services\Receiving\PurchaseOrderLineReceiver;
+use App\Services\Receiving\ReceivingLineTotals;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
@@ -58,9 +60,19 @@ class ReceivingSeeder extends Seeder
 
             if ($type === PurchaseOrderType::GREIGE) {
                 $this->seedGreigeRolls($row, $po, $receivingLine, $now);
+                ReceivingLineTotals::sync($receivingLine->fresh());
             } elseif ($type === PurchaseOrderType::PRODUCT) {
                 $this->seedProductRolls($row, $po, $receivingLine, $now);
+                ReceivingLineTotals::sync($receivingLine->fresh());
+            } elseif ($type === PurchaseOrderType::YARN) {
+                $receivingLine->update([
+                    'qty_kg' => (float) ($row['qty_kg'] ?? 0),
+                    'qty_tan' => 0,
+                    'qty_m' => 0,
+                ]);
             }
+
+            PurchaseOrderLineReceiver::syncFromReceivingLine($receivingLine->fresh());
         }
     }
 

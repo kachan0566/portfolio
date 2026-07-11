@@ -74,6 +74,13 @@ class DemoState
 
     public static function effectiveReceivedQty(int $poId, ?object $po = null): float
     {
+        if (DemoData::usesPurchaseOrderDatabase()) {
+            $model = PurchaseOrder::query()->with('lines')->find($poId);
+            if ($model !== null) {
+                return self::receivedQtyFromPurchaseOrder($model);
+            }
+        }
+
         $po ??= self::findBasePurchase($poId);
         if (! $po) {
             return 0.0;
@@ -82,6 +89,20 @@ class DemoState
         $base = DemoData::purchaseOrderReceivedQty($po);
 
         return $base + self::receivedOverlayQty($poId);
+    }
+
+    private static function receivedQtyFromPurchaseOrder(PurchaseOrder $purchaseOrder): float
+    {
+        $type = (string) $purchaseOrder->type;
+
+        return match ($type) {
+            PurchaseOrderType::YARN => (float) $purchaseOrder->lines->sum(
+                fn ($line) => (float) ($line->received_qty_kg ?? 0),
+            ),
+            default => (float) $purchaseOrder->lines->sum(
+                fn ($line) => (int) ($line->received_qty_m ?? 0),
+            ),
+        };
     }
 
     public static function receivedOverlayQty(int $poId): float

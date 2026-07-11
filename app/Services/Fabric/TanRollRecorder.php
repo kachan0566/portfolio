@@ -25,6 +25,7 @@ class TanRollRecorder
         array $lines,
         ?string $measuredAt = null,
         ?int $receivingId = null,
+        ?int $receivingLineId = null,
     ): array {
         if ($lines === []) {
             return [];
@@ -50,6 +51,7 @@ class TanRollRecorder
                 'greige_sku' => $greigeSku,
                 'purchase_order_id' => $poId,
                 'receiving_id' => $receivingId,
+                'receiving_line_id' => $receivingLineId,
                 'tan_qty' => $tanQty,
                 'actual_qty_m' => $actualM,
                 'nominal_meters' => $nominal,
@@ -181,6 +183,7 @@ class TanRollRecorder
         array $lines,
         ?string $measuredAt = null,
         ?int $receivingId = null,
+        ?int $receivingLineId = null,
     ): array {
         if ($lines === []) {
             return [];
@@ -210,6 +213,7 @@ class TanRollRecorder
                 'product_id' => $productId,
                 'purchase_order_id' => $poId,
                 'receiving_id' => $receivingId,
+                'receiving_line_id' => $receivingLineId,
                 'tan_qty' => $tanQty,
                 'actual_qty_m' => $actualM,
                 'nominal_meters' => $productNominal,
