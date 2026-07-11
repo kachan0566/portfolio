@@ -382,10 +382,7 @@ class StockAllocation
      */
     public static function saveLinesForProduct(int $productId, array $lines): void
     {
-        $all = collect(self::allLines())
-            ->reject(fn ($line) => $line['product_id'] === $productId)
-            ->values()
-            ->all();
+        $built = [];
 
         foreach ($lines as $line) {
             $qtyTan = QtyHelper::roundTan((float) ($line['qty_tan'] ?? $line['qty'] ?? 0));
@@ -401,7 +398,7 @@ class StockAllocation
                 $type = self::TYPE_STOCK;
             }
 
-            $all[] = self::buildLine(
+            $built[] = self::buildLine(
                 $productId,
                 (int) ($line['order_id'] ?? 0),
                 (int) ($line['po_id'] ?? 0),
@@ -410,7 +407,18 @@ class StockAllocation
             );
         }
 
-        self::write($all);
+        if (DemoData::usesOrderAllocationDatabase()) {
+            OrderAllocation::replaceForProduct($productId, $built);
+
+            return;
+        }
+
+        $all = collect(self::allLines())
+            ->reject(fn ($line) => $line['product_id'] === $productId)
+            ->values()
+            ->all();
+
+        self::write(array_merge($all, $built));
     }
 
     /**
@@ -469,6 +477,12 @@ class StockAllocation
             return;
         }
 
+        if (DemoData::usesOrderAllocationDatabase()) {
+            OrderAllocation::upsertLine(self::buildLine($productId, $orderId, $poId, $qtyTan, $type));
+
+            return;
+        }
+
         $all = self::allLines();
         $merged = false;
 
@@ -495,6 +509,12 @@ class StockAllocation
 
     public static function clearForOrder(int $orderId): void
     {
+        if (DemoData::usesOrderAllocationDatabase()) {
+            OrderAllocation::deleteForOrder($orderId);
+
+            return;
+        }
+
         $all = collect(self::allLines())
             ->reject(fn ($line) => $line['order_id'] === $orderId)
             ->values()
@@ -505,6 +525,12 @@ class StockAllocation
 
     public static function removeLineFromOrder(int $orderId, int $poId, string $type): void
     {
+        if (DemoData::usesOrderAllocationDatabase()) {
+            OrderAllocation::deleteLine($orderId, $poId, $type);
+
+            return;
+        }
+
         $all = collect(self::allLines())
             ->reject(fn ($line) => $line['order_id'] === $orderId
                 && $line['po_id'] === $poId

@@ -11,7 +11,6 @@ use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\FabricQuantity;
 use App\Support\ListSearch;
-use App\Support\OrderOverlay;
 use App\Support\QtyHelper;
 use App\Support\OrderProductionStatus;
 use App\Support\PurchaseOrderLink;
@@ -186,40 +185,15 @@ class OrderController extends Controller
 
     public function store(StoreOrderRequest $request): RedirectResponse
     {
-        $productId = (int) $request->input('product_id');
-        $mode = (string) $request->input('order_qty_mode', 'tan');
-        $customer = Customer::query()->find((int) $request->input('customer_id'));
+        $attributes = $this->attributesFromRequest($request);
+        $attributes['code'] = $this->generateOrderCode((string) $request->input('order_date'));
+        $attributes['planned_ship_date'] = $request->input('due_date');
+        $attributes['shipped_qty_tan'] = 0;
+        $attributes['shipped_qty_m'] = 0;
 
-        $resolved = FabricQuantity::resolve(
-            $request->input('qty_tan'),
-            $request->input('qty_meters'),
-            $productId,
-            false,
-            null,
-            $mode === 'meters' ? FabricQuantity::CONTEXT_DEFAULT : FabricQuantity::CONTEXT_ORDER,
-        );
+        $order = Order::query()->create($attributes);
 
-        $id = OrderOverlay::nextId();
-        $code = 'SO-'.date('ym').'-'.str_pad((string) $id, 3, '0', STR_PAD_LEFT);
-
-        OrderOverlay::add([
-            'id' => $id,
-            'code' => $code,
-            'customer' => $customer?->name ?? '—',
-            'customer_id' => (int) $request->input('customer_id'),
-            'product_id' => $productId,
-            'order_qty_mode' => $mode,
-            'qty_tan' => $mode === 'tan' ? (int) $resolved->qty_tan : 0,
-            'qty_meters' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
-            'qty' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
-            'shipped' => 0,
-            'order_date' => $request->input('order_date'),
-            'due_date' => $request->input('due_date'),
-            'planned_ship_date' => $request->input('due_date'),
-            'ship_memo' => $request->input('ship_memo', ''),
-        ]);
-
-        return redirect()->route('orders.show', $id)
+        return redirect()->route('orders.show', $order->id)
             ->with('just_created', true)
             ->with('success', '受注を登録しました。在庫状況を確認してください。');
     }
@@ -237,33 +211,7 @@ class OrderController extends Controller
 
     public function update(StoreOrderRequest $request, int $order): RedirectResponse
     {
-        $target = $this->orderOrFail($order);
-        $productId = (int) $request->input('product_id');
-        $mode = (string) $request->input('order_qty_mode', 'tan');
-
-        $resolved = FabricQuantity::resolve(
-            $request->input('qty_tan'),
-            $request->input('qty_meters'),
-            $productId,
-            false,
-            null,
-            $mode === 'meters' ? FabricQuantity::CONTEXT_DEFAULT : FabricQuantity::CONTEXT_ORDER,
-        );
-
-        $customer = Customer::query()->find((int) $request->input('customer_id'));
-
-        OrderOverlay::patch($order, [
-            'customer_id' => (int) $request->input('customer_id'),
-            'customer' => $customer?->name ?? $target->customer,
-            'product_id' => $productId,
-            'order_qty_mode' => $mode,
-            'qty_tan' => $mode === 'tan' ? (int) $resolved->qty_tan : 0,
-            'qty_meters' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
-            'qty' => $mode === 'meters' ? $resolved->qty_meters : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId),
-            'order_date' => $request->input('order_date'),
-            'due_date' => $request->input('due_date'),
-            'ship_memo' => $request->input('ship_memo', ''),
-        ]);
+        Order::query()->findOrFail($order)->update($this->attributesFromRequest($request));
 
         return redirect()->route('orders.show', $order)
             ->with('success', '受注を更新しました。');
@@ -425,6 +373,48 @@ class OrderController extends Controller
     private function orderOrFail(int $orderId): object
     {
         return Order::findForDisplay($orderId) ?? abort(404);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attributesFromRequest(StoreOrderRequest $request): array
+    {
+        $productId = (int) $request->input('product_id');
+        $mode = (string) $request->input('order_qty_mode', 'tan');
+
+        $resolved = FabricQuantity::resolve(
+            $request->input('qty_tan'),
+            $request->input('qty_meters'),
+            $productId,
+            false,
+            null,
+            $mode === 'meters' ? FabricQuantity::CONTEXT_DEFAULT : FabricQuantity::CONTEXT_ORDER,
+        );
+
+        $qtyTan = $mode === 'tan' ? (int) $resolved->qty_tan : 0;
+        $qtyMeters = $mode === 'meters'
+            ? $resolved->qty_meters
+            : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId);
+
+        return [
+            'customer_id' => (int) $request->input('customer_id'),
+            'product_id' => $productId,
+            'order_qty_mode' => $mode,
+            'qty_tan' => $qtyTan,
+            'qty_meters' => $qtyMeters,
+            'order_date' => $request->input('order_date'),
+            'due_date' => $request->input('due_date'),
+            'ship_memo' => $request->input('ship_memo', ''),
+        ];
+    }
+
+    private function generateOrderCode(string $orderDate): string
+    {
+        $ym = date('ym', strtotime($orderDate));
+        $seq = Order::query()->where('code', 'like', "SO-{$ym}-%")->count() + 1;
+
+        return 'SO-'.$ym.'-'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
     }
 
     private function enrichWithAllocation(object $order, bool $withPrice = false): object
