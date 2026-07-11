@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Order;
 use App\Models\OrderAllocation;
 use App\Models\PurchaseOrder;
 use App\Models\Receiving;
@@ -686,6 +687,10 @@ class DemoData
     /** 受注一覧 */
     public static function orders(): Collection
     {
+        if (self::usesOrderDatabase()) {
+            return Order::displayList();
+        }
+
         return self::baseOrderRows()->map(function ($r) {
             $product = self::findProduct($r['product_id']);
             $r['product'] = $product->sku;
@@ -949,11 +954,21 @@ class DemoData
         }
     }
 
+    public static function usesOrderDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('orders')
+                && Order::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     public static function usesOrderAllocationDatabase(): bool
     {
         try {
             return Schema::hasTable('order_allocations')
-                && OrderAllocation::query()->exists();
+                && self::usesOrderDatabase();
         } catch (\Throwable) {
             return false;
         }

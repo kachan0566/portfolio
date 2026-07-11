@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Support\DemoData;
 use App\Support\FabricQuantity;
 use App\Support\QtyHelper;
 use Illuminate\Foundation\Http\FormRequest;
@@ -24,11 +23,11 @@ class StoreOrderRequest extends FormRequest
         return [
             'customer_id' => [
                 'required', 'integer',
-                Rule::in(DemoData::customers()->pluck('id')->all()),
+                Rule::exists('customers', 'id'),
             ],
             'product_id' => [
                 'required', 'integer',
-                Rule::in(DemoData::products()->pluck('id')->all()),
+                Rule::exists('products', 'id'),
             ],
             'order_qty_mode' => ['required', Rule::in(['tan', 'meters'])],
             'qty_tan' => ['nullable', 'numeric', 'min:1', 'max:99999'],
