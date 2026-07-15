@@ -26,13 +26,13 @@ class ShipmentPlanStoreTest extends TestCase
 
     public function test_store_creates_shipment_plan(): void
     {
-        $order = Order::query()->where('code', 'SO-2606-010')->first();
+        $order = Order::query()->where('code', 'SO-2606-009')->first();
         $this->assertNotNull($order);
 
         $before = ShipmentPlanRecord::query()->count();
 
         $response = $this->post(route('shipment-plans.store', $order->id), [
-            'planned_ship_date' => '2026-07-04',
+            'planned_ship_date' => '2026-07-18',
             'confirmed_qty_m' => 30,
             'note' => '画面から登録',
         ]);

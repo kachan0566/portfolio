@@ -2,9 +2,13 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\ProductRoll as ProductRollModel;
+use App\Models\ShipmentRollAllocation;
+use App\Support\DemoData;
 use App\Support\ProductRoll;
 use App\Support\QtyHelper;
-use App\Support\ShipmentRollAllocation;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 出荷時の FIFO 反丸ごと割当。
@@ -14,7 +18,7 @@ class ShipmentRollAllocator
     /**
      * @return array{allocated_tan: float, allocated_m: float, roll_ids: list<int>}
      */
-    public static function allocate(int $productId, float $qtyTan, int $shipmentRef, ?string $note = null): array
+    public static function allocate(int $productId, float $qtyTan, int $shipmentId, ?string $note = null): array
     {
         if ($qtyTan <= 0) {
             return ['allocated_tan' => 0.0, 'allocated_m' => 0.0, 'roll_ids' => []];
@@ -25,9 +29,7 @@ class ShipmentRollAllocator
         $allocatedM = 0.0;
         $rollIds = [];
 
-        $rolls = ProductRoll::fifoInStock($productId);
-
-        foreach ($rolls as $roll) {
+        foreach (self::fifoInStock($productId) as $roll) {
             if ($remainingTan <= 0.0001) {
                 break;
             }
@@ -35,14 +37,8 @@ class ShipmentRollAllocator
             $rollTan = (float) $roll->tan_qty;
             $rollM = (float) $roll->actual_qty_m;
 
+            self::recordAllocation($shipmentId, (int) $roll->id, $rollTan, $rollM, $note);
             ProductRoll::markShipped((int) $roll->id);
-            ShipmentRollAllocation::record(
-                $shipmentRef,
-                (int) $roll->id,
-                $rollTan,
-                $rollM,
-                $note,
-            );
 
             $rollIds[] = (int) $roll->id;
             $remainingTan = round($remainingTan - $rollTan, 2);
@@ -61,7 +57,7 @@ class ShipmentRollAllocator
      *
      * @return array{allocated_tan: float, allocated_m: float, roll_ids: list<int>}
      */
-    public static function allocateForMeters(int $productId, float $requiredMeters, int $shipmentRef, ?string $note = null): array
+    public static function allocateForMeters(int $productId, float $requiredMeters, int $shipmentId, ?string $note = null): array
     {
         if ($requiredMeters <= 0) {
             return ['allocated_tan' => 0.0, 'allocated_m' => 0.0, 'roll_ids' => []];
@@ -71,9 +67,7 @@ class ShipmentRollAllocator
         $allocatedTan = 0.0;
         $rollIds = [];
 
-        $rolls = ProductRoll::fifoInStock($productId);
-
-        foreach ($rolls as $roll) {
+        foreach (self::fifoInStock($productId) as $roll) {
             if ($allocatedM >= $requiredMeters - 0.001) {
                 break;
             }
@@ -81,14 +75,8 @@ class ShipmentRollAllocator
             $rollTan = (float) $roll->tan_qty;
             $rollM = (float) $roll->actual_qty_m;
 
+            self::recordAllocation($shipmentId, (int) $roll->id, $rollTan, $rollM, $note);
             ProductRoll::markShipped((int) $roll->id);
-            ShipmentRollAllocation::record(
-                $shipmentRef,
-                (int) $roll->id,
-                $rollTan,
-                $rollM,
-                $note,
-            );
 
             $rollIds[] = (int) $roll->id;
             $allocatedTan += $rollTan;
@@ -119,5 +107,60 @@ class ShipmentRollAllocator
         }
 
         return $preview;
+    }
+
+    /** @return Collection<int, object> */
+    private static function fifoInStock(int $productId): Collection
+    {
+        if (DemoData::usesProductRollDatabase() && DB::transactionLevel() > 0) {
+            return ProductRollModel::query()
+                ->where('product_id', $productId)
+                ->where('status', ProductRollModel::STATUS_IN_STOCK)
+                ->orderBy('received_date')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->map(fn (ProductRollModel $roll) => (object) $roll->toSupportArray())
+                ->values();
+        }
+
+        return ProductRoll::fifoInStock($productId);
+    }
+
+    private static function recordAllocation(
+        int $shipmentId,
+        int $productRollId,
+        float $consumedTanQty,
+        float $consumedQtyM,
+        ?string $note,
+    ): void {
+        if (self::usesAllocationDatabase()) {
+            ShipmentRollAllocation::query()->create([
+                'shipment_id' => $shipmentId,
+                'product_roll_id' => $productRollId,
+                'consumed_tan_qty' => QtyHelper::roundReceivingTan($consumedTanQty),
+                'consumed_qty_m' => round($consumedQtyM, 2),
+                'note' => $note,
+            ]);
+
+            return;
+        }
+
+        \App\Support\ShipmentRollAllocation::record(
+            $shipmentId,
+            $productRollId,
+            $consumedTanQty,
+            $consumedQtyM,
+            $note,
+        );
+    }
+
+    private static function usesAllocationDatabase(): bool
+    {
+        try {
+            return \Illuminate\Support\Facades\Schema::hasTable('shipment_roll_allocations');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

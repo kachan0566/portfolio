@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Order;
 use App\Models\PurchaseOrder;
 use Illuminate\Support\Facades\Schema;
 
@@ -282,6 +283,12 @@ class DemoState
 
     public static function effectiveShippedTan(int $orderId): float
     {
+        if (DemoData::usesShipmentDatabase()) {
+            $order = Order::query()->find($orderId);
+
+            return max(0.0, QtyHelper::roundReceivingTan((float) ($order?->shipped_qty_tan ?? 0)));
+        }
+
         $row = DemoData::findBaseOrder($orderId);
         if (! $row) {
             return 0.0;
@@ -298,6 +305,12 @@ class DemoState
 
     public static function effectiveShippedM(int $orderId): int
     {
+        if (DemoData::usesShipmentDatabase()) {
+            $order = Order::query()->find($orderId);
+
+            return max(0, (int) ($order?->shipped_qty_m ?? 0));
+        }
+
         $row = DemoData::findBaseOrder($orderId);
         if (! $row) {
             return 0;
@@ -414,6 +427,22 @@ class DemoState
 
     public static function applyShipment(int $orderId, int $productId, float $qtyTan, ?int $qtyMeters = null): void
     {
+        if (Schema::hasTable('shipments')) {
+            $order = DemoData::orders()->firstWhere('id', $orderId);
+            $isMetersOrder = ($order->order_qty_mode ?? 'tan') === 'meters';
+
+            \App\Services\Shipment\ShipmentRegistrar::register(
+                $orderId,
+                $qtyTan,
+                $isMetersOrder ? ($qtyMeters ?? self::orderRemainingM($orderId)) : null,
+                DemoData::today(),
+                null,
+                null,
+            );
+
+            return;
+        }
+
         $order = DemoData::orders()->firstWhere('id', $orderId);
         $isMetersOrder = ($order->order_qty_mode ?? 'tan') === 'meters';
 

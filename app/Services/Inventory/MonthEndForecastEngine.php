@@ -7,15 +7,12 @@ use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\ForecastManualAdjustment;
 use App\Support\ForecastSnapshot;
-use App\Support\InboundLot;
 use Illuminate\Support\Collection;
 
 class MonthEndForecastEngine
 {
     public static function build(string $targetYm): object
     {
-        InboundLot::ensureBootstrapped();
-
         $monthEnd = self::monthEndDate($targetYm);
         $lines = DemoData::products()->map(function ($product) use ($targetYm, $monthEnd) {
             return self::buildLine((int) $product->id, $product, $targetYm, $monthEnd);

@@ -1115,6 +1115,10 @@ class DemoData
     /** 出荷一覧 */
     public static function shipments(): Collection
     {
+        if (self::usesShipmentDatabase()) {
+            return \App\Models\Shipment::displayList();
+        }
+
         $rows = [
             ['id' => 1, 'code' => 'SH-2606-001', 'order_code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'date' => '2026-06-11', 'due_date' => '2026-06-12', 'ship_to' => '東レ商事 滋賀倉庫',     'note' => '時間指定 午前中'],
             ['id' => 2, 'code' => 'SH-2606-002', 'order_code' => 'SO-2606-004', 'customer' => 'ユニフォーム製作所', 'product_id' => 2, 'qty' => 60,  'date' => '2026-06-12', 'due_date' => '2026-06-15', 'ship_to' => 'ユニフォーム製作所 本社', 'note' => ''],
@@ -1202,6 +1206,16 @@ class DemoData
         try {
             return Schema::hasTable('product_rolls')
                 && \App\Models\ProductRoll::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function usesShipmentDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('shipments')
+                && \App\Models\Shipment::query()->exists();
         } catch (\Throwable) {
             return false;
         }
