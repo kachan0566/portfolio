@@ -9,7 +9,7 @@
 | `DB.md`（本書） | 列名・型・制約・インデックス・移行手順          |
 
 
-テーブル定義は実装前の設計メモも含む。**実装するときは「実装段階とマイグレーション順」の本線（0→10）に沿う。** 拡張（8a・8b）は必要になったら本線8の後に追加する。
+テーブル定義は実装前の設計メモも含む。**実装するときは「実装段階とマイグレーション順」の本線（0→10）に沿う。** 拡張（8a・8b）は本線8の後に追加（8b は済、8a は一部済）。
 
 **テーブルのつながり（ER図）** … [`DBplan.md` の「全体のつながり（図一覧）」](DBplan.md#全体のつながり図一覧) を参照（物の流れ + 領域別5枚）。
 
@@ -566,7 +566,7 @@ ORDER BY po.id, pol.line_no;
 
 ---
 
-#### `receiving_roll_amendments`（入荷反明細の変更履歴）【段階8b】
+#### `receiving_roll_amendments`（入荷反明細の変更履歴）【段階8b・実装済み】
 
 反明細（`greige_rolls` / `product_rolls`）修正時に、**どの反が変わったか**と**変更前の入荷明細合計**を残す。
 
@@ -591,23 +591,25 @@ ORDER BY po.id, pol.line_no;
 | `updated_at`         | timestamp              | YES  |                                          |
 
 
-**運用:** 合計・明細画面は常に **最新**（`receiving_lines.qty_*` + rolls）。履歴画面で amendments を表示。反修正 UI 実装時にマイグレーション追加。
+**運用:** 合計・明細画面は常に **最新**（`receiving_lines.qty_*` + rolls）。履歴画面（`/receiving-lines/{line}/amendments`）で amendments を表示。**段階8b 実装済み**（`2026_07_15_000003_*`）。
 
 ### 複数明細行 UI（段階8a・設計メモ）
 
-DB は複数行対応済み。UI 拡張時の方針：
+DB は複数行対応済み。UI の進捗：
 
-| 画面 | 現状（段階6） | 段階8a |
+| 画面 | 段階6（当初） | 段階8a（現状） |
 | --- | --- | --- |
-| 入荷登録 | 発注1件 → `receiving_lines` 1行 | 発注明細行を複数選択 → `line_no` ごとに行作成 |
-| 入荷一覧 | 1入荷1行（`lines->first()`） | 明細行ごとに1行、またはヘッダ＋ネスト表示 |
+| 発注登録 | 1発注1明細行 | **済** 複数明細行を追加可 |
+| 発注一覧 | 1発注1行 | **未** 1発注1行のまま（品番は複数行をサマリ表示） |
+| 入荷登録 | 発注1件 → `receiving_lines` 1行 | **済** 発注明細行を複数選択 → `line_no` ごとに行作成 |
+| 入荷一覧 | 1入荷1行（`lines->first()`） | **済** 明細行ごとに1行（`Receiving::toDisplayObjects()`） |
 | 合計表示 | `receiving_lines.qty_*` | 行ごとの `qty_*`（B案のまま） |
 
 **制約:** 1入荷に紐づく明細はすべて同一 `purchase_orders.type`。登録時にアプリで検証する。
 
 ---
 
-#### `shipments`（出荷実績）【新規】
+#### `shipments`（出荷実績）【段階8・実装済み】
 
 
 | 列名             | 型               | NULL | デフォルト | 説明              |
@@ -733,7 +735,7 @@ GROUP BY product_id;
 
 ---
 
-#### `shipment_roll_allocations`（出荷時の反消費）【新規】
+#### `shipment_roll_allocations`（出荷時の反消費）【段階8・実装済み】
 
 
 | 列名                 | 型                    | NULL | デフォルト    | 説明                    |
@@ -941,15 +943,15 @@ Laravel 標準。変更不要。
 
 ---
 
-### 廃止予定
+### 廃止済み（段階8で削除）
 
-#### `inbound_lots`【既存・廃止予定】
+#### `inbound_lots`【廃止済み】
 
-m 単位のかたまり在庫。→ `product_rolls` へ移行後にテーブル削除。
+m 単位のかたまり在庫。→ `product_rolls` へ移行後、`2026_07_15_000004_*` でテーブル削除。
 
-#### `shipment_lot_consumptions`【既存・廃止予定】
+#### `shipment_lot_consumptions`【廃止済み】
 
-部分消費前提。→ `shipment_roll_allocations` へ移行後に削除。
+部分消費前提。→ `shipment_roll_allocations` へ移行後、同上マイグレで削除。
 
 ---
 
@@ -960,7 +962,7 @@ m 単位のかたまり在庫。→ `product_rolls` へ移行後にテーブル�
 **進め方**
 
 - **本線（0→10）** は番号順にのみ進む。飛ばさない。
-- **拡張（8a・8b）** は本線8の後・本線9の前。省略可（省略時は 8→9 へ）。
+- **拡張（8a・8b）** は本線8の後・本線9の前。8b は済、8a は一部済（省略時は 8→9 へ）。
 - 拡張の前倒し: 出荷前に反実測の訂正が必要 → **8b** を8より前へ。日常で1入荷に複数品目が必須 → **8a** を8より前へ。
 
 ### 段階0（既存資産）
@@ -971,7 +973,8 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | テーブル | 作成元 | 本線での扱い |
 | --- | --- | --- |
 | `products`, `materials`, `users` | Laravel 初期 | 段階2で拡張（products/materials） |
-| `inbound_lots`, `shipment_plans`, `shipment_lot_consumptions` | `2026_06_29_*_create_inventory_forecast_tables` | 段階7〜8で整理・置き換え |
+| `inbound_lots`, `shipment_lot_consumptions` | `2026_06_29_*` → `2026_07_15_000004_*` で削除 | 段階8で `product_rolls` / `shipment_roll_allocations` へ移行後に廃止済み |
+| `shipment_plans` | 同上 + `2026_07_15_*_extend_shipment_plans` | 段階7で FK・反数列追加済み |
 | `forecast_manual_adjustments`, `month_end_forecasts`, `month_end_forecast_lines` | 同上 | 既存維持。段階10は `sales_forecasts` 系を追加 |
 
 
@@ -988,7 +991,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 5 | `order_allocations` | `StockAllocation` JSON 廃止 | `OrderAllocationSeeder` | 3・4 | **済 2026-07** |
 | 6 | `receivings`, `receiving_lines`（**`qty_*` 初回から**）, `greige_rolls`, `product_rolls` | `ReceivingRegistrar`, `ReceivingLineTotals::sync`, `PurchaseOrderLineReceiver`, 発注残 DB 優先, 入荷一覧（1明細運用） | `ReceivingSeeder` | 4 | **済 2026-07**（qty 列は追補マイグレあり・下表） |
 | 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | 出荷予定を DB 正に | `ShipmentPlanSeeder` | 3 | **済 2026-07** |
-| 8 | `shipments`, `shipment_roll_allocations` | 出荷登録 DB 化、`inbound_lots` / `shipment_lot_consumptions` / 関連 JSON 廃止 | デモ移行 | 3・6・**7** | **未** |
+| 8 | `shipments`, `shipment_roll_allocations` | 出荷登録 DB 化、`inbound_lots` / `shipment_lot_consumptions` / 関連 JSON 廃止 | `ShipmentSeeder` | 3・6・**7** | **済 2026-07** |
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` | 原価画面、糸入荷を movements に接続 | 原価系 | 1・2・6 | **未** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | 見通し移行 | 2・3 | **未** |
 
@@ -996,10 +999,10 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 ### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）
 
 
-| 段階 | 内容 | 依存 | デフォルト位置 |
-| --- | --- | --- | --- |
-| 8a | 入荷・発注の複数明細行 UI（同一種別のみ） | 6 | 本線8の直後 |
-| 8b | `receiving_roll_amendments` + 反明細修正 UI | 6・`ReceivingLineTotals` | 8a の直後（8a 省略時は8の直後） |
+| 段階 | 内容 | 依存 | デフォルト位置 | 状態 |
+| --- | --- | --- | --- | --- |
+| 8a | 入荷・発注の複数明細行 UI（同一種別のみ） | 6 | 本線8の直後 | **一部済 2026-07**（入荷・発注登録済。発注一覧の明細行表示は未） |
+| 8b | `receiving_roll_amendments` + 反明細修正 UI | 6・`ReceivingLineTotals` | 8a の直後（8a 省略時は8の直後） | **済 2026-07** |
 
 
 **8b の注意:** マイグレーション単体禁止。反明細修正 UI と同じタイミングで実装する。
@@ -1098,7 +1101,9 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | `2026_07_08_000007_*_receiving_and_roll` | 6 | |
 | `2026_07_11_*_add_qty_columns_to_receiving_lines` | 6 | 理想は 000007 に含む |
 | `2026_07_15_*_extend_shipment_plans` | 7 | FK + 反数列 |
-| （未作成）`shipments` 系 | 8 | |
+| `2026_07_15_000002_*_create_shipments_tables` | 8 | `shipments` + `shipment_roll_allocations` |
+| `2026_07_15_000003_*_create_receiving_roll_amendments` | 8b | 反明細修正履歴 |
+| `2026_07_15_000004_*_drop_legacy_inbound_lot_tables` | 8 | 旧 `inbound_lots` / `shipment_lot_consumptions` 削除 |
 
 各段階の Seeder はその段階のマイグレ直後に `DatabaseSeeder` へ `call` を追加する。取引系（3以降）は段階ごとに `php artisan migrate:fresh --seed` で通し確認する。
 
@@ -1124,9 +1129,9 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 
 ### 段階8 完了条件（段階9 着手前）
 
-- [ ] `shipments` + `shipment_roll_allocations` 作成
-- [ ] 出荷登録が DB 化
-- [ ] `inbound_lots` / `shipment_lot_consumptions` 参照廃止
+- [x] `shipments` + `shipment_roll_allocations` 作成
+- [x] 出荷登録が DB 化
+- [x] `inbound_lots` / `shipment_lot_consumptions` 参照廃止
 
 ### 段階9 完了条件（段階10 着手前）
 
@@ -1135,7 +1140,7 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 
 ### 段階8a 完了条件（任意）
 
-- [ ] 1入荷に複数 `receiving_lines` 登録可
+- [x] 1入荷に複数 `receiving_lines` 登録可
 - [ ] 発注・入荷・一覧が明細行単位表示
 
 ### 段階8b 完了条件（任意）
@@ -1168,19 +1173,18 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 ### Q. 入荷の複数品目はどう扱う？
 
 - **DB**は対応済み：`receivings` 1件に `receiving_lines` 複数行（`(receiving_id, line_no)` ユニーク）
-- **アプリ（段階6）**は 1入荷1明細行（`line_no = 1`）で運用。一覧も `lines->first()` 表示
-- **段階8a**で入荷登録・一覧を明細行単位に拡張。発注の複数明細行 UI とセット
+- **段階8a（一部済）** 入荷登録・入荷一覧は明細行単位。発注登録も複数明細行可。発注一覧は1発注1行のまま
 - **非対応:** 1入荷に糸＋製品など **種別の混在**（1発注＝同一 `purchase_orders.type` のみ）
 
 ### Q. `receiving_lines.qty_*` と rolls の関係は？
 
 - rolls / movements が **在庫の正**
 - `qty_*` は **一覧・明細用キャッシュ**（`ReceivingLineTotals::sync` で自動更新。手入力しない）
-- 反明細修正時は **最新を表示**し、変更内容は `receiving_roll_amendments` に履歴として残す（段階8b）
+- 反明細修正時は **最新を表示**し、変更内容は `receiving_roll_amendments` に履歴として残す（**段階8b 済**）
 
 ### Q. 8a/8b を飛ばして段階9に進んでよい？
 
-よい。本線は 8→9。8a/8b は運用が必要になったら戻って実装する。
+よい。本線は 8→9。8a の残り（発注一覧の明細行表示）は必要になったら戻って実装する。
 
 ---
 
@@ -1203,11 +1207,11 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | 6 | `DemoData::receivings()` | `receivings` + `receiving_lines` + 反明細 | [x] |
 | 6 | `GreigeRoll` / `ProductRoll` JSON | `greige_rolls` / `product_rolls` | [x] |
 | 7 | `ShipmentPlan` JSON / `seedDefaults()` | `shipment_plans` | [x] |
-| 8 | `DemoData::shipments()` | `shipments` + `shipment_roll_allocations` | [ ] |
-| 8 | `inbound_lots` | `product_rolls`（移行後廃止） | [ ] |
+| 8 | `DemoData::shipments()` | `shipments` + `shipment_roll_allocations` | [x] |
+| 8 | `inbound_lots` | `product_rolls`（移行後廃止） | [x] |
 | 9 | レシピ・単価・糸在庫 | 原価系テーブル | [ ] |
 | 10 | 売上見通し JSON | `sales_forecasts` 系 | [ ] |
 
 ---
 
-*最終更新：* 段階7まで実装済み（2026-07）。次は段階8（`shipments` + 出荷登録 DB 化）。
+*最終更新：* 段階8（済）、8a（入荷側済・発注一覧未）、8b（済）（2026-07）。次は段階9。
