@@ -181,6 +181,56 @@
         </div>
     </div>
 
+    @if (count($poLines) > 1)
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card__head"><h2 class="card__title">発注明細行（{{ count($poLines) }} 行）</h2></div>
+            <div class="card__body card__body--flush">
+                <div class="table-wrap">
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                <th>行</th>
+                                <th>品番</th>
+                                <th class="num">発注数量</th>
+                                <th class="num">入荷済</th>
+                                <th class="num">残数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($poLines as $line)
+                                <tr>
+                                    <td class="mono">{{ $line['line_no'] }}</td>
+                                    <td class="code-cell t-strong">{{ $line['sku'] }}</td>
+                                    <td class="num mono">
+                                        @if ($purchase->type === \App\Support\PurchaseOrderType::YARN)
+                                            {{ number_format($line['ordered'], 2) }} kg
+                                        @else
+                                            {{ number_format((int) $line['ordered']) }} m
+                                        @endif
+                                    </td>
+                                    <td class="num mono">
+                                        @if ($purchase->type === \App\Support\PurchaseOrderType::YARN)
+                                            {{ number_format($line['received'], 2) }} kg
+                                        @else
+                                            {{ number_format((int) $line['received']) }} m
+                                        @endif
+                                    </td>
+                                    <td class="num mono">
+                                        @if ($purchase->type === \App\Support\PurchaseOrderType::YARN)
+                                            {{ number_format($line['remaining'], 2) }} kg
+                                        @else
+                                            {{ number_format((int) $line['remaining']) }} m
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE && ($tanRolls ?? collect())->isNotEmpty())
         <div class="card" style="margin-bottom:16px;">
             <div class="card__head">

@@ -189,6 +189,16 @@ class PurchaseOrder extends Model
         return (object) $row;
     }
 
+    /** @return list<array<string, mixed>> */
+    public function lineDisplayRows(): array
+    {
+        return $this->lines
+            ->sortBy('line_no')
+            ->map(fn (PurchaseOrderLine $line) => $line->toDisplayRow())
+            ->values()
+            ->all();
+    }
+
     /**
      * @param  callable(PurchaseOrderLine): string  $skuResolver
      */

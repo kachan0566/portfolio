@@ -6,7 +6,6 @@ use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Http\Requests\UpdatePurchaseOrderRequest;
 use App\Models\Greige;
 use App\Models\Order;
-use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\ShipTo;
@@ -85,8 +84,12 @@ class PurchaseOrderController extends Controller
                 ->filter(fn ($roll) => $roll->stage === FabricTanRoll::STAGE_PRODUCT);
         }
 
+        $poModel = PurchaseOrder::query()->with('lines.material', 'lines.greige', 'lines.product')->find($purchase->id);
+        $poLines = $poModel?->lineDisplayRows() ?? [];
+
         return view('purchases.show', [
             'purchase' => $purchase,
+            'poLines' => $poLines,
             'tanRolls' => $tanRolls,
             'product' => $purchase->type === PurchaseOrderType::PRODUCT
                 ? DemoData::findProduct((int) $purchase->product_id)
@@ -164,77 +167,95 @@ class PurchaseOrderController extends Controller
             ? PurchaseOrderStatus::DRAFT
             : PurchaseOrderStatus::ORDERED;
 
-        $row = $this->buildRowFromRequest($request, $status);
+        $lines = $request->normalizedLines();
 
         if ($type === PurchaseOrderType::GREIGE) {
-            $requirements = DemoData::greigeYarnRequirements($row['greige_sku'], $row['qty_meters']);
+            $totalMeters = (int) collect($lines)->sum(fn ($line) => (int) ($line['qty_meters'] ?? 0));
+            $requirements = [];
+            foreach ($lines as $line) {
+                foreach (DemoData::greigeYarnRequirements($line['greige_sku'], (int) $line['qty_meters']) as $req) {
+                    $requirements[] = $req;
+                }
+            }
             if (! YarnInventory::canFulfill($requirements)) {
                 return back()->withInput()->withErrors([
-                    'qty_tan' => '糸が不足しているため保存できません。'.implode(' ', YarnInventory::shortageMessages($requirements)),
+                    'lines' => '糸が不足しているため保存できません。'.implode(' ', YarnInventory::shortageMessages($requirements)),
                 ]);
             }
+            unset($totalMeters);
         }
 
         if ($type === PurchaseOrderType::PRODUCT) {
-            $msg = GreigeSupply::shortageMessage(
-                (int) $row['product_id'],
-                (int) $row['qty_meters'],
-                null
-            );
-            if ($msg !== null) {
-                return back()->withInput()->withErrors(['qty_meters' => $msg]);
+            foreach ($lines as $index => $line) {
+                $msg = GreigeSupply::shortageMessage(
+                    (int) $line['product_id'],
+                    (int) $line['qty_meters'],
+                    null
+                );
+                if ($msg !== null) {
+                    return back()->withInput()->withErrors(["lines.{$index}.qty_meters" => $msg]);
+                }
             }
         }
 
-        $purchase = DB::transaction(function () use ($request, $row, $type, $status) {
+        $purchase = DB::transaction(function () use ($request, $lines, $type, $status) {
             $po = PurchaseOrder::query()->create([
-                'code' => $row['code'],
+                'code' => $this->generateCode($type),
                 'type' => $type,
                 'status' => $status,
-                'supplier_id' => $row['supplier_id'],
-                'ship_to_id' => $row['ship_to_id'],
-                'order_id' => $row['order_id'],
-                'order_date' => $row['order_date'],
-                'due_date' => $row['due_date'],
+                'supplier_id' => (int) $request->input('supplier_id'),
+                'ship_to_id' => (int) $request->input('ship_to_id'),
+                'order_id' => $request->filled('order_id') ? (int) $request->input('order_id') : null,
+                'order_date' => $request->input('order_date'),
+                'due_date' => $request->input('due_date'),
             ]);
 
-            if ($type === PurchaseOrderType::YARN) {
-                PurchaseOrderLine::query()->create([
-                    'purchase_order_id' => $po->id,
-                    'line_no' => 1,
-                    'material_id' => $row['material_id'],
-                    'qty_kg' => $row['qty_kg'],
-                    'received_qty_kg' => 0,
-                ]);
-            } elseif ($type === PurchaseOrderType::GREIGE) {
-                $greige = Greige::query()->where('sku', $row['greige_sku'])->firstOrFail();
-                PurchaseOrderLine::query()->create([
-                    'purchase_order_id' => $po->id,
-                    'line_no' => 1,
-                    'greige_id' => $greige->id,
-                    'qty_tan' => (int) round((float) $row['qty_tan']),
-                    'meters_per_tan' => $row['meters_per_tan'],
-                    'qty_meters' => $row['qty_meters'],
-                    'received_qty_tan' => 0,
-                    'received_qty_m' => 0,
-                ]);
-            } else {
-                PurchaseOrderLine::query()->create([
-                    'purchase_order_id' => $po->id,
-                    'line_no' => 1,
-                    'product_id' => $row['product_id'],
-                    'qty_tan' => (int) $row['qty_tan'],
-                    'qty_meters' => $row['qty_meters'],
-                    'received_qty_tan' => 0,
-                    'received_qty_m' => 0,
-                ]);
+            foreach ($lines as $index => $line) {
+                $lineNo = $index + 1;
+
+                if ($type === PurchaseOrderType::YARN) {
+                    PurchaseOrderLine::query()->create([
+                        'purchase_order_id' => $po->id,
+                        'line_no' => $lineNo,
+                        'material_id' => $line['material_id'],
+                        'qty_kg' => $line['qty_kg'],
+                        'received_qty_kg' => 0,
+                    ]);
+                } elseif ($type === PurchaseOrderType::GREIGE) {
+                    $greige = Greige::query()->where('sku', $line['greige_sku'])->firstOrFail();
+                    PurchaseOrderLine::query()->create([
+                        'purchase_order_id' => $po->id,
+                        'line_no' => $lineNo,
+                        'greige_id' => $greige->id,
+                        'qty_tan' => (int) round((float) $line['qty_tan']),
+                        'meters_per_tan' => $line['meters_per_tan'],
+                        'qty_meters' => $line['qty_meters'],
+                        'received_qty_tan' => 0,
+                        'received_qty_m' => 0,
+                    ]);
+                } else {
+                    PurchaseOrderLine::query()->create([
+                        'purchase_order_id' => $po->id,
+                        'line_no' => $lineNo,
+                        'product_id' => $line['product_id'],
+                        'qty_tan' => (int) $line['qty_tan'],
+                        'qty_meters' => $line['qty_meters'],
+                        'received_qty_tan' => 0,
+                        'received_qty_m' => 0,
+                    ]);
+                }
             }
 
             return $po;
         });
 
         if ($type === PurchaseOrderType::GREIGE) {
-            $requirements = DemoData::greigeYarnRequirements($row['greige_sku'], $row['qty_meters']);
+            $requirements = [];
+            foreach ($lines as $line) {
+                foreach (DemoData::greigeYarnRequirements($line['greige_sku'], (int) $line['qty_meters']) as $req) {
+                    $requirements[] = $req;
+                }
+            }
             YarnInventory::setAllocationsForGreigePo(
                 $purchase->id,
                 YarnInventory::buildAllocationLines($purchase->id, $requirements, $status)
@@ -242,9 +263,10 @@ class PurchaseOrderController extends Controller
         }
 
         $label = PurchaseOrderStatus::label($type, $status);
+        $lineCount = count($lines);
 
         return redirect()->route('purchases.show', $purchase->id)
-            ->with('success', "発注 {$row['code']} を{$label}で登録しました。");
+            ->with('success', "発注 {$purchase->code} を{$label}で登録しました。（明細 {$lineCount} 行）");
     }
 
     public function edit(int $purchase): View
@@ -400,44 +422,6 @@ class PurchaseOrderController extends Controller
     private function findPurchase(int $id): object
     {
         return DemoData::purchaseOrders()->firstWhere('id', $id) ?? abort(404);
-    }
-
-    /** @return array<string, mixed> */
-    private function buildRowFromRequest(StorePurchaseOrderRequest $request, string $status): array
-    {
-        $type = (string) $request->input('type');
-        $row = [
-            'code' => $this->generateCode($type),
-            'type' => $type,
-            'status' => $status,
-            'supplier_id' => (int) $request->input('supplier_id'),
-            'ship_to_id' => (int) $request->input('ship_to_id'),
-            'order_date' => $request->input('order_date'),
-            'due_date' => $request->input('due_date'),
-            'order_id' => $request->filled('order_id') ? (int) $request->input('order_id') : null,
-        ];
-
-        if ($type === PurchaseOrderType::YARN) {
-            $row['material_id'] = (int) $request->input('material_id');
-            $row['qty_kg'] = (float) $request->input('qty_kg');
-        } elseif ($type === PurchaseOrderType::GREIGE) {
-            $sku = (string) $request->input('greige_sku');
-            $greige = Greige::query()->where('sku', $sku)->firstOrFail();
-            $perTan = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
-            $tan = (float) $request->input('qty_tan');
-            $row['greige_sku'] = $sku;
-            $row['qty_tan'] = $tan;
-            $row['meters_per_tan'] = $perTan;
-            $row['qty_meters'] = QtyHelper::metersFromTan($tan, null, true, $sku);
-        } else {
-            $productId = (int) $request->input('product_id');
-            $product = Product::query()->findOrFail($productId);
-            $row['product_id'] = $productId;
-            $row['qty_meters'] = (int) $request->input('qty_meters');
-            $row['qty_tan'] = QtyHelper::tanCount($row['qty_meters'], $productId);
-        }
-
-        return $row;
     }
 
     private function generateCode(string $type): string

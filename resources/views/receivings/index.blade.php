@@ -38,6 +38,7 @@
                     <thead>
                         <tr>
                             <th>入荷番号</th>
+                            <th>行</th>
                             <th>種別</th>
                             <th>発注番号</th>
                             <th>仕入先</th>
@@ -51,9 +52,18 @@
                             @php
                                 $poType = $r->po_type ?? PurchaseOrderType::PRODUCT;
                                 $poId = \App\Support\DemoData::purchaseOrders()->firstWhere('code', $r->po_code)?->id;
+                                $lineNo = $r->line_no ?? 1;
+                                $lineCount = $r->line_count ?? 1;
                             @endphp
                             <tr>
                                 <td class="code-cell">{{ $r->code }}</td>
+                                <td class="mono t-muted">
+                                    @if ($lineCount > 1)
+                                        {{ $lineNo }}/{{ $lineCount }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td><span class="badge badge-indigo badge--plain">{{ PurchaseOrderType::label($poType) }}</span></td>
                                 <td>
                                     @if ($poId)

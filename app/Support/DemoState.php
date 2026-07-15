@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Order;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -249,6 +250,18 @@ class DemoState
         };
 
         return max(0.0, $ordered - self::effectiveReceivedQty($poId, $po));
+    }
+
+    public static function poLineRemaining(int $poLineId): float
+    {
+        if (DemoData::usesPurchaseOrderDatabase()) {
+            $line = PurchaseOrderLine::query()->with('purchaseOrder')->find($poLineId);
+            if ($line !== null) {
+                return max(0.0, $line->orderedQty() - $line->receivedQty());
+            }
+        }
+
+        return 0.0;
     }
 
     public static function effectiveStockTan(int $productId): float

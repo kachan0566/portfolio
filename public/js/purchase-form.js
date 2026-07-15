@@ -31,36 +31,52 @@
         });
     }
 
-    function renderYarnPreview(sku, meters) {
+    function renderYarnPreview() {
         const el = document.getElementById('yarn-requirements-preview');
         if (!el) return;
-        const reqs = calcGreigeYarn(sku, meters);
-        if (!reqs.length) {
-            el.textContent = '生機品番と反数を入力すると表示されます。';
+
+        const totals = {};
+        document.querySelectorAll('[data-po-line-row]').forEach(function (row) {
+            const skuSelect = row.querySelector('[data-greige-select]');
+            const tanInput = row.querySelector('[data-greige-tan]');
+            if (!skuSelect || !tanInput) return;
+            const sku = skuSelect.value;
+            const meta = greigeMeta[sku] || {};
+            const perTan = meta.meters_per_tan || 100;
+            const meters = roundMeters(tanInput.value, perTan);
+            calcGreigeYarn(sku, meters).forEach(function (r) {
+                totals[r.materialId] = (totals[r.materialId] || 0) + r.kg;
+            });
+        });
+
+        const keys = Object.keys(totals);
+        if (!keys.length) {
+            el.textContent = '明細行を入力すると表示されます。';
             return;
         }
-        el.innerHTML = reqs.map(function (r) {
-            return '糸ID ' + r.materialId + ': <strong class="mono">' + r.kg + ' kg</strong>';
+
+        el.innerHTML = keys.map(function (id) {
+            return '糸ID ' + id + ': <strong class="mono">' + totals[id].toFixed(2) + ' kg</strong>';
         }).join('<br>');
     }
 
-    function initGreige() {
-        const skuSelect = document.querySelector('[data-greige-select]');
-        const tanInput = document.querySelector('[data-greige-tan]');
-        const perTanEl = document.getElementById('greige_meters_per_tan');
-        const totalEl = document.getElementById('greige_total_m');
+    function initGreigeRow(row) {
+        const skuSelect = row.querySelector('[data-greige-select]');
+        const tanInput = row.querySelector('[data-greige-tan]');
+        const perTanEl = row.querySelector('[data-greige-meters-per-tan]');
+        const totalEl = row.querySelector('[data-greige-total-m]');
         if (!skuSelect || !tanInput) return;
 
         function sync() {
             const sku = skuSelect.value;
             const meta = greigeMeta[sku] || {};
             const perTan = meta.meters_per_tan || 100;
-            perTanEl.value = perTan + ' m/反（標準）';
+            if (perTanEl) perTanEl.value = perTan + ' m/反（標準）';
             const roundedTan = roundTan(tanInput.value);
             tanInput.value = formatTan(roundedTan);
             const meters = roundMeters(roundedTan, perTan);
-            totalEl.value = formatTan(roundedTan) + '反 / ' + meters.toLocaleString() + 'm';
-            renderYarnPreview(sku, meters);
+            if (totalEl) totalEl.value = formatTan(roundedTan) + '反 / ' + meters.toLocaleString() + 'm';
+            renderYarnPreview();
         }
 
         skuSelect.addEventListener('change', sync);
@@ -69,23 +85,23 @@
         sync();
     }
 
-    function initProduct() {
-        const productSelect = document.querySelector('[data-product-select]');
-        const tanInput = document.querySelector('[data-product-tan]');
-        const perTanEl = document.getElementById('product_meters_per_tan');
-        const totalEl = document.getElementById('product_total_m');
-        const hiddenMeters = document.getElementById('qty_meters');
+    function initProductRow(row) {
+        const productSelect = row.querySelector('[data-product-select]');
+        const tanInput = row.querySelector('[data-product-tan]');
+        const perTanEl = row.querySelector('[data-product-meters-per-tan]');
+        const totalEl = row.querySelector('[data-product-total-m]');
+        const hiddenMeters = row.querySelector('[data-qty-meters-hidden]');
         if (!productSelect || !tanInput) return;
 
         function sync() {
             const id = productSelect.value;
             const meta = productMeta[id] || {};
             const perTan = meta.meters_per_tan || 50;
-            perTanEl.value = perTan + ' m/反（標準）';
+            if (perTanEl) perTanEl.value = perTan + ' m/反（標準）';
             const roundedTan = roundTan(tanInput.value);
             tanInput.value = formatTan(roundedTan);
             const meters = roundMeters(roundedTan, perTan);
-            totalEl.value = formatTan(roundedTan) + '反 / ' + meters.toLocaleString() + 'm';
+            if (totalEl) totalEl.value = formatTan(roundedTan) + '反 / ' + meters.toLocaleString() + 'm';
             if (hiddenMeters) hiddenMeters.value = meters > 0 ? String(meters) : '';
         }
 
@@ -101,6 +117,19 @@
         sync();
     }
 
-    initGreige();
-    initProduct();
+    function initRow(row) {
+        if (row.querySelector('[data-greige-select]')) {
+            initGreigeRow(row);
+        }
+        if (row.querySelector('[data-product-select]')) {
+            initProductRow(row);
+        }
+    }
+
+    document.querySelectorAll('[data-po-line-row]').forEach(initRow);
+
+    window.PurchaseForm = {
+        initRow: initRow,
+        refreshGreigePreview: renderYarnPreview,
+    };
 })();

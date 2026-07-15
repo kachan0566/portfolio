@@ -6,11 +6,15 @@
 @section('content')
     @php
         $typeLabel = \App\Support\PurchaseOrderType::label($type);
+        $oldLines = old('lines', [[]]);
+        if ($oldLines === [] || $oldLines === [[]]) {
+            $oldLines = [[]];
+        }
     @endphp
     <div class="page-header">
         <div>
             <h1>{{ $typeLabel }}の登録</h1>
-            <p class="lead">依頼先・出荷先・納期と数量を入力します。</p>
+            <p class="lead">依頼先・出荷先・納期と数量を入力します。複数品目は明細行を追加してください。</p>
         </div>
         <a href="{{ route('purchases.index') }}" class="btn btn-secondary">
             @include('partials.icon', ['name' => 'back']) 一覧に戻る
@@ -71,87 +75,35 @@
                     </div>
                 </div>
 
-                @if ($type === \App\Support\PurchaseOrderType::YARN)
-                    <div class="form-row">
-                        <div class="field">
-                            <label class="label" for="material_id">糸品番<span class="req">*</span></label>
-                            <select class="select" id="material_id" name="material_id" required>
-                                @foreach ($yarnMaterials as $m)
-                                    <option value="{{ $m->id }}" @selected((string) old('material_id') === (string) $m->id)>
-                                        {{ $m->sku }}（{{ $m->name }}）
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label class="label" for="qty_kg">発注数量（kg）<span class="req">*</span></label>
-                            <input class="input mono" type="number" id="qty_kg" name="qty_kg" step="0.01" min="0.01"
-                                   value="{{ old('qty_kg') }}" required>
-                        </div>
+                <div class="card" style="margin:0 0 16px;background:var(--bg-subtle, #f8fafc);">
+                    <div class="card__head" style="display:flex;justify-content:space-between;align-items:center;">
+                        <h2 class="card__title" style="font-size:14px;margin:0;">発注明細行</h2>
+                        <button type="button" class="btn btn-secondary btn-sm" id="add-po-line" data-po-type="{{ $type }}">
+                            + 行を追加
+                        </button>
                     </div>
-                @elseif ($type === \App\Support\PurchaseOrderType::GREIGE)
-                    <div class="form-row">
-                        <div class="field">
-                            <label class="label" for="greige_sku">生機品番<span class="req">*</span></label>
-                            <select class="select" id="greige_sku" name="greige_sku" required data-greige-select>
-                                @foreach ($greiges as $g)
-                                    <option value="{{ $g->sku }}" @selected(old('greige_sku') === $g->sku)>
-                                        {{ $g->sku }}（{{ $g->name }}）
-                                    </option>
-                                @endforeach
-                            </select>
-                            <p class="field-hint">レシピ登録済みの生機品番のみ選択できます。</p>
-                        </div>
-                        <div class="field">
-                            <label class="label">標準反長（m/反）</label>
-                            <input class="input mono" type="text" id="greige_meters_per_tan" readonly value="—">
-                        </div>
+                    <div class="card__body" id="po-lines-container">
+                        @foreach ($oldLines as $index => $line)
+                            @include('purchases.partials.line-row', [
+                                'type' => $type,
+                                'index' => $index,
+                                'line' => is_array($line) ? $line : [],
+                                'yarnMaterials' => $yarnMaterials,
+                                'greiges' => $greiges,
+                                'products' => $products,
+                                'sourceOrder' => $sourceOrder,
+                                'suggestedMeters' => $suggestedMeters,
+                                'showRemove' => $index > 0,
+                            ])
+                        @endforeach
                     </div>
-                    <div class="form-row">
-                        <div class="field">
-                            <label class="label" for="qty_tan">発注反数<span class="req">*</span></label>
-                            <input class="input mono" type="number" id="qty_tan" name="qty_tan" step="1" min="1"
-                                   value="{{ old('qty_tan') }}" required data-greige-tan>
-                        </div>
-                        <div class="field">
-                            <label class="label">総m数（自動）</label>
-                            <input class="input mono" type="text" id="greige_total_m" readonly value="—">
-                        </div>
-                    </div>
+                </div>
+
+                @if ($type === \App\Support\PurchaseOrderType::GREIGE)
                     <div class="card" style="margin:0 0 16px;background:var(--bg-subtle, #f8fafc);">
                         <div class="card__body">
-                            <h3 class="card__title" style="font-size:14px;margin:0 0 8px;">必要糸量（プレビュー）</h3>
-                            <div id="yarn-requirements-preview" class="t-muted" style="font-size:13px;">生機品番と反数を入力すると表示されます。</div>
-                        </div>
-                    </div>
-                @else
-                    <div class="form-row">
-                        <div class="field">
-                            <label class="label" for="product_id">製品品番<span class="req">*</span></label>
-                            <select class="select" id="product_id" name="product_id" required data-product-select>
-                                @foreach ($products as $p)
-                                    <option value="{{ $p->id }}"
-                                            @selected($sourceOrder && $p->id === $sourceOrder->product_id || (string) old('product_id') === (string) $p->id)>
-                                        {{ $p->sku }}（{{ $p->color }}）
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label class="label">標準反長（m/反）</label>
-                            <input class="input mono" type="text" id="product_meters_per_tan" readonly value="—">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="field">
-                            <label class="label" for="product_qty_tan">発注反数<span class="req">*</span></label>
-                            <input class="input mono" type="number" id="product_qty_tan" name="product_qty_tan" step="1" min="1"
-                                   value="{{ old('product_qty_tan') }}" data-product-tan>
-                        </div>
-                        <div class="field">
-                            <label class="label">総m数（自動）</label>
-                            <input type="hidden" name="qty_meters" id="qty_meters" value="{{ old('qty_meters', $suggestedMeters ?? '') }}">
-                            <input class="input mono" type="text" id="product_total_m" readonly value="—">
+                            <h3 class="card__title" style="font-size:14px;margin:0 0 8px;">必要糸量（プレビュー・合計）</h3>
+                            <div id="yarn-requirements-preview" class="t-muted" style="font-size:13px;">明細行を入力すると表示されます。</div>
                         </div>
                     </div>
                 @endif
@@ -181,12 +133,28 @@
             </form>
         </div>
     </div>
+
+    <template id="po-line-template">
+        @include('purchases.partials.line-row', [
+            'type' => $type,
+            'index' => '__INDEX__',
+            'line' => [],
+            'yarnMaterials' => $yarnMaterials,
+            'greiges' => $greiges,
+            'products' => $products,
+            'sourceOrder' => $sourceOrder,
+            'suggestedMeters' => null,
+            'showRemove' => true,
+        ])
+    </template>
 @endsection
 
 @push('scripts')
 <script>
 window.PURCHASE_GREIGE_META = {!! $greigeMetaJson !!};
 window.PURCHASE_PRODUCT_META = {!! $productMetaJson !!};
+window.PURCHASE_TYPE = @json($type);
 </script>
 <script src="{{ asset('js/purchase-form.js') }}"></script>
+<script src="{{ asset('js/purchase-lines.js') }}"></script>
 @endpush
