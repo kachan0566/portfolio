@@ -23,12 +23,16 @@
         </div>
     @endif
 
+    @php
+        $orderCount = $purchases->pluck('id')->unique()->count();
+    @endphp
+
     <div class="card">
         <div class="card__head">
-            <h2 class="card__title">発注一覧（{{ $purchases->count() }} 件）</h2>
+            <h2 class="card__title">発注一覧（{{ $purchases->count() }} 行 / {{ $orderCount }} 件）</h2>
             <div class="legend" style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
                 @foreach (\App\Support\PurchaseOrderType::all() as $t)
-                    <span>{{ \App\Support\PurchaseOrderType::label($t) }} {{ $purchases->where('type', $t)->count() }}</span>
+                    <span>{{ \App\Support\PurchaseOrderType::label($t) }} {{ $purchases->where('type', $t)->pluck('id')->unique()->count() }}</span>
                 @endforeach
             </div>
         </div>
@@ -56,11 +60,11 @@
                             <th>依頼先</th>
                             <th>出荷先</th>
                             <th>納期</th>
-                            <th style="min-width:150px;">入荷予定日</th>
-                            <th style="min-width:200px;">メモ</th>
+                            <th style="min-width:140px;">入荷予定日</th>
+                            <th style="min-width:160px;">メモ</th>
                             <th>工程</th>
                             <th>材料不足</th>
-                            <th style="width:88px;">操作</th>
+                            <th style="width:120px;">操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,7 +72,9 @@
                             <tr>
                                 <td>
                                     <span class="badge badge-indigo badge--plain">{{ $po->type_label }}</span>
-                                    <div class="code-cell" style="margin-top:4px;font-size:12px;">{{ $po->code }}</div>
+                                    <div class="code-cell" style="margin-top:4px;font-size:12px;">
+                                        <a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a>
+                                    </div>
                                 </td>
                                 <td class="code-cell t-strong">{{ $po->sku }}</td>
                                 <td class="num mono">@include('partials.purchase-qty', ['purchase' => $po])</td>
@@ -87,7 +93,7 @@
                                         'search' => $search,
                                     ])
                                 </td>
-                                <td><span class="badge badge-indigo badge--plain">{{ $po->status_label }}</span></td>
+                                <td><span class="badge badge-indigo badge--plain">{{ $po->line_stage ?? $po->stage }}</span></td>
                                 <td>
                                     @if ($po->material_shortage)
                                         <span class="badge badge-rose">不足</span>

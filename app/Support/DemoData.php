@@ -979,6 +979,27 @@ class DemoData
         return self::purchaseOrders()->where('type', $type)->values();
     }
 
+    /** 発注一覧用（明細行単位） */
+    public static function purchaseOrderIndexRows(): Collection
+    {
+        if (self::usesPurchaseOrderDatabase()) {
+            return PurchaseOrder::displayLineList();
+        }
+
+        return self::purchaseOrders()->flatMap(function ($po) {
+            $lineCount = max(1, (int) ($po->line_count ?? 1));
+            $lineStage = (string) ($po->stage ?? PurchaseOrderDisplay::label($po));
+
+            return [(object) array_merge((array) $po, [
+                'line_no' => 1,
+                'line_count' => $lineCount,
+                'purchase_order_line_id' => null,
+                'line_stage' => $lineStage,
+                'stage' => $lineStage,
+            ])];
+        })->values();
+    }
+
     /** @param  array<string, mixed>  $row */
     public static function enrichPurchaseOrder(array $row): object
     {

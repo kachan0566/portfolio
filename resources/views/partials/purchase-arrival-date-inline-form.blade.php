@@ -1,7 +1,7 @@
 @php
     $expectedDate = \App\Support\DemoData::expectedArrivalDate($purchase);
 @endphp
-<form method="POST" action="{{ route('purchases.patch-arrival', $purchase->id) }}" style="display:flex;flex-direction:column;gap:6px;min-width:140px;">
+<form method="POST" action="{{ route('purchases.patch-arrival', $purchase->id) }}" style="display:flex;flex-direction:column;gap:4px;min-width:120px;">
     @csrf
     @method('PATCH')
     @foreach ($search ?? [] as $key => $value)

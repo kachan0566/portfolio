@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\PurchaseOrderDisplay;
+use App\Support\PurchaseOrderLineDisplay;
 use App\Support\PurchaseOrderLink;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
@@ -185,6 +186,101 @@ class PurchaseOrder extends Model
         $po = (object) $row;
         $row['stage'] = PurchaseOrderDisplay::label($po);
         $row['progress'] = PurchaseOrderDisplay::progressPercent($po);
+
+        return (object) $row;
+    }
+
+    /** @return Collection<int, object> */
+    public static function displayLineList(): Collection
+    {
+        return self::query()
+            ->with([
+                'supplier',
+                'shipTo',
+                'order.customer',
+                'lines.material',
+                'lines.greige',
+                'lines.product.greige',
+            ])
+            ->orderByDesc('due_date')
+            ->orderByDesc('id')
+            ->get()
+            ->flatMap(fn (self $po) => $po->toDisplayObjects())
+            ->values();
+    }
+
+    /** @return list<object> */
+    public function toDisplayObjects(): array
+    {
+        $lines = $this->lines->sortBy('line_no');
+        if ($lines->isEmpty()) {
+            return [$this->toDisplayObject()];
+        }
+
+        return $lines
+            ->map(fn (PurchaseOrderLine $line) => $this->lineToDisplayObject($line))
+            ->all();
+    }
+
+    public function lineToDisplayObject(PurchaseOrderLine $line): object
+    {
+        $header = $this->toDisplayObject();
+        $type = $this->type;
+        $lineCount = $this->lines->count();
+
+        $row = (array) $header;
+        $row['purchase_order_line_id'] = $line->id;
+        $row['line_no'] = $line->line_no;
+        $row['line_count'] = $lineCount;
+
+        if ($type === PurchaseOrderType::YARN) {
+            $material = $line->material;
+            $row['material_id'] = $line->material_id;
+            $row['sku'] = $line->skuLabel();
+            $row['product'] = $material?->name ?? '—';
+            $row['unit'] = 'kg';
+            $row['qty_kg'] = (float) ($line->qty_kg ?? 0);
+            $row['qty'] = $row['qty_kg'];
+            $row['received_kg'] = (float) ($line->received_qty_kg ?? 0);
+            $row['received'] = $row['received_kg'];
+        } elseif ($type === PurchaseOrderType::GREIGE) {
+            $greigeSku = $line->greige?->sku ?? '—';
+            $row['greige_sku'] = $greigeSku;
+            $row['sku'] = $line->skuLabel();
+            $row['product'] = $line->greige?->name ?? '—';
+            $row['unit'] = '反';
+            $row['qty_meters'] = (int) ($line->qty_meters ?? 0);
+            $row['qty'] = $row['qty_meters'];
+            $row['qty_tan'] = (float) ($line->qty_tan ?? 0);
+            $row['meters_per_tan'] = $line->metersPerTanValue();
+            $row['received'] = (int) ($line->received_qty_m ?? 0);
+            $row['yarn_requirements'] = DemoData::greigeYarnRequirements($greigeSku, $row['qty_meters']);
+            $row['manual_stage'] = PurchaseOrderStages::normalizeGreigeManualStage($line->stage);
+        } else {
+            $productId = (int) ($line->product_id ?? 0);
+            $row['product_id'] = $productId;
+            $row['product'] = $line->product?->sku ?? '—';
+            $row['sku'] = $line->skuLabel();
+            $row['unit'] = $line->product?->unit ?? '反';
+            $row['qty_meters'] = (int) ($line->qty_meters ?? 0);
+            $row['qty_tan'] = (float) ($line->qty_tan ?? 0);
+            if ($row['qty_tan'] <= 0 && $row['qty_meters'] > 0 && $productId > 0) {
+                $row['qty_tan'] = QtyHelper::tanCount($row['qty_meters'], $productId);
+            }
+            if ($row['qty_meters'] <= 0 && $row['qty_tan'] > 0 && $productId > 0) {
+                $row['qty_meters'] = QtyHelper::metersFromTan($row['qty_tan'], $productId);
+            }
+            $row['qty'] = $row['qty_meters'];
+            $row['received'] = (int) ($line->received_qty_m ?? 0);
+            $row['finish_date'] = $line->finish_date?->toDateString();
+            $row['contact_date'] = $line->contact_date?->toDateString();
+            $row['manual_stage'] = PurchaseOrderStages::normalizeProductManualStage($line->stage);
+        }
+
+        $lineStage = PurchaseOrderLineDisplay::label($this, $line);
+        $row['stage'] = $lineStage;
+        $row['line_stage'] = $lineStage;
+        $row['progress'] = PurchaseOrderLineDisplay::progressPercent($this, $line);
 
         return (object) $row;
     }
