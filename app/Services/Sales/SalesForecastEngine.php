@@ -19,10 +19,56 @@ class SalesForecastEngine
 {
     public static function build(string $targetYm): object
     {
-        $lines = DemoData::products()
-            ->map(fn ($product) => self::buildProductLine((int) $product->id, $product, $targetYm))
-            ->values();
+        return self::assembleBuild($targetYm, self::buildProductLines($targetYm), includeSnapshot: true);
+    }
 
+    /** 実績タブ用の軽量ビルド（見通し詳細・提出版スナップショットを省略） */
+    public static function buildForActualTab(string $targetYm): object
+    {
+        return self::assembleBuild($targetYm, self::buildProgressLines($targetYm), includeSnapshot: false);
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    private static function buildProductLines(string $targetYm): Collection
+    {
+        SalesForecastLine::preloadDraftForMonth($targetYm);
+        $salesByProduct = DemoData::monthlySalesByProduct($targetYm)->keyBy('product_id');
+
+        return DemoData::products()
+            ->map(fn ($product) => self::buildProductLine(
+                (int) $product->id,
+                $product,
+                $targetYm,
+                $salesByProduct->get((int) $product->id),
+            ))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    private static function buildProgressLines(string $targetYm): Collection
+    {
+        SalesForecastLine::preloadDraftForMonth($targetYm);
+        $salesByProduct = DemoData::monthlySalesByProduct($targetYm)->keyBy('product_id');
+
+        return DemoData::products()
+            ->map(fn ($product) => self::buildProgressLine(
+                (int) $product->id,
+                $product,
+                $targetYm,
+                $salesByProduct->get((int) $product->id),
+            ))
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, object>  $lines
+     */
+    private static function assembleBuild(string $targetYm, Collection $lines, bool $includeSnapshot): object
+    {
         $calculable = $lines->where('cost_calculable', true);
 
         return (object) [
@@ -47,7 +93,7 @@ class SalesForecastEngine
             'adjusted_count' => $lines->where('is_adjusted', true)->count(),
             'warning_count' => $lines->filter(fn ($l) => $l->warning_text !== '')->count(),
             'has_uncalculable_cost' => $lines->contains(fn ($l) => ! $l->cost_calculable),
-            'latest_snapshot' => self::latestSnapshotForMonth($targetYm),
+            'latest_snapshot' => $includeSnapshot ? self::latestSnapshotForMonth($targetYm) : null,
         ];
     }
 
@@ -80,9 +126,9 @@ class SalesForecastEngine
         ])->all();
     }
 
-    public static function buildComparison(string $targetYm): object
+    public static function buildComparison(string $targetYm, ?object $current = null): object
     {
-        $current = self::build($targetYm);
+        $current ??= self::build($targetYm);
         $snapshot = self::latestSnapshotForMonth($targetYm);
 
         $actualVsForecast = (object) [
@@ -149,9 +195,13 @@ class SalesForecastEngine
      *
      * @return Collection<int, object{ym: string, sales: int, cost: int, profit: int, is_forecast: bool, has_uncalculable_cost: bool}>
      */
-    public static function forecastTrend(string $endYm, ?int $productId = null, int $months = 6): Collection
-    {
-        $forecast = self::build($endYm);
+    public static function forecastTrend(
+        string $endYm,
+        ?int $productId = null,
+        int $months = 6,
+        ?object $forecast = null,
+    ): Collection {
+        $forecast ??= self::build($endYm);
 
         return collect(DemoData::salesTrendMonths($endYm, $months))->map(function (string $ym) use ($endYm, $productId, $forecast) {
             if ($ym === $endYm) {
@@ -205,9 +255,13 @@ class SalesForecastEngine
         });
     }
 
-    public static function buildProductLine(int $productId, object $product, string $targetYm): object
-    {
-        $actualRow = DemoData::monthlySalesByProduct($targetYm)
+    public static function buildProductLine(
+        int $productId,
+        object $product,
+        string $targetYm,
+        ?object $actualRow = null,
+    ): object {
+        $actualRow ??= DemoData::monthlySalesByProduct($targetYm)
             ->firstWhere('product_id', $productId);
 
         $actualQty = (float) ($actualRow->qty ?? 0);
@@ -221,7 +275,6 @@ class SalesForecastEngine
         $actualProfit = $costCalculable ? $actualSales - $actualCost : 0;
         $actualFreight = FreightCalculator::forQty($actualQty, $productId);
 
-        $detail = self::buildDetail($productId, $product, $targetYm);
         $forecastRemainingQty = self::totalOutboundQty($productId, $targetYm);
         $forecastRemainingSales = (int) round($forecastRemainingQty * $price);
         $forecastRemainingCost = $costCalculable
@@ -240,6 +293,7 @@ class SalesForecastEngine
         $inboundForecast = self::totalInboundQty($productId, $targetYm);
         $currentStock = (float) DemoState::effectiveStock($productId);
         $isShortage = $forecastRemainingQty > ($currentStock + $inboundForecast);
+        $isAdjusted = SalesForecastLine::productHasSavedDraft($productId, $targetYm);
 
         $warnings = [];
         if (! $costCalculable) {
@@ -248,7 +302,7 @@ class SalesForecastEngine
         if ($isShortage) {
             $warnings[] = '在庫不足見通し';
         }
-        if ($detail->is_adjusted) {
+        if ($isAdjusted) {
             $warnings[] = '手動調整あり';
         }
 
@@ -273,7 +327,7 @@ class SalesForecastEngine
             'total_profit' => $totalProfit,
             'total_freight' => $totalFreight,
             'inbound_forecast_qty' => $inboundForecast,
-            'is_adjusted' => $detail->is_adjusted,
+            'is_adjusted' => $isAdjusted,
             'is_shortage' => $isShortage,
             'warnings' => $warnings,
             'warning_text' => implode(' / ', $warnings),
@@ -281,8 +335,70 @@ class SalesForecastEngine
         ];
     }
 
+    private static function buildProgressLine(
+        int $productId,
+        object $product,
+        string $targetYm,
+        ?object $actualRow = null,
+    ): object {
+        $actualRow ??= DemoData::monthlySalesByProduct($targetYm)
+            ->firstWhere('product_id', $productId);
+
+        $actualQty = (float) ($actualRow->qty ?? 0);
+        $actualSales = (int) ($actualRow->sales ?? 0);
+        $price = (int) ($product->price ?? 0);
+        $unitCost = DemoData::unitCost($productId, $targetYm);
+        $costCalculable = $unitCost !== null;
+        $unitCostInt = $costCalculable ? (int) round($unitCost) : null;
+
+        $actualCost = $costCalculable ? (int) round($actualQty * $unitCostInt) : 0;
+        $actualProfit = $costCalculable ? $actualSales - $actualCost : 0;
+
+        $forecastRemainingQty = self::totalOutboundQty($productId, $targetYm);
+        $forecastRemainingSales = (int) round($forecastRemainingQty * $price);
+        $forecastRemainingCost = $costCalculable
+            ? (int) round($forecastRemainingQty * $unitCostInt)
+            : 0;
+        $forecastRemainingProfit = $costCalculable
+            ? $forecastRemainingSales - $forecastRemainingCost
+            : 0;
+
+        $totalQty = round($actualQty + $forecastRemainingQty, 2);
+        $totalSales = $actualSales + $forecastRemainingSales;
+        $totalProfit = $costCalculable ? $actualProfit + $forecastRemainingProfit : 0;
+
+        return (object) [
+            'product_id' => $productId,
+            'sku' => $product->sku,
+            'price' => $price,
+            'unit_cost' => $unitCostInt,
+            'cost_calculable' => $costCalculable,
+            'actual_qty' => $actualQty,
+            'actual_sales' => $actualSales,
+            'actual_cost' => $actualCost,
+            'actual_profit' => $actualProfit,
+            'actual_freight' => 0,
+            'forecast_remaining_qty' => $forecastRemainingQty,
+            'forecast_remaining_sales' => $forecastRemainingSales,
+            'forecast_remaining_cost' => $forecastRemainingCost,
+            'forecast_remaining_profit' => $forecastRemainingProfit,
+            'forecast_remaining_freight' => 0,
+            'total_qty' => $totalQty,
+            'total_sales' => $totalSales,
+            'total_profit' => $totalProfit,
+            'total_freight' => 0,
+            'inbound_forecast_qty' => 0,
+            'is_adjusted' => false,
+            'is_shortage' => false,
+            'warnings' => $costCalculable ? [] : ['原価未登録'],
+            'warning_text' => $costCalculable ? '' : '原価未登録',
+            'has_forecast_activity' => $forecastRemainingQty > 0,
+        ];
+    }
+
     public static function buildDetail(int $productId, object $product, string $targetYm): object
     {
+        SalesForecastLine::preloadDraftForMonth($targetYm);
         $pairs = self::buildPairs($productId, $targetYm);
         $futureOrders = self::futureOrdersForProduct($productId, $targetYm);
         $futurePurchaseOrders = self::futurePurchaseOrdersForProduct($productId, $targetYm);
