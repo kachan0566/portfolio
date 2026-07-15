@@ -2,46 +2,47 @@
 
 namespace App\Support;
 
+use App\Models\ShipmentPlanRecord;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
- * 出荷予定／出荷確定（デモ用 JSON）。
+ * 出荷予定／出荷確定（DB 正）。
  */
 class ShipmentPlan
 {
-    public const STATUS_CONFIRMED = 'confirmed';
+    public const STATUS_CONFIRMED = ShipmentPlanRecord::STATUS_CONFIRMED;
 
-    public const STATUS_PARTIAL = 'partial';
+    public const STATUS_PARTIAL = ShipmentPlanRecord::STATUS_PARTIAL;
 
-    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_COMPLETED = ShipmentPlanRecord::STATUS_COMPLETED;
 
-    public const STATUS_CANCELLED = 'cancelled';
-
-    private const FILE = 'shipment_plans.json';
-
-    /** @var list<array<string, mixed>>|null */
-    private static ?array $cache = null;
+    public const STATUS_CANCELLED = ShipmentPlanRecord::STATUS_CANCELLED;
 
     /**
      * @return list<array<string, mixed>>
      */
+    public static function demoRows(): array
+    {
+        return [
+            ['id' => 1, 'code' => 'SP-2606-001', 'order_id' => 2, 'product_id' => 3, 'planned_ship_date' => '2026-06-17', 'confirmed_qty_m' => 120, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '分納2回目'],
+            ['id' => 2, 'code' => 'SP-2606-002', 'order_id' => 3, 'product_id' => 5, 'planned_ship_date' => '2026-06-19', 'confirmed_qty_m' => 90, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => ''],
+            ['id' => 3, 'code' => 'SP-2606-003', 'order_id' => 5, 'product_id' => 4, 'planned_ship_date' => '2026-06-24', 'confirmed_qty_m' => 150, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '入荷待ち'],
+            ['id' => 4, 'code' => 'SP-2606-004', 'order_id' => 6, 'product_id' => 1, 'planned_ship_date' => '2026-06-27', 'confirmed_qty_m' => 60, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '残量出荷'],
+            ['id' => 5, 'code' => 'SP-2606-005', 'order_id' => 2, 'product_id' => 3, 'planned_ship_date' => '2026-06-14', 'confirmed_qty_m' => 80, 'shipped_qty_m' => 80, 'status' => self::STATUS_COMPLETED, 'note' => '1回目出荷済'],
+        ];
+    }
+
+    /**
+     * @return list<object>
+     */
     public static function all(): array
     {
-        if (self::$cache !== null) {
-            return self::$cache;
-        }
-
-        $path = storage_path('app/'.self::FILE);
-        if (! is_file($path)) {
-            return self::$cache = self::seedDefaults();
-        }
-
-        $data = json_decode((string) file_get_contents($path), true);
-        if (! is_array($data) || ! isset($data['plans']) || ! is_array($data['plans'])) {
-            return self::$cache = self::seedDefaults();
-        }
-
-        return self::$cache = self::normalizePlans($data['plans']);
+        return self::baseQuery()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ShipmentPlanRecord $plan) => $plan->toDisplayObject())
+            ->all();
     }
 
     /**
@@ -49,9 +50,12 @@ class ShipmentPlan
      */
     public static function forProduct(int $productId): Collection
     {
-        return collect(self::all())
-            ->filter(fn ($p) => (int) ($p['product_id'] ?? 0) === $productId)
-            ->map(fn ($p) => self::enrich((object) $p))
+        return self::baseQuery()
+            ->where('product_id', $productId)
+            ->orderBy('planned_ship_date')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ShipmentPlanRecord $plan) => $plan->toDisplayObject())
             ->values();
     }
 
@@ -60,17 +64,20 @@ class ShipmentPlan
      */
     public static function forOrder(int $orderId): Collection
     {
-        return collect(self::all())
-            ->filter(fn ($p) => (int) ($p['order_id'] ?? 0) === $orderId)
-            ->map(fn ($p) => self::enrich((object) $p))
+        return self::baseQuery()
+            ->where('order_id', $orderId)
+            ->orderBy('planned_ship_date')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ShipmentPlanRecord $plan) => $plan->toDisplayObject())
             ->values();
     }
 
     public static function find(int $id): ?object
     {
-        $plan = collect(self::all())->firstWhere('id', $id);
+        $plan = self::baseQuery()->find($id);
 
-        return $plan ? self::enrich((object) $plan) : null;
+        return $plan?->toDisplayObject();
     }
 
     public static function unshippedQty(object $plan): float
@@ -89,26 +96,28 @@ class ShipmentPlan
      */
     public static function create(array $attributes): object
     {
-        $plans = self::all();
-        $nextId = (int) (collect($plans)->max('id') ?? 0) + 1;
+        $productId = (int) ($attributes['product_id'] ?? 0);
+        $confirmedM = round((float) ($attributes['confirmed_qty_m'] ?? 0), 2);
+        $shippedM = round((float) ($attributes['shipped_qty_m'] ?? 0), 2);
 
-        $plan = self::normalizePlan(array_merge([
-            'id' => $nextId,
-            'code' => 'SP-'.date('ym').'-'.str_pad((string) $nextId, 3, '0', STR_PAD_LEFT),
-            'order_id' => 0,
-            'product_id' => 0,
-            'planned_ship_date' => date('Y-m-d'),
-            'confirmed_qty_m' => 0.0,
-            'shipped_qty_m' => 0.0,
-            'status' => self::STATUS_CONFIRMED,
-            'note' => '',
-            'created_by' => '木村 勝也',
-        ], $attributes));
+        $plan = ShipmentPlanRecord::query()->create([
+            'code' => (string) ($attributes['code'] ?? self::nextCode()),
+            'order_id' => (int) ($attributes['order_id'] ?? 0),
+            'product_id' => $productId,
+            'planned_ship_date' => (string) ($attributes['planned_ship_date'] ?? date('Y-m-d')),
+            'confirmed_qty_m' => $confirmedM,
+            'confirmed_qty_tan' => ShipmentPlanRecord::tanFromMeters($confirmedM, $productId),
+            'shipped_qty_m' => min($shippedM, $confirmedM),
+            'shipped_qty_tan' => $shippedM > 0
+                ? ShipmentPlanRecord::tanFromMeters($shippedM, $productId)
+                : 0.0,
+            'status' => (string) ($attributes['status'] ?? self::STATUS_CONFIRMED),
+            'note' => (string) ($attributes['note'] ?? ''),
+            'created_by' => $attributes['created_by'] ?? null,
+        ]);
 
-        $plans[] = $plan;
-        self::persist($plans);
-
-        return self::enrich((object) $plan);
+        return $plan->fresh(['order', 'product'])?->toDisplayObject()
+            ?? $plan->toDisplayObject();
     }
 
     public static function recordShipment(int $orderId, float $qtyM, ?float $qtyTan = null): void
@@ -117,44 +126,44 @@ class ShipmentPlan
             return;
         }
 
-        $plans = self::all();
-        $remaining = $qtyM;
+        DB::transaction(function () use ($orderId, $qtyM, $qtyTan) {
+            $remaining = $qtyM;
+            $tanToApply = ($qtyTan !== null && $qtyTan > 0) ? $qtyTan : null;
 
-        $orderPlans = collect($plans)
-            ->filter(fn ($p) => (int) ($p['order_id'] ?? 0) === $orderId)
-            ->filter(fn ($p) => in_array($p['status'], [self::STATUS_CONFIRMED, self::STATUS_PARTIAL], true))
-            ->sortBy([
-                ['planned_ship_date', 'asc'],
-                ['id', 'asc'],
-            ]);
+            $plans = ShipmentPlanRecord::query()
+                ->where('order_id', $orderId)
+                ->whereIn('status', [self::STATUS_CONFIRMED, self::STATUS_PARTIAL])
+                ->orderBy('planned_ship_date')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
 
-        foreach ($orderPlans as $plan) {
-            if ($remaining <= 0) {
-                break;
-            }
-            $unshipped = max(0.0, (float) $plan['confirmed_qty_m'] - (float) $plan['shipped_qty_m']);
-            if ($unshipped <= 0) {
-                continue;
-            }
-            $take = min($unshipped, $remaining);
-            foreach ($plans as $i => $p) {
-                if ((int) $p['id'] !== (int) $plan['id']) {
+            foreach ($plans as $plan) {
+                if ($remaining <= 0) {
+                    break;
+                }
+
+                $unshipped = max(0.0, (float) $plan->confirmed_qty_m - (float) $plan->shipped_qty_m);
+                if ($unshipped <= 0) {
                     continue;
                 }
-                $plans[$i]['shipped_qty_m'] = round((float) $p['shipped_qty_m'] + $take, 2);
-                if ($qtyTan !== null && $qtyTan > 0) {
-                    $plans[$i]['shipped_qty_tan'] = round((float) ($p['shipped_qty_tan'] ?? 0) + $qtyTan, 2);
+
+                $take = min($unshipped, $remaining);
+                $plan->shipped_qty_m = round((float) $plan->shipped_qty_m + $take, 2);
+
+                if ($tanToApply !== null) {
+                    $plan->shipped_qty_tan = round((float) $plan->shipped_qty_tan + $tanToApply, 2);
+                    $tanToApply = null;
                 }
-                $plans[$i]['status'] = $plans[$i]['shipped_qty_m'] >= (float) $p['confirmed_qty_m']
+
+                $plan->status = $plan->shipped_qty_m >= (float) $plan->confirmed_qty_m
                     ? self::STATUS_COMPLETED
                     : self::STATUS_PARTIAL;
-                $plans[$i] = self::normalizePlan($plans[$i]);
-                break;
-            }
-            $remaining -= $take;
-        }
+                $plan->save();
 
-        self::persist($plans);
+                $remaining -= $take;
+            }
+        });
     }
 
     /**
@@ -162,99 +171,45 @@ class ShipmentPlan
      */
     public static function replaceAll(array $plans): void
     {
-        self::persist(self::normalizePlans($plans));
+        DB::transaction(function () use ($plans) {
+            ShipmentPlanRecord::query()->delete();
+
+            foreach ($plans as $row) {
+                self::create($row);
+            }
+        });
     }
 
     public static function clearCache(): void
     {
-        self::$cache = null;
+        // DB 正のためキャッシュなし（テスト互換用に残す）
     }
 
     public static function enrich(object $plan): object
     {
-        $order = DemoData::orders()->firstWhere('id', (int) $plan->order_id);
-        $product = DemoData::findProduct((int) $plan->product_id);
-        $plan->order_code = $order?->code ?? '—';
-        $plan->sku = $product?->sku ?? '—';
-        $plan->unshipped_qty_m = self::unshippedQty($plan);
-        $plan->status_label = match ($plan->status) {
-            self::STATUS_CONFIRMED => '出荷確定',
-            self::STATUS_PARTIAL => '一部出荷',
-            self::STATUS_COMPLETED => '出荷完了',
-            self::STATUS_CANCELLED => 'キャンセル',
-            default => $plan->status,
-        };
-
-        return $plan;
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private static function seedDefaults(): array
-    {
-        $plans = [
-            ['id' => 1, 'code' => 'SP-2606-001', 'order_id' => 2, 'product_id' => 3, 'planned_ship_date' => '2026-06-17', 'confirmed_qty_m' => 120, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '分納2回目'],
-            ['id' => 2, 'code' => 'SP-2606-002', 'order_id' => 3, 'product_id' => 5, 'planned_ship_date' => '2026-06-19', 'confirmed_qty_m' => 90, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => ''],
-            ['id' => 3, 'code' => 'SP-2606-003', 'order_id' => 5, 'product_id' => 4, 'planned_ship_date' => '2026-06-24', 'confirmed_qty_m' => 150, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '入荷待ち'],
-            ['id' => 4, 'code' => 'SP-2606-004', 'order_id' => 6, 'product_id' => 1, 'planned_ship_date' => '2026-06-27', 'confirmed_qty_m' => 60, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '残量出荷'],
-            ['id' => 5, 'code' => 'SP-2606-005', 'order_id' => 2, 'product_id' => 3, 'planned_ship_date' => '2026-06-14', 'confirmed_qty_m' => 80, 'shipped_qty_m' => 80, 'status' => self::STATUS_COMPLETED, 'note' => '1回目出荷済'],
-        ];
-
-        $normalized = self::normalizePlans($plans);
-        self::persist($normalized);
-
-        return self::$cache = $normalized;
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $plans
-     */
-    private static function persist(array $plans): void
-    {
-        $path = storage_path('app/'.self::FILE);
-        $dir = dirname($path);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        if (isset($plan->order_code, $plan->sku, $plan->unshipped_qty_m, $plan->status_label)) {
+            return $plan;
         }
 
-        file_put_contents(
-            $path,
-            json_encode(['plans' => self::normalizePlans($plans)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-        );
+        $record = ShipmentPlanRecord::query()
+            ->with(['order', 'product'])
+            ->find((int) ($plan->id ?? 0));
 
-        self::$cache = null;
+        return $record?->toDisplayObject() ?? $plan;
     }
 
-    /**
-     * @param  list<array<mixed>>  $plans
-     * @return list<array<string, mixed>>
-     */
-    private static function normalizePlans(array $plans): array
+    private static function baseQuery()
     {
-        return array_values(array_map(fn ($p) => self::normalizePlan((array) $p), $plans));
+        return ShipmentPlanRecord::query()->with(['order', 'product']);
     }
 
-    /**
-     * @param  array<string, mixed>  $plan
-     * @return array<string, mixed>
-     */
-    private static function normalizePlan(array $plan): array
+    private static function nextCode(): string
     {
-        $confirmed = round((float) ($plan['confirmed_qty_m'] ?? 0), 2);
-        $shipped = round((float) ($plan['shipped_qty_m'] ?? 0), 2);
+        $prefix = 'SP-'.date('ym').'-';
+        $seq = ShipmentPlanRecord::query()
+            ->where('code', 'like', $prefix.'%')
+            ->count() + 1;
 
-        return [
-            'id' => (int) ($plan['id'] ?? 0),
-            'code' => (string) ($plan['code'] ?? ''),
-            'order_id' => (int) ($plan['order_id'] ?? 0),
-            'product_id' => (int) ($plan['product_id'] ?? 0),
-            'planned_ship_date' => (string) ($plan['planned_ship_date'] ?? date('Y-m-d')),
-            'confirmed_qty_m' => $confirmed,
-            'shipped_qty_m' => min($shipped, $confirmed),
-            'status' => (string) ($plan['status'] ?? self::STATUS_CONFIRMED),
-            'note' => (string) ($plan['note'] ?? ''),
-            'created_by' => (string) ($plan['created_by'] ?? '木村 勝也'),
-        ];
+        return $prefix.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
     }
 }

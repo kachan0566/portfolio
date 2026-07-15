@@ -8,18 +8,27 @@ use App\Support\ForecastManualAdjustment;
 use App\Support\ForecastSnapshot;
 use App\Support\InboundLot;
 use App\Support\ShipmentPlan;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\ShipmentPlanSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class InventoryForecastTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(ShipmentPlanSeeder::class);
         InboundLot::resetBootstrap();
         $this->resetJsonState('forecast_manual_adjustments.json');
         $this->resetJsonState('month_end_forecast_snapshots.json');
-        $this->resetJsonState('shipment_plans.json');
-        ShipmentPlan::clearCache();
         ForecastManualAdjustment::clearCache();
         ForecastSnapshot::clearCache();
     }
