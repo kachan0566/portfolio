@@ -2,12 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\SalesForecast;
+use App\Models\SalesForecastLine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
 use App\Support\DemoOverlay;
-use App\Support\SalesForecastLine;
-use App\Support\SalesForecastSnapshot;
+use App\Support\SalesForecastSourceType;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderSeeder;
@@ -27,18 +28,6 @@ class SalesForecastTest extends TestCase
         $this->seed(OrderSeeder::class);
         $this->seed(ShipmentPlanSeeder::class);
         DemoOverlay::clear();
-        $this->resetJsonState('sales_forecast_lines.json');
-        $this->resetJsonState('sales_forecast_snapshots.json');
-        SalesForecastLine::clearCache();
-        SalesForecastSnapshot::clearCache();
-    }
-
-    private function resetJsonState(string $file): void
-    {
-        $path = storage_path('app/'.$file);
-        if (is_file($path)) {
-            unlink($path);
-        }
     }
 
     public function test_sales_screen_has_actual_and_forecast_tabs(): void
@@ -135,10 +124,10 @@ class SalesForecastTest extends TestCase
             'ym' => DemoData::CURRENT_YM,
         ]));
 
-        $saved = SalesForecastLine::find(
+        $saved = SalesForecastLine::findDraftQty(
             $line->product_id,
             DemoData::CURRENT_YM,
-            SalesForecastLine::SOURCE_ORDER,
+            SalesForecastSourceType::ORDER,
             (int) $pair->order_id
         );
         $this->assertSame($customQty, $saved);
@@ -147,9 +136,9 @@ class SalesForecastTest extends TestCase
     public function test_reset_clears_saved_forecast_lines(): void
     {
         $productId = 3;
-        SalesForecastLine::saveForProduct($productId, DemoData::CURRENT_YM, [
+        SalesForecastLine::saveDraftForProduct($productId, DemoData::CURRENT_YM, [
             [
-                'source_type' => SalesForecastLine::SOURCE_ORDER,
+                'source_type' => SalesForecastSourceType::ORDER,
                 'source_id' => 2,
                 'forecast_qty_m' => 50,
             ],
@@ -160,10 +149,10 @@ class SalesForecastTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $this->assertNull(SalesForecastLine::find(
+        $this->assertNull(SalesForecastLine::findDraftQty(
             $productId,
             DemoData::CURRENT_YM,
-            SalesForecastLine::SOURCE_ORDER,
+            SalesForecastSourceType::ORDER,
             2
         ));
     }
@@ -231,17 +220,18 @@ class SalesForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $result = SalesForecastEngine::build($ym);
 
-        $snapshot = SalesForecastSnapshot::save([
-            'target_ym' => $ym,
-            'base_date' => '2026-06-20',
-            'created_by' => 'テスト担当',
-            'total_sales' => $result->total_sales,
-            'total_qty' => $result->total_qty,
-            'total_profit' => $result->total_profit,
-        ], SalesForecastEngine::snapshotLinePayloads($ym));
+        $snapshot = SalesForecastEngine::submitSnapshot(
+            $ym,
+            'テスト担当',
+            '2026-06-20',
+            $result->total_sales,
+            $result->total_qty,
+            $result->total_profit,
+            SalesForecastEngine::snapshotLinePayloads($ym),
+        );
 
         $this->assertSame(1, $snapshot->version);
-        $this->assertNotNull(SalesForecastSnapshot::latestForMonth($ym));
+        $this->assertNotNull(SalesForecastEngine::latestSnapshotForMonth($ym));
     }
 
     public function test_forecast_snapshot_via_http_redirects_with_success(): void
@@ -269,14 +259,15 @@ class SalesForecastTest extends TestCase
     {
         $ym = DemoData::CURRENT_YM;
         $result = SalesForecastEngine::build($ym);
-        SalesForecastSnapshot::save([
-            'target_ym' => $ym,
-            'base_date' => '2026-06-01',
-            'created_by' => 'テスト担当',
-            'total_sales' => $result->total_sales - 10000,
-            'total_qty' => $result->total_qty,
-            'total_profit' => $result->total_profit,
-        ], SalesForecastEngine::snapshotLinePayloads($ym));
+        SalesForecastEngine::submitSnapshot(
+            $ym,
+            'テスト担当',
+            '2026-06-01',
+            $result->total_sales - 10000,
+            $result->total_qty,
+            $result->total_profit,
+            SalesForecastEngine::snapshotLinePayloads($ym),
+        );
 
         $response = $this->get(route('sales.index', ['tab' => 'forecast', 'ym' => $ym]));
 
@@ -293,18 +284,50 @@ class SalesForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $current = SalesForecastEngine::build($ym);
 
-        SalesForecastSnapshot::save([
-            'target_ym' => $ym,
-            'base_date' => '2026-06-01',
-            'created_by' => 'テスト担当',
-            'total_sales' => $current->total_sales - 50000,
-            'total_qty' => $current->total_qty,
-            'total_profit' => $current->total_profit,
-        ], SalesForecastEngine::snapshotLinePayloads($ym));
+        SalesForecastEngine::submitSnapshot(
+            $ym,
+            'テスト担当',
+            '2026-06-01',
+            $current->total_sales - 50000,
+            $current->total_qty,
+            $current->total_profit,
+            SalesForecastEngine::snapshotLinePayloads($ym),
+        );
 
         $comparison = SalesForecastEngine::buildComparison($ym);
 
         $this->assertTrue($comparison->has_snapshot);
         $this->assertSame(50000, $comparison->snapshot_vs_current->diff_sales);
+    }
+
+    public function test_submit_does_not_delete_draft_lines(): void
+    {
+        $ym = DemoData::CURRENT_YM;
+        SalesForecastLine::saveDraftForProduct(3, $ym, [
+            [
+                'source_type' => SalesForecastSourceType::ORDER,
+                'source_id' => 2,
+                'forecast_qty_m' => 50,
+            ],
+        ]);
+
+        $result = SalesForecastEngine::build($ym);
+        SalesForecastEngine::submitSnapshot(
+            $ym,
+            'テスト担当',
+            '2026-06-01',
+            $result->total_sales,
+            $result->total_qty,
+            $result->total_profit,
+            SalesForecastEngine::snapshotLinePayloads($ym),
+        );
+
+        $this->assertSame(50.0, SalesForecastLine::findDraftQty(
+            3,
+            $ym,
+            SalesForecastSourceType::ORDER,
+            2
+        ));
+        $this->assertSame(1, SalesForecast::latestSubmittedForMonth($ym)?->version);
     }
 }

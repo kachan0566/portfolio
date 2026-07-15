@@ -2,14 +2,15 @@
 
 namespace App\Services\Sales;
 
+use App\Models\SalesForecast;
+use App\Models\SalesForecastLine;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\ForecastManualAdjustment;
 use App\Support\FreightCalculator;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
-use App\Support\SalesForecastLine;
-use App\Support\SalesForecastSnapshot;
+use App\Support\SalesForecastSourceType;
 use App\Support\ShipmentPlan;
 use App\Support\StockAllocation;
 use Illuminate\Support\Collection;
@@ -46,7 +47,7 @@ class SalesForecastEngine
             'adjusted_count' => $lines->where('is_adjusted', true)->count(),
             'warning_count' => $lines->filter(fn ($l) => $l->warning_text !== '')->count(),
             'has_uncalculable_cost' => $lines->contains(fn ($l) => ! $l->cost_calculable),
-            'latest_snapshot' => SalesForecastSnapshot::latestForMonth($targetYm),
+            'latest_snapshot' => self::latestSnapshotForMonth($targetYm),
         ];
     }
 
@@ -82,7 +83,7 @@ class SalesForecastEngine
     public static function buildComparison(string $targetYm): object
     {
         $current = self::build($targetYm);
-        $snapshot = SalesForecastSnapshot::latestForMonth($targetYm);
+        $snapshot = self::latestSnapshotForMonth($targetYm);
 
         $actualVsForecast = (object) [
             'actual_qty' => $current->actual_qty,
@@ -361,7 +362,7 @@ class SalesForecastEngine
         return SalesForecastLine::effectiveQty(
             $productId,
             $targetYm,
-            SalesForecastLine::SOURCE_ORDER,
+            SalesForecastSourceType::ORDER,
             $orderId,
             $default
         );
@@ -374,7 +375,7 @@ class SalesForecastEngine
         return SalesForecastLine::effectiveQty(
             $productId,
             $targetYm,
-            SalesForecastLine::SOURCE_PURCHASE_ORDER,
+            SalesForecastSourceType::PURCHASE_ORDER,
             $poId,
             $default
         );
@@ -549,9 +550,9 @@ class SalesForecastEngine
         $defaultOutbound = $orderId !== null ? self::defaultOutboundQty($orderId, $targetYm) : 0.0;
 
         $inboundIsSaved = $poId !== null
-            && SalesForecastLine::isSaved($productId, $targetYm, SalesForecastLine::SOURCE_PURCHASE_ORDER, $poId);
+            && SalesForecastLine::isSaved($productId, $targetYm, SalesForecastSourceType::PURCHASE_ORDER, $poId);
         $outboundIsSaved = $orderId !== null
-            && SalesForecastLine::isSaved($productId, $targetYm, SalesForecastLine::SOURCE_ORDER, $orderId);
+            && SalesForecastLine::isSaved($productId, $targetYm, SalesForecastSourceType::ORDER, $orderId);
 
         $effectiveInbound = $poId !== null
             ? self::effectiveInboundQty($productId, $poId, $targetYm)
@@ -649,7 +650,7 @@ class SalesForecastEngine
                 $key = 'inbound_'.$pair->po_id;
                 if (array_key_exists($key, $requestData)) {
                     $inputs[] = [
-                        'source_type' => SalesForecastLine::SOURCE_PURCHASE_ORDER,
+                        'source_type' => SalesForecastSourceType::PURCHASE_ORDER,
                         'source_id' => (int) $pair->po_id,
                         'forecast_qty_m' => (float) $requestData[$key],
                     ];
@@ -659,7 +660,7 @@ class SalesForecastEngine
                 $key = 'outbound_'.$pair->order_id;
                 if (array_key_exists($key, $requestData)) {
                     $inputs[] = [
-                        'source_type' => SalesForecastLine::SOURCE_ORDER,
+                        'source_type' => SalesForecastSourceType::ORDER,
                         'source_id' => (int) $pair->order_id,
                         'forecast_qty_m' => (float) $requestData[$key],
                     ];
@@ -667,6 +668,45 @@ class SalesForecastEngine
             }
         }
 
-        SalesForecastLine::saveForProduct($productId, $targetYm, $inputs);
+        SalesForecastLine::saveDraftForProduct($productId, $targetYm, $inputs);
+    }
+
+    public static function latestSnapshotForMonth(string $targetYm): ?object
+    {
+        $forecast = SalesForecast::latestSubmittedForMonth($targetYm);
+        if ($forecast === null) {
+            return null;
+        }
+
+        $forecast->load('lines');
+
+        return $forecast->toSnapshotObject();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $productLinePayloads
+     */
+    public static function submitSnapshot(
+        string $targetYm,
+        string $createdByName,
+        string $baseDate,
+        int $totalSales,
+        float $totalQty,
+        int $totalProfit,
+        array $productLinePayloads,
+    ): object {
+        $forecast = SalesForecast::submitMonth(
+            $targetYm,
+            $createdByName,
+            $baseDate,
+            $totalSales,
+            $totalQty,
+            $totalProfit,
+            $productLinePayloads,
+        );
+
+        $forecast->load('lines');
+
+        return $forecast->toSnapshotObject();
     }
 }
