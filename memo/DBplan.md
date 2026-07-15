@@ -58,10 +58,10 @@
 - 消費ルールが違う（生機＝半分カット可、製品＝丸ごと出荷のみ）
 - 在庫一覧をシンプルに保てる
 
-**既存** `inbound_lots` **について**
+**旧** `inbound_lots` **について（段階8で廃止済み）**
 
-- 現状は「m のかたまり・部分消費」前提 → **業務と合わない**
-- 移行先は `product_rolls`（1行＝1物理反）。既存テーブルは段階的に置き換え
+- 旧設計は「m のかたまり・部分消費」前提 → **業務と合わない**
+- 移行先 `product_rolls`（1行＝1物理反）へ切り替え済み。テーブル・旧コードは `2026_07_15_000004_*` で削除
 
 ---
 
@@ -84,13 +84,13 @@
 | 取引  | `order_allocations`              | 新規          | `StockAllocation` JSON                    |
 | 取引  | `receivings`                     | 新規          | `DemoData::receivings()`                  |
 | 取引  | `receiving_lines`                | 新規          | 入荷と発注明細行の紐づけ                               |
-| 取引  | `shipments`                      | 新規          | `DemoData::shipments()`                   |
+| 取引  | `shipments`                      | **段階8・実装済み** | `DemoData::shipments()`                   |
 | 在庫  | `greige_rolls`                   | 新規          | `FabricTanRoll`（生機段階）                     |
 | 在庫  | `product_rolls`                  | 新規          | `FabricTanRoll`（製品段階）/ `inbound_lots` 移行先 |
-| 在庫  | `inbound_lots`                   | **既存・廃止予定** | → `product_rolls` へ移行                     |
+| 在庫  | `inbound_lots`                   | **廃止済み**    | → `product_rolls` へ移行後削除                  |
 | 在庫  | `shipment_plans`                 | **既存・FK追加** | `ShipmentPlan` JSON / DB                  |
-| 在庫  | `shipment_roll_allocations`      | 新規（名称変更）    | `shipment_lot_consumptions` 移行先           |
-| 在庫  | `shipment_lot_consumptions`      | **既存・廃止予定** | → `shipment_roll_allocations` へ移行         |
+| 在庫  | `shipment_roll_allocations`      | **段階8・実装済み** | `shipment_lot_consumptions` 移行先           |
+| 在庫  | `shipment_lot_consumptions`      | **廃止済み**    | → `shipment_roll_allocations` へ移行後削除       |
 | 在庫  | `yarn_stock_movements`           | 新規          | `DemoData::yarnStockBase()` 等             |
 | 原価  | `product_recipes`                | 新規          | `DemoData::recipeData()`                  |
 | 原価  | `greige_recipes`                 | 新規          | `DemoData::greigeRecipeData()`            |
@@ -516,13 +516,13 @@ erDiagram
 
 種別は紐づく `purchase_order_lines` と親 `purchase_orders.type` から導出。1入荷に複数行可（同一種別のみ）。糸＋製品の混在はしない。
 
-**将来（拡張）:** `receiving_roll_amendments`（反明細修正履歴・段階8b）、複数明細行 UI（段階8a）
+**拡張（段階8a・8b）:** 複数明細行 UI（8a・入荷側済・発注一覧未）、`receiving_roll_amendments` + 反明細修正 UI（**8b 済 2026-07**）
 
 ---
 
 
 
-#### `shipments`（出荷実績）【新規】
+#### `shipments`（出荷実績）【段階8・実装済み】
 
 - **何のため？** 実際に出荷した記録（売上・在庫減の根拠）を残す。請求・納品は実測m
 - **1行は何？** 1回の出荷（例：SH-2606-001）
@@ -568,11 +568,11 @@ erDiagram
 
 
 
-#### `inbound_lots`（旧・入荷ロット）【既存・廃止予定】
+#### `inbound_lots`（旧・入荷ロット）【廃止済み】
 
-- **何のため？** （旧設計）m 単位のかたまり在庫。部分消費前提
+- **旧設計** m 単位のかたまり在庫。部分消費前提
 - **移行先** → `product_rolls`（1物理反＝1行、丸ごと出荷）
-- **注意** 既存マイグレーション・JSON ブートストラップは段階8で置き換え
+- **削除** `2026_07_15_000004_*_drop_legacy_inbound_lot_tables`
 
 ---
 
@@ -592,7 +592,7 @@ erDiagram
 
 
 
-#### `shipment_roll_allocations`（出荷時の反消費）【新規】
+#### `shipment_roll_allocations`（出荷時の反消費）【段階8・実装済み】
 
 - **何のため？** 出荷時に「どの製品反を丸ごと出したか」を記録する
 - **1行は何？** 1出荷 × 1製品反（部分消費なし）
@@ -605,10 +605,10 @@ erDiagram
 
 
 
-#### `shipment_lot_consumptions`（旧）【既存・廃止予定】
+#### `shipment_lot_consumptions`（旧）【廃止済み】
 
 - **移行先** → `shipment_roll_allocations`
-- **注意** 旧設計は `inbound_lot_id` へ部分消費 → 新設計では不可
+- **削除** 同上マイグレ（旧設計は `inbound_lot_id` へ部分消費 → 新設計では不可）
 
 ---
 
@@ -762,7 +762,7 @@ erDiagram
 **進め方**
 
 - **本線（0→10）** は番号順にのみ進む。飛ばさない。
-- **拡張（8a・8b）** は本線8の後・本線9の前。省略可（省略時は 8→9 へ）。
+- **拡張（8a・8b）** は本線8の後・本線9の前。8b は済、8a は一部済（省略時は 8→9 へ）。
 
 ### 本線ロードマップ
 
@@ -776,8 +776,8 @@ erDiagram
 | 4 | `purchase_orders` + `purchase_order_lines` | **済 2026-07** |
 | 5 | `order_allocations`（`StockAllocation` JSON 廃止） | **済 2026-07** |
 | 6 | `receivings`, `receiving_lines`（`qty_*` 含む）, `greige_rolls`, `product_rolls`、入荷 DB 化・発注残 DB 優先 | **済 2026-07** |
-| 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | **未** |
-| 8 | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` / `shipment_lot_consumptions` 廃止 | **未** |
+| 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | **済 2026-07** |
+| 8 | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` / `shipment_lot_consumptions` 廃止 | **済 2026-07** |
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` | **未** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | **未** |
 
@@ -785,10 +785,10 @@ erDiagram
 ### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）
 
 
-| 段階 | 内容 | デフォルト位置 |
-| --- | --- | --- |
-| 8a | 入荷・発注の複数明細行 UI（同一種別のみ） | 本線8の直後 |
-| 8b | `receiving_roll_amendments` + 反明細修正 UI | 8a の直後（8a 省略時は8の直後） |
+| 段階 | 内容 | デフォルト位置 | 状態 |
+| --- | --- | --- | --- |
+| 8a | 入荷・発注の複数明細行 UI（同一種別のみ） | 本線8の直後 | **一部済 2026-07**（入荷・発注登録済。発注一覧の明細行表示は未） |
+| 8b | `receiving_roll_amendments` + 反明細修正 UI | 8a の直後（8a 省略時は8の直後） | **済 2026-07** |
 
 
 ### 旧番号との対応（移行用）
@@ -856,4 +856,4 @@ erDiagram
 
 ---
 
-*最終更新：* 段階番号を本線0〜10・拡張8a/8bに整理。段階6まで実装済み（2026-07）。次は段階7（`shipment_plans` FK + 反数列）。
+*最終更新：* 段階8（済）、8a（入荷側済・発注一覧未）、8b（済）（2026-07）。次は段階9。
