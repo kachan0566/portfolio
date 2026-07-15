@@ -9,8 +9,7 @@
             <h1 class="code-cell" style="font-size:20px;">{{ $purchase->code }}</h1>
             <p class="lead">
                 <span class="badge badge-indigo badge--plain">{{ $purchase->type_label }}</span>
-                {{ $purchase->sku }}
-                ／ 納期 {{ $purchase->eta }}
+                納期 {{ $purchase->eta }}
                 ／ <span class="badge badge-indigo">{{ $purchase->status_label }}</span>
             </p>
         </div>
@@ -86,38 +85,6 @@
                         <div class="stat-row__value">{{ $purchase->type_label }}</div>
                     </div>
                     <div class="stat-row__item">
-                        <div class="stat-row__label">品番</div>
-                        <div class="stat-row__value code-cell">{{ $purchase->sku }}</div>
-                    </div>
-                    @if ($purchase->type === \App\Support\PurchaseOrderType::YARN && $material)
-                        <div class="stat-row__item">
-                            <div class="stat-row__label">糸名称</div>
-                            <div class="stat-row__value">{{ $material->name }}</div>
-                        </div>
-                    @endif
-                    @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE && $greige)
-                        <div class="stat-row__item">
-                            <div class="stat-row__label">生機名称</div>
-                            <div class="stat-row__value">{{ $greige->name }}</div>
-                        </div>
-                        <div class="stat-row__item">
-                            <div class="stat-row__label">発注反数</div>
-                            <div class="stat-row__value mono">{{ \App\Support\QtyHelper::formatTanCount($purchase->qty_tan) }}反</div>
-                        </div>
-                    @endif
-                    @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT && $product)
-                        <div class="stat-row__item">
-                            <div class="stat-row__label">製品</div>
-                            <div class="stat-row__value">{{ $product->sku }}（{{ $product->color }}）</div>
-                        </div>
-                        @if ($greige)
-                            <div class="stat-row__item">
-                                <div class="stat-row__label">生機品番</div>
-                                <div class="stat-row__value code-cell">{{ $greige->sku }}（{{ $greige->name }}）</div>
-                            </div>
-                        @endif
-                    @endif
-                    <div class="stat-row__item">
                         <div class="stat-row__label">依頼先</div>
                         <div class="stat-row__value">{{ $purchase->supplier }}</div>
                     </div>
@@ -134,82 +101,38 @@
                         </div>
                     @endif
                 </div>
+                <div style="margin-top:16px;">
+                    <div class="t-muted" style="font-size:12px;margin-bottom:8px;">発注内容</div>
+                    @include('purchases.partials.show-order-lines', [
+                        'purchase' => $purchase,
+                        'orderLines' => $orderLines,
+                    ])
+                </div>
             </div>
         </div>
 
         <div class="card">
             <div class="card__head"><h2 class="card__title">入荷状況</h2></div>
             <div class="card__body">
-                @php
-                    $ordered = \App\Support\DemoData::purchaseOrderOrderedQty($purchase);
-                    $received = \App\Support\DemoState::effectiveReceivedQty((int) $purchase->id, $purchase);
-                    $remaining = max(0, $ordered - $received);
-                @endphp
-                <div class="stat-row">
-                    <div class="stat-row__item">
-                        <div class="stat-row__label">発注数量</div>
-                        <div class="stat-row__value mono">
-                            @if ($purchase->type === \App\Support\PurchaseOrderType::YARN)
-                                {{ number_format($ordered, 2) }} kg
-                            @else
-                                {{ number_format((int) $ordered) }} m
-                            @endif
-                        </div>
-                    </div>
-                    <div class="stat-row__item">
-                        <div class="stat-row__label">入荷済</div>
-                        <div class="stat-row__value mono">
-                            @if ($purchase->type === \App\Support\PurchaseOrderType::YARN)
-                                {{ number_format($received, 2) }} kg
-                            @else
-                                {{ number_format((int) $received) }} m
-                            @endif
-                        </div>
-                    </div>
-                    <div class="stat-row__item">
-                        <div class="stat-row__label">発注残</div>
-                        <div class="stat-row__value mono">
-                            @if ($purchase->type === \App\Support\PurchaseOrderType::YARN)
-                                {{ number_format($remaining, 2) }} kg
-                            @else
-                                {{ number_format((int) $remaining) }} m
-                            @endif
-                        </div>
-                    </div>
-                </div>
+                @include('purchases.partials.show-receiving-summary', [
+                    'purchase' => $purchase,
+                    'receivingBySku' => $receivingBySku,
+                ])
             </div>
         </div>
     </div>
 
-    @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE && ($tanRolls ?? collect())->isNotEmpty())
-        <div class="card" style="margin-bottom:16px;">
-            <div class="card__head">
-                <h2 class="card__title">反明細（織り上がり実測）</h2>
-            </div>
-            <div class="card__body">
-                @include('partials.tan-roll-table', [
-                    'rolls' => $tanRolls,
-                    'showWeaving' => true,
-                    'showDyeing' => false,
-                ])
-            </div>
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card__head">
+            <h2 class="card__title">発注明細行</h2>
         </div>
-    @endif
-
-    @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT && ($tanRolls ?? collect())->isNotEmpty())
-        <div class="card" style="margin-bottom:16px;">
-            <div class="card__head">
-                <h2 class="card__title">反明細（染め上がり実測）</h2>
-            </div>
-            <div class="card__body">
-                @include('partials.tan-roll-table', [
-                    'rolls' => $tanRolls,
-                    'showWeaving' => true,
-                    'showDyeing' => true,
-                ])
-            </div>
+        <div class="card__body">
+            @include('purchases.partials.show-received-detail', [
+                'purchase' => $purchase,
+                'receivedDetailRows' => $receivedDetailRows,
+            ])
         </div>
-    @endif
+    </div>
 
     @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE && ! empty($purchase->yarn_requirements))
         <div class="card" style="margin-bottom:16px;">

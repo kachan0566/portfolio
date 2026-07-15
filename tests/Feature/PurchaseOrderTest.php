@@ -92,7 +92,7 @@ class PurchaseOrderTest extends TestCase
         $response = $this->get(route('purchases.create', ['type' => 'greige']));
 
         $response->assertOk();
-        $response->assertSee('必要糸量（プレビュー）');
+        $response->assertSee('必要糸量（プレビュー・合計）');
         $response->assertSee('下書き保存');
     }
 

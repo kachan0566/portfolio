@@ -6,14 +6,15 @@
 @section('content')
     @php
         use App\Support\PurchaseOrderType;
+        use App\Support\DemoData;
         $typeLabel = PurchaseOrderType::label($type);
         $qtyUnit = $type === PurchaseOrderType::YARN ? 'kg' : 'm';
-        $qtyStep = $type === PurchaseOrderType::YARN ? '0.01' : '1';
+        $useMultiLine = DemoData::usesPurchaseOrderDatabase() && $poLinesJson !== '{}';
     @endphp
     <div class="page-header">
         <div>
             <h1>入荷登録</h1>
-            <p class="lead">{{ $typeLabel }}の入荷を登録します。種別ごとに単位が異なります（糸＝kg、生機・製品＝m）。</p>
+            <p class="lead">{{ $typeLabel }}の入荷を登録します。1回の入荷で複数の発注明細行を選択できます。</p>
         </div>
         <a href="{{ route('receivings.index') }}" class="btn btn-secondary">
             @include('partials.icon', ['name' => 'back']) 一覧に戻る
@@ -26,6 +27,10 @@
                class="btn {{ $type === $t ? 'btn-primary' : 'btn-secondary' }} btn-sm">{{ PurchaseOrderType::label($t) }}</a>
         @endforeach
     </div>
+
+    @if (session('error'))
+        <div class="alert alert-danger" style="margin-bottom:16px;">{{ session('error') }}</div>
+    @endif
 
     <div class="grid grid-2">
         <div class="card">
@@ -69,7 +74,7 @@
                 @if ($pending->isEmpty())
                     <p class="t-muted" style="margin:0;">入荷対象の発注がありません。</p>
                 @else
-                    <form action="{{ route('receivings.store') }}" method="POST">
+                    <form action="{{ route('receivings.store') }}" method="POST" id="receiving-form">
                         @csrf
                         <input type="hidden" name="type" value="{{ $type }}">
                         <div class="field">
@@ -84,60 +89,74 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="form-row">
-                            @if ($type === PurchaseOrderType::YARN)
-                                <div class="field">
-                                    <label class="label" for="qty">入荷数量（kg）<span class="req">*</span></label>
-                                    <input class="input" type="number" id="qty" name="qty" min="0.01" step="0.01" placeholder="100.5">
+
+                        @if ($useMultiLine)
+                            <div id="receiving-lines-panel" class="card" style="margin:0 0 16px;background:var(--bg-subtle,#f8fafc);">
+                                <div class="card__head">
+                                    <h3 class="card__title" style="font-size:14px;">入荷する明細行</h3>
                                 </div>
-                            @else
-                                <div class="field">
-                                    <label class="label" for="receiving-qty">入荷数量<span class="req">*</span></label>
-                                    @php
-                                        $firstPo = $pending->first();
-                                        $metersPerTan = $type === PurchaseOrderType::GREIGE
-                                            ? ($firstPo->meters_per_tan ?? 100)
-                                            : (\App\Support\DemoData::findProduct((int) ($firstPo->product_id ?? 0))?->meters_per_tan ?? 50);
-                                    @endphp
-                                    @include('partials.qty-input', [
-                                        'tanName' => 'qty_tan',
-                                        'metersName' => 'qty_meters',
-                                        'id' => 'receiving-qty',
-                                        'valueTan' => 0,
-                                        'metersPerTan' => $metersPerTan,
-                                        'tanStep' => \App\Support\QtyHelper::RECEIVING_TAN_STEP,
-                                        'showMeterSwitch' => false,
-                                        'submitMeters' => false,
-                                        'pageKey' => 'receiving-form',
-                                        'placeholder' => '2',
-                                    ])
-                                    <p class="field-hint">反数は 0.25反刻み。下の表で反ごとに実測mを入力してください。</p>
+                                <div class="card__body card__body--flush" id="receiving-lines-body">
+                                    <p class="t-muted" style="padding:12px;margin:0;">発注を選択すると明細行が表示されます。</p>
+                                </div>
+                            </div>
+                        @else
+                            <div class="form-row">
+                                @if ($type === PurchaseOrderType::YARN)
+                                    <div class="field">
+                                        <label class="label" for="qty">入荷数量（kg）<span class="req">*</span></label>
+                                        <input class="input" type="number" id="qty" name="qty" min="0.01" step="0.01" placeholder="100.5">
+                                    </div>
+                                @else
+                                    <div class="field">
+                                        <label class="label" for="receiving-qty">入荷数量<span class="req">*</span></label>
+                                        @php
+                                            $firstPo = $pending->first();
+                                            $metersPerTan = $type === PurchaseOrderType::GREIGE
+                                                ? ($firstPo->meters_per_tan ?? 100)
+                                                : (\App\Support\DemoData::findProduct((int) ($firstPo->product_id ?? 0))?->meters_per_tan ?? 50);
+                                        @endphp
+                                        @include('partials.qty-input', [
+                                            'tanName' => 'qty_tan',
+                                            'metersName' => 'qty_meters',
+                                            'id' => 'receiving-qty',
+                                            'valueTan' => 0,
+                                            'metersPerTan' => $metersPerTan,
+                                            'tanStep' => \App\Support\QtyHelper::RECEIVING_TAN_STEP,
+                                            'showMeterSwitch' => false,
+                                            'submitMeters' => false,
+                                            'pageKey' => 'receiving-form',
+                                            'placeholder' => '2',
+                                        ])
+                                        <p class="field-hint">反数は 0.25反刻み。下の表で反ごとに実測mを入力してください。</p>
+                                    </div>
+                                @endif
+                            </div>
+                            @if ($type !== PurchaseOrderType::YARN)
+                                <div class="card" style="margin:0 0 16px;background:var(--bg-subtle, #f8fafc);">
+                                    <div class="card__head"><h3 class="card__title" style="font-size:14px;">反明細（実測m）</h3></div>
+                                    <div class="card__body card__body--flush">
+                                        <div class="table-wrap">
+                                            <table class="data" id="receiving-rolls-table">
+                                                <thead>
+                                                    <tr><th>#</th><th>反数</th><th class="num">実測m</th></tr>
+                                                </thead>
+                                                <tbody id="receiving-rolls-body"></tbody>
+                                            </table>
+                                        </div>
+                                        <p class="field-hint" style="padding:8px 12px;margin:0;">
+                                            合計: <span id="receiving-tan-sum" class="mono">0.00</span>反 /
+                                            実測 <span id="receiving-m-sum" class="mono">—</span>m
+                                        </p>
+                                    </div>
                                 </div>
                             @endif
-                            <div class="field">
-                                <label class="label" for="date">入荷日<span class="req">*</span></label>
-                                <input class="input" type="date" id="date" name="date" value="2026-06-15">
-                            </div>
-                        </div>
-                        @if ($type !== PurchaseOrderType::YARN)
-                            <div class="card" style="margin:0 0 16px;background:var(--bg-subtle, #f8fafc);">
-                                <div class="card__head"><h3 class="card__title" style="font-size:14px;">反明細（実測m）</h3></div>
-                                <div class="card__body card__body--flush">
-                                    <div class="table-wrap">
-                                        <table class="data" id="receiving-rolls-table">
-                                            <thead>
-                                                <tr><th>#</th><th>反数</th><th class="num">実測m</th></tr>
-                                            </thead>
-                                            <tbody id="receiving-rolls-body"></tbody>
-                                        </table>
-                                    </div>
-                                    <p class="field-hint" style="padding:8px 12px;margin:0;">
-                                        合計: <span id="receiving-tan-sum" class="mono">0.00</span>反 /
-                                        実測 <span id="receiving-m-sum" class="mono">—</span>m
-                                    </p>
-                                </div>
-                            </div>
                         @endif
+
+                        <div class="field">
+                            <label class="label" for="date">入荷日<span class="req">*</span></label>
+                            <input class="input" type="date" id="date" name="date" value="2026-06-15">
+                        </div>
+
                         <p class="field-hint">
                             @if ($type === PurchaseOrderType::YARN)
                                 登録すると糸在庫（kg）が増加します。
@@ -147,7 +166,21 @@
                                 登録すると製品在庫が増加し、反明細に染め上がり実測 m が記録されます。発注引当がある場合は自動で現在庫引当に変換されます。
                             @endif
                         </p>
-                        @if ($type !== PurchaseOrderType::YARN)
+
+                        @if ($useMultiLine)
+                            @include('partials.qty-unit-loader')
+                            <script src="{{ asset('js/receiving-rolls.js') }}"></script>
+                            <script src="{{ asset('js/receiving-multi-lines.js') }}"></script>
+                            <script>
+                                ReceivingMultiLines.init({
+                                    poSelect: document.getElementById('po'),
+                                    linesBody: document.getElementById('receiving-lines-body'),
+                                    poLines: {!! $poLinesJson !!},
+                                    type: @json($type),
+                                    tanStep: {{ \App\Support\QtyHelper::RECEIVING_TAN_STEP }},
+                                });
+                            </script>
+                        @elseif ($type !== PurchaseOrderType::YARN)
                             @include('partials.qty-unit-loader')
                             <script src="{{ asset('js/receiving-rolls.js') }}"></script>
                             <script>
@@ -161,6 +194,7 @@
                                 });
                             </script>
                         @endif
+
                         <div class="actions">
                             <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 入荷を登録</button>
                             <a href="{{ route('receivings.index') }}" class="btn btn-secondary">キャンセル</a>
