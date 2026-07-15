@@ -2,12 +2,39 @@
 
 namespace Tests\Feature;
 
+use App\Support\DemoData;
+use App\Support\DemoOverlay;
+use App\Support\DemoState;
+use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
+use App\Support\PurchaseOrderType;
+use App\Support\QtyHelper;
 use App\Support\YarnInventory;
+use Database\Seeders\CostFoundationSeeder;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderAllocationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\PurchaseOrderSeeder;
+use Database\Seeders\ReceivingSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class InventoryTabTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(PurchaseOrderSeeder::class);
+        $this->seed(OrderAllocationSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
+        $this->seed(ReceivingSeeder::class);
+    }
     public function test_inventory_has_yarn_tab(): void
     {
         $response = $this->get(route('inventory.index', ['tab' => 'yarn']));
@@ -30,6 +57,6 @@ class InventoryTabTest extends TestCase
     public function test_yarn_inventory_shows_base_stock(): void
     {
         $this->assertSame(800.0, YarnInventory::effectiveStockKg(1));
-        $this->assertSame(650.0, YarnInventory::effectiveStockKg(2));
+        $this->assertSame(500.0, YarnInventory::effectiveStockKg(2));
     }
 }

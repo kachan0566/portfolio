@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\PurchaseOrder;
+
 /**
  * 生機発注に必要な糸が織工場へすべて入荷完了したかを判定する。
  */
@@ -48,6 +50,25 @@ class GreigeYarnReadiness
      */
     private static function rawYarnPurchaseOrders(): \Illuminate\Support\Collection
     {
+        if (DemoData::usesPurchaseOrderDatabase()) {
+            return PurchaseOrder::query()
+                ->where('type', PurchaseOrderType::YARN)
+                ->with('lines')
+                ->get()
+                ->map(function (PurchaseOrder $po) {
+                    $line = $po->lines->sortBy('line_no')->first();
+
+                    return (object) [
+                        'id' => $po->id,
+                        'type' => $po->type,
+                        'status' => $po->status,
+                        'material_id' => $line?->material_id,
+                        'qty_kg' => $line?->qty_kg,
+                        'received_kg' => $line?->received_qty_kg,
+                    ];
+                });
+        }
+
         $rows = DemoData::basePurchaseOrderRows()->all();
 
         foreach (PurchaseOrderOverlay::additions() as $addition) {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreYarnPriceRequest;
 use App\Http\Requests\UpdateYarnPriceRequest;
+use App\Models\MaterialPrice;
 use App\Support\DemoData;
 use App\Support\DemoOverlay;
 use App\Support\ListSearch;
@@ -48,11 +49,21 @@ class MaterialPriceController extends Controller
 
     public function store(StoreYarnPriceRequest $request): RedirectResponse
     {
-        DemoOverlay::addYarnPrice(
-            (int) $request->input('material_id'),
-            (string) $request->input('ym'),
-            (int) $request->input('price'),
-        );
+        if (DemoData::usesMaterialPriceDatabase()) {
+            MaterialPrice::query()->updateOrCreate(
+                [
+                    'material_id' => (int) $request->input('material_id'),
+                    'ym' => (string) $request->input('ym'),
+                ],
+                ['unit_price' => (int) $request->input('price')],
+            );
+        } else {
+            DemoOverlay::addYarnPrice(
+                (int) $request->input('material_id'),
+                (string) $request->input('ym'),
+                (int) $request->input('price'),
+            );
+        }
 
         return redirect()->route('prices.index')
             ->with('success', '糸価格を登録しました。');
@@ -71,7 +82,17 @@ class MaterialPriceController extends Controller
     {
         $row = DemoData::findYarnPrice($price) ?? abort(404);
 
-        DemoOverlay::updateYarnPrice($row->material_id, $row->ym, (int) $request->input('price'));
+        if (DemoData::usesMaterialPriceDatabase()) {
+            MaterialPrice::query()->updateOrCreate(
+                [
+                    'material_id' => (int) $row->material_id,
+                    'ym' => (string) $row->ym,
+                ],
+                ['unit_price' => (int) $request->input('price')],
+            );
+        } else {
+            DemoOverlay::updateYarnPrice($row->material_id, $row->ym, (int) $request->input('price'));
+        }
 
         return redirect()->route('prices.index')
             ->with('success', '糸価格を更新しました。');

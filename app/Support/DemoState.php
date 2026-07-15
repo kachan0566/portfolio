@@ -417,7 +417,7 @@ class DemoState
         self::writeFloatMap(self::RECEIVED_FILE, $receivedOverlay);
 
         if ($poType === PurchaseOrderType::YARN) {
-            YarnInventory::addStockKg((int) $receiving['material_id'], $qty);
+            YarnInventory::addStockKgLegacy((int) $receiving['material_id'], $qty);
         } elseif ($poType === PurchaseOrderType::PRODUCT) {
             $productId = (int) $receiving['product_id'];
             $qtyTan = isset($receiving['qty_tan'])

@@ -2,27 +2,53 @@
 
 namespace App\Support;
 
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
+use App\Models\YarnAllocation;
+use App\Models\YarnStockMovement;
+
 /**
- * 糸の在庫・発注残・引当（デモ用 JSON）。
+ * 糸の在庫・発注残・引当。
  */
 class YarnInventory
 {
-    private const STOCK_FILE = 'yarn_stock_state.json';
-
-    private const ALLOC_FILE = 'yarn_allocations.json';
-
     public static function effectiveStockKg(int $materialId): float
     {
-        $base = DemoData::yarnStockKg($materialId);
-        $overlay = self::readFloatMap(self::STOCK_FILE);
-        $historicalReceived = self::historicalPoReceivedKg($materialId);
+        if (DemoData::usesYarnStockDatabase()) {
+            return max(0.0, round((float) YarnStockMovement::query()
+                ->where('material_id', $materialId)
+                ->sum('qty_kg'), 3));
+        }
 
-        return max(0.0, $base + $historicalReceived + ($overlay[$materialId] ?? 0.0));
+        $base = DemoData::yarnStockKg($materialId);
+        $historicalReceived = self::historicalPoReceivedKg($materialId);
+        $overlay = self::readLegacyStockOverlay();
+
+        return max(0.0, round($base + $historicalReceived + ($overlay[$materialId] ?? 0.0), 3));
     }
 
-    /** デモデータ上ですでに入荷済みの糸発注分（セッション入荷は overlay で加算） */
+    /** レガシー（DB 未投入）入荷時の在庫加算 */
+    public static function addStockKgLegacy(int $materialId, float $qty): void
+    {
+        if ($qty <= 0 || DemoData::usesYarnStockDatabase()) {
+            return;
+        }
+
+        $overlay = self::readLegacyStockOverlay();
+        $overlay[$materialId] = ($overlay[$materialId] ?? 0.0) + $qty;
+        self::writeLegacyStockOverlay($overlay);
+    }
+
+    /** デモデータ上ですでに入荷済みの糸発注分 */
     private static function historicalPoReceivedKg(int $materialId): float
     {
+        if (DemoData::usesPurchaseOrderDatabase()) {
+            return (float) PurchaseOrderLine::query()
+                ->whereHas('purchaseOrder', fn ($q) => $q->where('type', PurchaseOrderType::YARN))
+                ->where('material_id', $materialId)
+                ->sum('received_qty_kg');
+        }
+
         $total = 0.0;
         foreach (DemoData::basePurchaseOrderRows() as $row) {
             if (($row['type'] ?? '') !== PurchaseOrderType::YARN) {
@@ -40,6 +66,29 @@ class YarnInventory
     /** 糸発注の未入荷残（kg） */
     public static function onOrderRemainingKg(int $materialId): float
     {
+        if (DemoData::usesPurchaseOrderDatabase()) {
+            $total = 0.0;
+            PurchaseOrder::query()
+                ->where('type', PurchaseOrderType::YARN)
+                ->whereIn('status', [
+                    PurchaseOrderStatus::ORDERED,
+                    PurchaseOrderStatus::PARTIAL,
+                ])
+                ->with('lines')
+                ->each(function (PurchaseOrder $po) use ($materialId, &$total) {
+                    foreach ($po->lines as $line) {
+                        if ((int) ($line->material_id ?? 0) !== $materialId) {
+                            continue;
+                        }
+                        $ordered = (float) ($line->qty_kg ?? 0);
+                        $received = (float) ($line->received_qty_kg ?? 0);
+                        $total += max(0.0, $ordered - $received);
+                    }
+                });
+
+            return round($total, 3);
+        }
+
         $total = 0.0;
         foreach (DemoData::basePurchaseOrderRows()->merge(collect(PurchaseOrderOverlay::additions())) as $row) {
             $row = is_array($row) ? $row : (array) $row;
@@ -63,30 +112,12 @@ class YarnInventory
         return $total;
     }
 
-    /**
-     * @return list<array{material_id: int, qty_kg: float, greige_po_id: int, status: string}>
-     */
-    public static function allocations(): array
-    {
-        $path = storage_path('app/'.self::ALLOC_FILE);
-        if (! is_file($path)) {
-            return [];
-        }
-
-        $data = json_decode((string) file_get_contents($path), true);
-        if (! is_array($data) || ! isset($data['lines']) || ! is_array($data['lines'])) {
-            return [];
-        }
-
-        return array_values(array_filter($data['lines'], fn ($l) => is_array($l) && (float) ($l['qty_kg'] ?? 0) > 0));
-    }
-
     /** @param list<array{material_id: int, qty_kg: float}> $requirements */
     public static function canFulfill(array $requirements, ?int $excludeGreigePoId = null): bool
     {
         foreach ($requirements as $req) {
             $materialId = (int) (is_array($req) ? $req['material_id'] : $req->material_id);
-            $needed = (float) (is_array($req) ? ($req['required_kg'] ?? 0) : $req->required_kg);
+            $needed = (float) (is_array($req) ? ($req['required_kg'] ?? $req['qty_kg'] ?? 0) : $req->required_kg);
             if ($needed <= 0) {
                 continue;
             }
@@ -104,13 +135,17 @@ class YarnInventory
         $onOrder = self::onOrderRemainingKg($materialId);
         $allocated = self::allocatedKg($materialId, $excludeGreigePoId);
 
-        return max(0.0, $stock + $onOrder - $allocated);
+        return max(0.0, round($stock + $onOrder - $allocated, 3));
     }
 
     public static function allocatedKg(int $materialId, ?int $excludeGreigePoId = null): float
     {
+        if (DemoData::usesYarnStockDatabase()) {
+            return YarnAllocation::allocatedKg($materialId, $excludeGreigePoId);
+        }
+
         $total = 0.0;
-        foreach (self::allocations() as $line) {
+        foreach (self::legacyAllocations() as $line) {
             if ((int) $line['material_id'] !== $materialId) {
                 continue;
             }
@@ -163,9 +198,25 @@ class YarnInventory
         return $lines;
     }
 
+    /**
+     * @param list<array{material_id: int, qty_kg: float, greige_po_id?: int, status?: string}> $lines
+     */
     public static function setAllocationsForGreigePo(int $greigePoId, array $lines): void
     {
-        $all = collect(self::allocations())
+        if (DemoData::usesYarnStockDatabase()) {
+            $rows = [];
+            foreach ($lines as $line) {
+                $rows[] = [
+                    'material_id' => (int) $line['material_id'],
+                    'qty_kg' => (float) $line['qty_kg'],
+                ];
+            }
+            YarnAllocation::replaceForGreigePo($greigePoId, $rows);
+
+            return;
+        }
+
+        $all = collect(self::legacyAllocations())
             ->reject(fn ($l) => (int) ($l['greige_po_id'] ?? 0) === $greigePoId)
             ->values()
             ->all();
@@ -174,33 +225,44 @@ class YarnInventory
             $all[] = $line;
         }
 
-        self::writeAllocations($all);
+        self::writeLegacyAllocations($all);
     }
 
     public static function releaseGreigePo(int $greigePoId): void
     {
-        $all = collect(self::allocations())
+        if (DemoData::usesYarnStockDatabase()) {
+            YarnAllocation::releaseGreigePo($greigePoId);
+
+            return;
+        }
+
+        $all = collect(self::legacyAllocations())
             ->reject(fn ($l) => (int) ($l['greige_po_id'] ?? 0) === $greigePoId)
             ->values()
             ->all();
 
-        self::writeAllocations($all);
+        self::writeLegacyAllocations($all);
     }
 
-    public static function addStockKg(int $materialId, float $qty): void
-    {
-        if ($qty <= 0) {
-            return;
-        }
-
-        $overlay = self::readFloatMap(self::STOCK_FILE);
-        $overlay[$materialId] = ($overlay[$materialId] ?? 0.0) + $qty;
-        self::writeStockOverlay($overlay);
-    }
-
-    /** @return list<array{date: string, material_id: int, qty_kg: float, note: string}> */
+    /** @return list<array{date: string, material_id: int, qty_kg: float, note: string, movement_type?: string}> */
     public static function stockMovements(): array
     {
+        if (DemoData::usesYarnStockDatabase()) {
+            return YarnStockMovement::query()
+                ->orderByDesc('movement_date')
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn (YarnStockMovement $row) => [
+                    'date' => $row->movement_date->format('Y-m-d'),
+                    'material_id' => (int) $row->material_id,
+                    'qty_kg' => (float) $row->qty_kg,
+                    'note' => (string) ($row->note ?? ''),
+                    'movement_type' => (string) $row->movement_type,
+                ])
+                ->values()
+                ->all();
+        }
+
         $movements = [];
         foreach (DemoData::receivings() as $r) {
             if (($r->po_type ?? '') !== PurchaseOrderType::YARN) {
@@ -230,10 +292,26 @@ class YarnInventory
         return $movements;
     }
 
-    /** @param list<array{material_id: int, qty_kg: float, greige_po_id: int, status: string}> $lines */
-    private static function writeAllocations(array $lines): void
+    /** @return list<array{material_id: int, qty_kg: float, greige_po_id: int, status: string}> */
+    private static function legacyAllocations(): array
     {
-        $path = storage_path('app/'.self::ALLOC_FILE);
+        $path = storage_path('app/yarn_allocations.json');
+        if (! is_file($path)) {
+            return [];
+        }
+
+        $data = json_decode((string) file_get_contents($path), true);
+        if (! is_array($data) || ! isset($data['lines']) || ! is_array($data['lines'])) {
+            return [];
+        }
+
+        return array_values(array_filter($data['lines'], fn ($l) => is_array($l) && (float) ($l['qty_kg'] ?? 0) > 0));
+    }
+
+    /** @param list<array{material_id: int, qty_kg: float, greige_po_id: int, status: string}> $lines */
+    private static function writeLegacyAllocations(array $lines): void
+    {
+        $path = storage_path('app/yarn_allocations.json');
         $dir = dirname($path);
         if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
@@ -245,24 +323,10 @@ class YarnInventory
         );
     }
 
-    private static function writeStockOverlay(array $map): void
-    {
-        $path = storage_path('app/'.self::STOCK_FILE);
-        $dir = dirname($path);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        file_put_contents(
-            $path,
-            json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-        );
-    }
-
     /** @return array<int, float> */
-    private static function readFloatMap(string $file): array
+    private static function readLegacyStockOverlay(): array
     {
-        $path = storage_path('app/'.$file);
+        $path = storage_path('app/yarn_stock_state.json');
         if (! is_file($path)) {
             return [];
         }
@@ -278,5 +342,20 @@ class YarnInventory
         }
 
         return $result;
+    }
+
+    /** @param array<int, float> $map */
+    private static function writeLegacyStockOverlay(array $map): void
+    {
+        $path = storage_path('app/yarn_stock_state.json');
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents(
+            $path,
+            json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+        );
     }
 }
