@@ -118,7 +118,16 @@ class Order extends Model
                 (int) $this->product_id,
             );
 
-        $shippedMeters = DemoState::effectiveShippedM((int) $this->id);
+        $shippedMeters = DemoData::usesShipmentDatabase()
+            ? (int) $this->shipped_qty_m
+            : DemoState::effectiveShippedM((int) $this->id);
+
+        $shippedTanDisplay = DemoData::usesShipmentDatabase()
+            ? FabricQuantity::tanFromRecord(
+                ['qty_tan' => $this->shipped_qty_tan, 'qty' => $this->shipped_qty_m],
+                (int) $this->product_id,
+            )
+            : $shippedTan;
 
         $statusInput = [
             'id' => $this->id,
@@ -140,7 +149,7 @@ class Order extends Model
             'unit' => $product?->unit,
             'order_qty_mode' => $mode,
             'qty_tan' => $qtyTan,
-            'shipped_tan' => $shippedTan,
+            'shipped_tan' => $shippedTanDisplay,
             'qty_meters' => $qtyMeters,
             'shipped_meters' => $shippedMeters,
             'qty' => $qtyMeters,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Inventory\ShipmentRollAllocator;
+use App\Services\Shipment\ShipmentRegistrar;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\FabricQuantity;
@@ -11,6 +12,7 @@ use App\Support\QtyHelper;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class ShipmentController extends Controller
@@ -108,6 +110,20 @@ class ShipmentController extends Controller
         } elseif (! $isMetersOrder && $qty > $effectiveStock) {
             return redirect()->route('shipments.create', ['order_id' => $orderId])
                 ->with('error', '現在庫（'.QtyHelper::format($effectiveStock, $order->product_id).'）を超える出荷はできません。');
+        }
+
+        if (Schema::hasTable('shipments')) {
+            $result = ShipmentRegistrar::register(
+                $orderId,
+                $qtyTan,
+                $isMetersOrder ? $qty : null,
+                DemoData::today(),
+                null,
+                null,
+            );
+
+            return redirect()->route('shipments.index')
+                ->with('success', $result['message']);
         }
 
         DemoState::applyShipment($orderId, $order->product_id, $qtyTan, $qty);
