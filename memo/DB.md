@@ -229,7 +229,10 @@
 | `adjustment`  | 棚卸・調整    |
 
 
-`reference_type` はポリモーフィック風に `receiving_line` / `purchase_order` / `manual` などを文字列で保持。入荷由来は `receiving_line` + `reference_id = receiving_lines.id`。
+`reference_type` はポリモーフィック風に `receiving_line` / `manual` などを文字列で保持。
+
+- 入荷由来の `receiving` / `consumption` … `receiving_line` + `reference_id = receiving_lines.id`（糸入荷時に同時記録）
+- 初期在庫 … `manual` + `reference_id = null`（`adjustment`）
 
 ---
 
@@ -547,7 +550,7 @@ ORDER BY po.id, pol.line_no;
 | `line_no`                | unsignedSmallInteger        | NO   |         | 入荷内の行番号（1始まり）                    |
 | `qty_tan`                | decimal(8,2)                | NO   | 0       | 反数合計（表示用キャッシュ）                   |
 | `qty_m`                  | unsignedInteger             | NO   | 0       | 実測m合計（表示用キャッシュ）                  |
-| `qty_kg`                 | decimal(12,3)               | NO   | 0       | 糸kg合計（表示用キャッシュ。段階9まで直接セットも可）   |
+| `qty_kg`                 | decimal(12,3)               | NO   | 0       | 糸kg合計（表示用キャッシュ）                      |
 | `created_at`             | timestamp                   | YES  |         |                                 |
 | `updated_at`             | timestamp                   | YES  |         |                                 |
 
@@ -776,9 +779,28 @@ GROUP BY product_id;
 
 **インデックス:** `material_id`, `movement_date`, `(reference_type, reference_id)`
 
-**残高:** `SUM(qty_kg) WHERE material_id = ?`（入庫正・出庫負で統一する場合）
+**残高:** `SUM(qty_kg) WHERE material_id = ?`（入庫正・出庫負。糸入荷は `receiving` + `consumption` が同量で net 0）
 
-**移行元:** `DemoData::yarnStockBase()` を初期 `adjustment` 行として投入
+**移行元:** `DemoData::yarnStockBase()` を初期 `adjustment` 行として投入。糸入荷は `ReceivingSeeder` / `ReceivingRegistrar` 経由。
+
+---
+
+#### `yarn_allocations`（生機発注への糸引当）【段階9・実装済み】
+
+
+| 列名                  | 型                      | NULL | デフォルト | 説明           |
+| ------------------- | ---------------------- | ---- | ----- | ------------ |
+| `id`                | bigint PK              | NO   | auto  |              |
+| `purchase_order_id` | FK → `purchase_orders` | NO   | cascade | 生機発注       |
+| `material_id`       | FK → `materials`       | NO   |       | 糸            |
+| `qty_kg`            | decimal(12,3)          | NO   |       | 引当 kg        |
+| `created_at`        | timestamp              | YES  |       |              |
+| `updated_at`        | timestamp              | YES  |       |              |
+
+
+**ユニーク:** `(purchase_order_id, material_id)`
+
+**移行元:** `yarn_allocations.json`
 
 ---
 
@@ -992,7 +1014,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 6 | `receivings`, `receiving_lines`（**`qty_*` 初回から**）, `greige_rolls`, `product_rolls` | `ReceivingRegistrar`, `ReceivingLineTotals::sync`, `PurchaseOrderLineReceiver`, 発注残 DB 優先, 入荷一覧（1明細運用） | `ReceivingSeeder` | 4 | **済 2026-07**（qty 列は追補マイグレあり・下表） |
 | 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | 出荷予定を DB 正に | `ShipmentPlanSeeder` | 3 | **済 2026-07** |
 | 8 | `shipments`, `shipment_roll_allocations` | 出荷登録 DB 化、`inbound_lots` / `shipment_lot_consumptions` / 関連 JSON 廃止 | `ShipmentSeeder` | 3・6・**7** | **済 2026-07** |
-| 9 | レシピ3 + `material_prices` + `yarn_stock_movements` | 原価画面、糸入荷を movements に接続 | 原価系 | 1・2・6 | **未** |
+| 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` | 原価画面、糸入荷・糸引当を DB 化 | `CostFoundationSeeder` | 1・2・6 | **済 2026-07** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | 見通し移行 | 2・3 | **未** |
 
 
@@ -1104,6 +1126,7 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | `2026_07_15_000002_*_create_shipments_tables` | 8 | `shipments` + `shipment_roll_allocations` |
 | `2026_07_15_000003_*_create_receiving_roll_amendments` | 8b | 反明細修正履歴 |
 | `2026_07_15_000004_*_drop_legacy_inbound_lot_tables` | 8 | 旧 `inbound_lots` / `shipment_lot_consumptions` 削除 |
+| `2026_07_16_000001_*_create_cost_and_yarn_tables` | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` |
 
 各段階の Seeder はその段階のマイグレ直後に `DatabaseSeeder` へ `call` を追加する。取引系（3以降）は段階ごとに `php artisan migrate:fresh --seed` で通し確認する。
 
@@ -1135,8 +1158,10 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 
 ### 段階9 完了条件（段階10 着手前）
 
-- [ ] レシピ3 + `material_prices` + `yarn_stock_movements`
-- [ ] 糸入荷が `yarn_stock_movements` に記録（`qty_kg` 暫定から脱却）
+- [x] レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations`
+- [x] 糸入荷で `receiving` + `consumption`（参照 `receiving_line`）が記録される
+- [x] `receiving_lines.qty_kg` は `ReceivingLineTotals::sync` のみ
+- [x] `yarn_allocations.json` / `yarn_stock_state.json` 参照廃止（DB 投入時）
 
 ### 段階8a 完了条件（任意）
 
@@ -1209,9 +1234,9 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | 7 | `ShipmentPlan` JSON / `seedDefaults()` | `shipment_plans` | [x] |
 | 8 | `DemoData::shipments()` | `shipments` + `shipment_roll_allocations` | [x] |
 | 8 | `inbound_lots` | `product_rolls`（移行後廃止） | [x] |
-| 9 | レシピ・単価・糸在庫 | 原価系テーブル | [ ] |
+| 9 | レシピ・単価・糸在庫・糸引当 | 原価系テーブル + `yarn_allocations` | [x] |
 | 10 | 売上見通し JSON | `sales_forecasts` 系 | [ ] |
 
 ---
 
-*最終更新：* 段階8（済）、8a（入荷側済・発注一覧未）、8b（済）（2026-07）。次は段階9。
+*最終更新：* 段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。次は段階10。

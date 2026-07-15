@@ -11,6 +11,7 @@ use App\Models\ReceivingLine;
 use App\Services\Fabric\TanRollRecorder;
 use App\Services\Receiving\PurchaseOrderLineReceiver;
 use App\Services\Receiving\ReceivingLineTotals;
+use App\Services\Yarn\YarnStockMovementRecorder;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
@@ -65,11 +66,15 @@ class ReceivingSeeder extends Seeder
                 $this->seedProductRolls($row, $po, $receivingLine, $now);
                 ReceivingLineTotals::sync($receivingLine->fresh());
             } elseif ($type === PurchaseOrderType::YARN) {
-                $receivingLine->update([
-                    'qty_kg' => (float) ($row['qty_kg'] ?? 0),
-                    'qty_tan' => 0,
-                    'qty_m' => 0,
-                ]);
+                $qtyKg = (float) ($row['qty_kg'] ?? 0);
+                YarnStockMovementRecorder::recordYarnReceiving(
+                    $receivingLine,
+                    (int) ($row['material_id'] ?? $poLine->material_id),
+                    $qtyKg,
+                    (string) $row['date'],
+                    '入荷 '.($row['code'] ?? ''),
+                );
+                ReceivingLineTotals::sync($receivingLine->fresh());
             }
 
             PurchaseOrderLineReceiver::syncFromReceivingLine($receivingLine->fresh());

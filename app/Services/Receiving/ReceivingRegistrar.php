@@ -7,10 +7,10 @@ use App\Models\PurchaseOrderLine;
 use App\Models\Receiving;
 use App\Models\ReceivingLine;
 use App\Services\Fabric\TanRollRecorder;
+use App\Services\Yarn\YarnStockMovementRecorder;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderType;
 use App\Support\StockAllocation;
-use App\Support\YarnInventory;
 use Illuminate\Support\Facades\DB;
 
 class ReceivingRegistrar
@@ -102,12 +102,14 @@ class ReceivingRegistrar
 
                 if ($poType === PurchaseOrderType::YARN) {
                     $qtyKg = round((float) ($entry['qty_kg'] ?? 0), 3);
-                    $receivingLine->update([
-                        'qty_kg' => $qtyKg,
-                        'qty_tan' => 0,
-                        'qty_m' => 0,
-                    ]);
-                    YarnInventory::addStockKg((int) $poLine->material_id, $qtyKg);
+                    YarnStockMovementRecorder::recordYarnReceiving(
+                        $receivingLine,
+                        (int) $poLine->material_id,
+                        $qtyKg,
+                        $date,
+                        "入荷 {$code}",
+                    );
+                    ReceivingLineTotals::sync($receivingLine->fresh());
                 } elseif ($poType === PurchaseOrderType::GREIGE) {
                     $greigeSku = (string) ($poLine->greige?->sku ?? '');
                     $rollLines = (array) ($entry['roll_lines'] ?? []);
@@ -154,7 +156,7 @@ class ReceivingRegistrar
                 $totalKg = (float) ReceivingLine::query()
                     ->where('receiving_id', $receiving->id)
                     ->sum('qty_kg');
-                $message = "入荷 {$code} を登録し、糸在庫を ".number_format($totalKg, 2)."kg 増加しました。（明細 {$lineNo} 行）";
+                $message = "入荷 {$code} を登録しました。（明細 {$lineNo} 行・織工場入荷 ".number_format($totalKg, 2).' kg）';
             } elseif ($poType === PurchaseOrderType::GREIGE) {
                 $lines = ReceivingLine::query()->where('receiving_id', $receiving->id)->get();
                 $tan = (float) $lines->sum(fn ($row) => (float) $row->qty_tan);

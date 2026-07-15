@@ -6,6 +6,11 @@ use App\Http\Requests\StoreGreigeRecipeRequest;
 use App\Http\Requests\StoreRecipeRequest;
 use App\Http\Requests\UpdateGreigeRecipeRequest;
 use App\Http\Requests\UpdateRecipeRequest;
+use App\Models\Greige;
+use App\Models\GreigeRecipe;
+use App\Models\GreigeRecipeLine;
+use App\Models\Product;
+use App\Models\ProductRecipe;
 use App\Support\DemoData;
 use App\Support\DemoOverlay;
 use App\Support\ListSearch;
@@ -110,8 +115,21 @@ class RecipeController extends Controller
     public function store(StoreRecipeRequest $request): RedirectResponse
     {
         $productId = (int) $request->input('product_id');
-        DemoOverlay::saveRecipe($productId, self::productRecipePayload($request));
-        DemoOverlay::saveProductPrice($productId, (int) $request->input('price'));
+
+        if (DemoData::usesRecipeDatabase()) {
+            ProductRecipe::query()->updateOrCreate(
+                ['product_id' => $productId],
+                ['processing_cost' => (int) $request->input('processing_cost')],
+            );
+            Product::query()->whereKey($productId)->update([
+                'price' => (int) $request->input('price'),
+            ]);
+        } else {
+            DemoOverlay::saveRecipe($productId, [
+                'processing_cost' => (int) $request->input('processing_cost'),
+            ]);
+            DemoOverlay::saveProductPrice($productId, (int) $request->input('price'));
+        }
 
         return redirect()->route('recipes.index')
             ->with('success', '製品レシピを登録しました。');
@@ -150,8 +168,20 @@ class RecipeController extends Controller
             abort(404);
         }
 
-        DemoOverlay::saveRecipe($product, self::productRecipePayload($request));
-        DemoOverlay::saveProductPrice($product, (int) $request->input('price'));
+        if (DemoData::usesRecipeDatabase()) {
+            ProductRecipe::query()->updateOrCreate(
+                ['product_id' => $product],
+                ['processing_cost' => (int) $request->input('processing_cost')],
+            );
+            Product::query()->whereKey($product)->update([
+                'price' => (int) $request->input('price'),
+            ]);
+        } else {
+            DemoOverlay::saveRecipe($product, [
+                'processing_cost' => (int) $request->input('processing_cost'),
+            ]);
+            DemoOverlay::saveProductPrice($product, (int) $request->input('price'));
+        }
 
         return redirect()->route('recipes.index')
             ->with('success', '製品レシピを更新しました。');
@@ -169,10 +199,22 @@ class RecipeController extends Controller
 
     public function storeGreige(StoreGreigeRecipeRequest $request): RedirectResponse
     {
-        DemoOverlay::saveGreigeRecipe(
-            (string) $request->input('greige_sku'),
-            self::greigeRecipePayload($request)
-        );
+        $greigeSku = (string) $request->input('greige_sku');
+        $payload = self::greigeRecipePayload($request);
+
+        if (DemoData::usesRecipeDatabase()) {
+            $greige = Greige::query()->where('sku', $greigeSku)->firstOrFail();
+            $header = GreigeRecipe::query()->updateOrCreate(
+                ['greige_id' => $greige->id],
+                [
+                    'loss_rate' => $payload['loss_rate'],
+                    'weaving_cost' => $payload['weaving_cost'],
+                ],
+            );
+            self::syncGreigeRecipeLines($header, $payload['lines']);
+        } else {
+            DemoOverlay::saveGreigeRecipe($greigeSku, $payload);
+        }
 
         return redirect()->route('recipes.index', ['tab' => 'greige'])
             ->with('success', '生機レシピを登録しました。');
@@ -213,18 +255,47 @@ class RecipeController extends Controller
             abort(404);
         }
 
-        DemoOverlay::saveGreigeRecipe($greigeSku, self::greigeRecipePayload($request));
+        $payload = self::greigeRecipePayload($request);
+
+        if (DemoData::usesRecipeDatabase()) {
+            $greige = Greige::query()->where('sku', $greigeSku)->firstOrFail();
+            $header = GreigeRecipe::query()->updateOrCreate(
+                ['greige_id' => $greige->id],
+                [
+                    'loss_rate' => $payload['loss_rate'],
+                    'weaving_cost' => $payload['weaving_cost'],
+                ],
+            );
+            self::syncGreigeRecipeLines($header, $payload['lines']);
+        } else {
+            DemoOverlay::saveGreigeRecipe($greigeSku, $payload);
+        }
 
         return redirect()->route('recipes.index', ['tab' => 'greige'])
             ->with('success', '生機レシピを更新しました。');
     }
 
-    /** @return array{processing_cost: int} */
-    private static function productRecipePayload(StoreRecipeRequest|UpdateRecipeRequest $request): array
+    /**
+     * @param  list<array{0: int, 1: float}>  $lines
+     */
+    private static function syncGreigeRecipeLines(GreigeRecipe $header, array $lines): void
     {
-        return [
-            'processing_cost' => (int) $request->input('processing_cost'),
-        ];
+        $materialIds = [];
+        foreach ($lines as [$materialId, $qtyPerM]) {
+            $materialIds[] = (int) $materialId;
+            GreigeRecipeLine::query()->updateOrCreate(
+                [
+                    'greige_recipe_id' => $header->id,
+                    'material_id' => (int) $materialId,
+                ],
+                ['qty_per_m' => (float) $qtyPerM],
+            );
+        }
+
+        GreigeRecipeLine::query()
+            ->where('greige_recipe_id', $header->id)
+            ->whereNotIn('material_id', $materialIds)
+            ->delete();
     }
 
     /** @return array{lines: list<array{0: int, 1: float}>, loss_rate: float, weaving_cost: int} */

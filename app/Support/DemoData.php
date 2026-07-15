@@ -2,10 +2,14 @@
 
 namespace App\Support;
 
+use App\Models\GreigeRecipe;
+use App\Models\MaterialPrice;
 use App\Models\Order;
 use App\Models\OrderAllocation;
+use App\Models\ProductRecipe;
 use App\Models\PurchaseOrder;
 use App\Models\Receiving;
+use App\Models\YarnStockMovement;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -153,8 +157,25 @@ class DemoData
     }
 
     /** @return array<int, array{processing_cost: int}> */
+    public static function baseRecipeDataForSeed(): array
+    {
+        return self::baseRecipeData();
+    }
+
+    /** @return array<int, array{processing_cost: int}> */
     public static function recipeData(): array
     {
+        if (self::usesRecipeDatabase()) {
+            $result = [];
+            foreach (ProductRecipe::query()->get() as $row) {
+                $result[(int) $row->product_id] = [
+                    'processing_cost' => (int) $row->processing_cost,
+                ];
+            }
+
+            return $result;
+        }
+
         return array_replace_recursive(self::baseRecipeData(), DemoOverlay::recipeOverrides());
     }
 
@@ -180,8 +201,37 @@ class DemoData
     }
 
     /** @return array<string, array{lines: list<array{0: int, 1: float}>, loss_rate: float, weaving_cost: int}> */
+    public static function baseGreigeRecipeDataForSeed(): array
+    {
+        return self::baseGreigeRecipeData();
+    }
+
+    /** @return array<string, array{lines: list<array{0: int, 1: float}>, loss_rate: float, weaving_cost: int}> */
     public static function greigeRecipeData(): array
     {
+        if (self::usesRecipeDatabase()) {
+            $result = [];
+            foreach (GreigeRecipe::query()->with(['greige', 'lines'])->get() as $header) {
+                $sku = $header->greige?->sku;
+                if ($sku === null) {
+                    continue;
+                }
+
+                $lines = [];
+                foreach ($header->lines as $line) {
+                    $lines[] = [(int) $line->material_id, (float) $line->qty_per_m];
+                }
+
+                $result[$sku] = [
+                    'lines' => $lines,
+                    'loss_rate' => (float) $header->loss_rate,
+                    'weaving_cost' => (int) $header->weaving_cost,
+                ];
+            }
+
+            return $result;
+        }
+
         return array_replace_recursive(self::baseGreigeRecipeData(), DemoOverlay::greigeRecipeOverrides());
     }
 
@@ -399,13 +449,40 @@ class DemoData
         return self::shipTos()->whereIn('type', $allowed)->values();
     }
 
-    /** 月別糸価格 */
-    public static function materialPrices(): Collection
+    /** @return list<array{material_id: int, prices: array<string, int>}> */
+    public static function baseMaterialPriceRowsForSeed(): array
     {
-        $rows = [
+        return [
             ['material_id' => 1, 'prices' => ['2026-04' => 480, '2026-05' => 500, '2026-06' => 550]],
             ['material_id' => 2, 'prices' => ['2026-04' => 300, '2026-05' => 320, '2026-06' => 310]],
         ];
+    }
+
+    /** 月別糸価格 */
+    public static function materialPrices(): Collection
+    {
+        if (self::usesMaterialPriceDatabase()) {
+            return MaterialPrice::query()
+                ->with('material')
+                ->orderBy('material_id')
+                ->orderBy('ym')
+                ->get()
+                ->map(function (MaterialPrice $row) {
+                    $material = $row->material;
+
+                    return (object) [
+                        'id' => (int) $row->id,
+                        'material_id' => (int) $row->material_id,
+                        'material_sku' => $material?->sku ?? '',
+                        'material' => $material?->name ?? '',
+                        'unit' => 'kg',
+                        'ym' => (string) $row->ym,
+                        'price' => (int) $row->unit_price,
+                    ];
+                });
+        }
+
+        $rows = self::baseMaterialPriceRowsForSeed();
 
         $priceMap = [];
         foreach ($rows as $row) {
@@ -450,6 +527,24 @@ class DemoData
 
     public static function findYarnPrice(int $id): ?object
     {
+        if (self::usesMaterialPriceDatabase()) {
+            $row = MaterialPrice::query()->with('material')->find($id);
+            if ($row === null) {
+                return null;
+            }
+            $material = $row->material;
+
+            return (object) [
+                'id' => (int) $row->id,
+                'material_id' => (int) $row->material_id,
+                'material_sku' => $material?->sku ?? '',
+                'material' => $material?->name ?? '',
+                'unit' => 'kg',
+                'ym' => (string) $row->ym,
+                'price' => (int) $row->unit_price,
+            ];
+        }
+
         return self::materialPrices()->firstWhere('id', $id);
     }
 
@@ -1237,6 +1332,37 @@ class DemoData
         try {
             return Schema::hasTable('shipments')
                 && \App\Models\Shipment::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function usesRecipeDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('product_recipes')
+                && ProductRecipe::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function usesMaterialPriceDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('material_prices')
+                && MaterialPrice::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function usesYarnStockDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('yarn_stock_movements')
+                && Schema::hasTable('yarn_allocations')
+                && YarnStockMovement::query()->exists();
         } catch (\Throwable) {
             return false;
         }

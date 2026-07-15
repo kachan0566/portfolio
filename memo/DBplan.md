@@ -778,7 +778,7 @@ erDiagram
 | 6 | `receivings`, `receiving_lines`（`qty_*` 含む）, `greige_rolls`, `product_rolls`、入荷 DB 化・発注残 DB 優先 | **済 2026-07** |
 | 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | **済 2026-07** |
 | 8 | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` / `shipment_lot_consumptions` 廃止 | **済 2026-07** |
-| 9 | レシピ3 + `material_prices` + `yarn_stock_movements` | **未** |
+| 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` | **済 2026-07** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | **未** |
 
 
@@ -856,4 +856,4 @@ erDiagram
 
 ---
 
-*最終更新：* 段階8（済）、8a（入荷側済・発注一覧未）、8b（済）（2026-07）。次は段階9。
+*最終更新：* 段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。次は段階10。
