@@ -17,6 +17,7 @@ use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
 use App\Support\ListSearch;
 use App\Support\PurchaseOrderDisplay;
+use App\Support\PurchaseOrderLineDisplay;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
@@ -35,7 +36,7 @@ class PurchaseOrderController extends Controller
         $statusOptions = PurchaseOrderDisplay::filterOptions();
 
         $purchases = ListSearch::filter(
-            DemoData::purchaseOrders()->map(fn ($po) => $this->enrichPurchase($po)),
+            DemoData::purchaseOrderIndexRows()->map(fn ($po) => $this->enrichPurchaseLine($po)),
             $search,
             [
                 'date_field' => 'eta',
@@ -278,6 +279,28 @@ class PurchaseOrderController extends Controller
         $purchase = $this->enrichPurchase($this->findPurchase($purchase));
         $type = $purchase->type;
 
+        $poModel = PurchaseOrder::query()
+            ->with([
+                'lines.material',
+                'lines.greige',
+                'lines.product.greige',
+            ])
+            ->find($purchase->id);
+
+        $lineStageRows = [];
+        if ($poModel !== null) {
+            foreach ($poModel->lines->sortBy('line_no') as $line) {
+                $lineStageRows[] = [
+                    'id' => $line->id,
+                    'line_no' => $line->line_no,
+                    'sku' => $line->skuLabel(),
+                    'stage_editable' => PurchaseOrderLineDisplay::manualStageEditable($poModel, $line),
+                    'manual_stage' => PurchaseOrderLineDisplay::effectiveManualStage($line),
+                    'current_stage' => PurchaseOrderLineDisplay::label($poModel, $line),
+                ];
+            }
+        }
+
         return view('purchases.edit', [
             'purchase' => $purchase,
             'suppliers' => Supplier::forPurchaseType($type),
@@ -286,6 +309,8 @@ class PurchaseOrderController extends Controller
             'manualStageEditable' => PurchaseOrderDisplay::manualStageEditable($purchase),
             'manualStage' => PurchaseOrderDisplay::effectiveManualStage($purchase),
             'manualStageOptions' => PurchaseOrderStages::manualOptionsFor($type),
+            'lineStageRows' => $lineStageRows,
+            'lineStageOptions' => PurchaseOrderStages::manualOptionsFor($type),
         ]);
     }
 
@@ -351,6 +376,7 @@ class PurchaseOrderController extends Controller
                     ]);
                 }
             }
+            $this->syncLineStages($model, $request, PurchaseOrderType::GREIGE);
         }
 
         if ($type === PurchaseOrderType::PRODUCT) {
@@ -367,6 +393,7 @@ class PurchaseOrderController extends Controller
             if ($productPatch !== []) {
                 $model->primaryLine()?->update($productPatch);
             }
+            $this->syncLineStages($model, $request, PurchaseOrderType::PRODUCT);
         }
 
         return redirect()->route('purchases.show', $purchase)
@@ -457,5 +484,54 @@ class PurchaseOrderController extends Controller
         };
 
         return $po;
+    }
+
+    private function enrichPurchaseLine(object $po): object
+    {
+        $po->material_shortage = match ($po->type ?? '') {
+            PurchaseOrderType::GREIGE => ! YarnInventory::canFulfill(
+                $po->yarn_requirements ?? [],
+                (int) $po->id
+            ),
+            PurchaseOrderType::PRODUCT => ! GreigeSupply::canFulfillProductMeters(
+                (int) ($po->product_id ?? 0),
+                (int) ($po->qty_meters ?? $po->qty ?? 0),
+                (int) $po->id
+            ),
+            default => false,
+        };
+
+        return $po;
+    }
+
+    private function syncLineStages(PurchaseOrder $model, Request $request, string $type): void
+    {
+        $lineStages = $request->input('line_stages', []);
+        if (! is_array($lineStages) || $lineStages === []) {
+            return;
+        }
+
+        $model->loadMissing('lines');
+        foreach ($lineStages as $lineId => $stageValue) {
+            $line = $model->lines->firstWhere('id', (int) $lineId);
+            if ($line === null || ! PurchaseOrderLineDisplay::manualStageEditable($model, $line)) {
+                continue;
+            }
+
+            if ($type === PurchaseOrderType::GREIGE) {
+                $stage = (string) $stageValue;
+                $line->update([
+                    'stage' => $stage === ''
+                        ? null
+                        : PurchaseOrderStages::normalizeGreigeManualStage($stage),
+                ]);
+            }
+
+            if ($type === PurchaseOrderType::PRODUCT && $stageValue !== null && $stageValue !== '') {
+                $line->update([
+                    'stage' => PurchaseOrderStages::normalizeProductManualStage((string) $stageValue),
+                ]);
+            }
+        }
     }
 }

@@ -116,7 +116,40 @@
                     </div>
                 @endif
 
-                @if ($manualStageEditable && $manualStageOptions !== [])
+                @if (count($lineStageRows ?? []) > 1 && in_array($purchase->type, [\App\Support\PurchaseOrderType::GREIGE, \App\Support\PurchaseOrderType::PRODUCT], true))
+                    <div class="field">
+                        <label class="label">明細行ごとの生産工程</label>
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            @foreach ($lineStageRows as $lineRow)
+                                <div style="border:1px solid var(--border);border-radius:8px;padding:12px;">
+                                    <div class="t-strong" style="margin-bottom:8px;">
+                                        行 {{ $lineRow['line_no'] }}: {{ $lineRow['sku'] }}
+                                    </div>
+                                    @if ($lineRow['stage_editable'] && ($lineStageOptions ?? []) !== [])
+                                        <select class="select" name="line_stages[{{ $lineRow['id'] }}]" style="max-width:320px;">
+                                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
+                                                <option value="">（未設定）</option>
+                                            @endif
+                                            @foreach ($lineStageOptions as $option)
+                                                <option value="{{ $option }}" @selected($option === $lineRow['manual_stage'])>{{ $option }}</option>
+                                            @endforeach
+                                        </select>
+                                    @else
+                                        <input class="input" type="text" readonly value="{{ $lineRow['current_stage'] }}">
+                                        <p class="field-hint">入荷が始まっているため、この行の工程は自動表示のみです。</p>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                        <p class="field-hint" style="margin-top:8px;">
+                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
+                                織工場から織編開始の連絡があった行だけ「織編機投入済」を選びます。糸入荷・生機出荷は入荷記録から自動で更新されます。
+                            @else
+                                染工場への投入連絡があった行だけ「染機投入済」を選びます。在庫中は入荷記録から自動で更新されます。
+                            @endif
+                        </p>
+                    </div>
+                @elseif ($manualStageEditable && $manualStageOptions !== [])
                     <div class="field">
                         <label class="label" for="stage">生産工程</label>
                         <select class="select" id="stage" name="stage" style="max-width:320px;">
