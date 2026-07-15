@@ -987,7 +987,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 4 | `purchase_orders` + `purchase_order_lines` | 発注画面 DB 化 | `PurchaseOrderSeeder` | 1〜3 | **済 2026-07** |
 | 5 | `order_allocations` | `StockAllocation` JSON 廃止 | `OrderAllocationSeeder` | 3・4 | **済 2026-07** |
 | 6 | `receivings`, `receiving_lines`（**`qty_*` 初回から**）, `greige_rolls`, `product_rolls` | `ReceivingRegistrar`, `ReceivingLineTotals::sync`, `PurchaseOrderLineReceiver`, 発注残 DB 優先, 入荷一覧（1明細運用） | `ReceivingSeeder` | 4 | **済 2026-07**（qty 列は追補マイグレあり・下表） |
-| 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | 出荷予定を DB 正に | 既存データ移行 | 3 | **未** |
+| 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | 出荷予定を DB 正に | `ShipmentPlanSeeder` | 3 | **済 2026-07** |
 | 8 | `shipments`, `shipment_roll_allocations` | 出荷登録 DB 化、`inbound_lots` / `shipment_lot_consumptions` / 関連 JSON 廃止 | デモ移行 | 3・6・**7** | **未** |
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` | 原価画面、糸入荷を movements に接続 | 原価系 | 1・2・6 | **未** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | 見通し移行 | 2・3 | **未** |
@@ -1097,7 +1097,7 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | `2026_07_08_000005_*_order_allocations` | 5 | |
 | `2026_07_08_000007_*_receiving_and_roll` | 6 | |
 | `2026_07_11_*_add_qty_columns_to_receiving_lines` | 6 | 理想は 000007 に含む |
-| （未作成）`shipment_plans` 拡張 | 7 | FK + 反数列 |
+| `2026_07_15_*_extend_shipment_plans` | 7 | FK + 反数列 |
 | （未作成）`shipments` 系 | 8 | |
 
 各段階の Seeder はその段階のマイグレ直後に `DatabaseSeeder` へ `call` を追加する。取引系（3以降）は段階ごとに `php artisan migrate:fresh --seed` で通し確認する。
@@ -1118,9 +1118,9 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 
 ### 段階7 完了条件（段階8 着手前）
 
-- [ ] `shipment_plans.order_id` に FK 制約
-- [ ] `confirmed_qty_tan` / `shipped_qty_tan` 列あり
-- [ ] 出荷予定画面が DB 優先
+- [x] `shipment_plans.order_id` に FK 制約
+- [x] `confirmed_qty_tan` / `shipped_qty_tan` 列あり
+- [x] 出荷予定画面が DB 優先
 
 ### 段階8 完了条件（段階9 着手前）
 
@@ -1202,6 +1202,7 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | 5 | `StockAllocation` JSON | `order_allocations` | [x] |
 | 6 | `DemoData::receivings()` | `receivings` + `receiving_lines` + 反明細 | [x] |
 | 6 | `GreigeRoll` / `ProductRoll` JSON | `greige_rolls` / `product_rolls` | [x] |
+| 7 | `ShipmentPlan` JSON / `seedDefaults()` | `shipment_plans` | [x] |
 | 8 | `DemoData::shipments()` | `shipments` + `shipment_roll_allocations` | [ ] |
 | 8 | `inbound_lots` | `product_rolls`（移行後廃止） | [ ] |
 | 9 | レシピ・単価・糸在庫 | 原価系テーブル | [ ] |
@@ -1209,4 +1210,4 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 
 ---
 
-*最終更新：* 段階番号を本線0〜10・拡張8a/8bに整理。段階6まで実装済み（2026-07）。次は段階7（`shipment_plans` FK + 反数列）。
+*最終更新：* 段階7まで実装済み（2026-07）。次は段階8（`shipments` + 出荷登録 DB 化）。

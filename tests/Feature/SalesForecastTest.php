@@ -8,20 +8,29 @@ use App\Support\DemoData;
 use App\Support\DemoOverlay;
 use App\Support\SalesForecastLine;
 use App\Support\SalesForecastSnapshot;
-use App\Support\ShipmentPlan;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\ShipmentPlanSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SalesForecastTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(ShipmentPlanSeeder::class);
         DemoOverlay::clear();
         $this->resetJsonState('sales_forecast_lines.json');
         $this->resetJsonState('sales_forecast_snapshots.json');
         SalesForecastLine::clearCache();
         SalesForecastSnapshot::clearCache();
-        ShipmentPlan::clearCache();
     }
 
     private function resetJsonState(string $file): void

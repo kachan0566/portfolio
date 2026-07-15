@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\DemoData;
+use App\Models\Order;
 use App\Support\DemoState;
 use App\Support\ShipmentPlan;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +13,7 @@ class ShipmentPlanController extends Controller
 {
     public function create(int $order): View
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = Order::findForDisplay($order) ?? abort(404);
         $remaining = DemoState::orderRemaining($order);
         $existing = ShipmentPlan::forOrder($order);
 
@@ -26,7 +26,7 @@ class ShipmentPlanController extends Controller
 
     public function store(Request $request, int $order): RedirectResponse
     {
-        $target = DemoData::orders()->firstWhere('id', $order) ?? abort(404);
+        $target = Order::findForDisplay($order) ?? abort(404);
 
         $request->validate([
             'confirmed_qty_m' => ['required', 'numeric', 'min:0.01'],
@@ -51,7 +51,7 @@ class ShipmentPlanController extends Controller
             'planned_ship_date' => (string) $request->input('planned_ship_date'),
             'confirmed_qty_m' => $qty,
             'note' => (string) $request->input('note', ''),
-            'created_by' => '木村 勝也',
+            'created_by' => auth()->id(),
         ]);
 
         return redirect()->route('orders.show', $order)

@@ -4,13 +4,24 @@ namespace Tests\Feature;
 
 use App\Support\DemoData;
 use App\Support\DemoOverlay;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\ShipmentPlanSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class CostScreenTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(ShipmentPlanSeeder::class);
         DemoOverlay::clear();
     }
 
