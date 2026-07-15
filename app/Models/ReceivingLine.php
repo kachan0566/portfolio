@@ -52,4 +52,10 @@ class ReceivingLine extends Model
     {
         return $this->hasMany(ProductRoll::class);
     }
+
+    /** @return HasMany<ReceivingRollAmendment, $this> */
+    public function rollAmendments(): HasMany
+    {
+        return $this->hasMany(ReceivingRollAmendment::class)->orderByDesc('changed_at');
+    }
 }

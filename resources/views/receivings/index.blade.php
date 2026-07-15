@@ -45,6 +45,7 @@
                             <th>品番</th>
                             <th class="num">入荷数量</th>
                             <th>入荷日</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -54,6 +55,10 @@
                                 $poId = \App\Support\DemoData::purchaseOrders()->firstWhere('code', $r->po_code)?->id;
                                 $lineNo = $r->line_no ?? 1;
                                 $lineCount = $r->line_count ?? 1;
+                                $receivingLineId = $r->receiving_line_id ?? null;
+                                $canAmendRolls = $receivingLineId
+                                    && \App\Support\DemoData::usesReceivingDatabase()
+                                    && in_array($poType, [PurchaseOrderType::GREIGE, PurchaseOrderType::PRODUCT], true);
                             @endphp
                             <tr>
                                 <td class="code-cell">{{ $r->code }}</td>
@@ -86,6 +91,11 @@
                                     </span>
                                 </td>
                                 <td class="mono t-muted">{{ $r->date }}</td>
+                                <td>
+                                    @if ($canAmendRolls)
+                                        <a href="{{ route('receiving-lines.show', $receivingLineId) }}" class="btn btn-secondary btn-sm">反修正</a>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
