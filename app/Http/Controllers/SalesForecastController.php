@@ -6,8 +6,7 @@ use App\Services\Sales\SalesForecastEngine;
 use App\Services\Sales\SalesRecognition;
 use App\Support\DemoData;
 use App\Support\QtyHelper;
-use App\Support\SalesForecastLine;
-use App\Support\SalesForecastSnapshot;
+use App\Models\SalesForecastLine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -57,7 +56,7 @@ class SalesForecastController extends Controller
         $target = DemoData::findProduct($product) ?? abort(404);
         $ym = $this->resolveYm($request);
 
-        SalesForecastLine::clearForProduct($product, $ym);
+        SalesForecastLine::clearDraftForProduct($product, $ym);
 
         return redirect()
             ->route('sales.forecast.show', ['product' => $product, 'ym' => $ym])
@@ -70,14 +69,15 @@ class SalesForecastController extends Controller
         $result = SalesForecastEngine::build($ym);
         $lines = SalesForecastEngine::snapshotLinePayloads($ym);
 
-        $snapshot = SalesForecastSnapshot::save([
-            'target_ym' => $ym,
-            'base_date' => date('Y-m-d'),
-            'created_by' => '木村 勝也',
-            'total_sales' => $result->total_sales,
-            'total_qty' => $result->total_qty,
-            'total_profit' => $result->total_profit,
-        ], $lines);
+        $snapshot = SalesForecastEngine::submitSnapshot(
+            $ym,
+            '木村 勝也',
+            date('Y-m-d'),
+            $result->total_sales,
+            $result->total_qty,
+            $result->total_profit,
+            $lines,
+        );
 
         return redirect()
             ->route('sales.index', ['tab' => 'forecast', 'ym' => $ym])

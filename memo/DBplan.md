@@ -779,7 +779,7 @@ erDiagram
 | 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | **済 2026-07** |
 | 8 | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` / `shipment_lot_consumptions` 廃止 | **済 2026-07** |
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` | **済 2026-07** |
-| 10 | `sales_forecasts`, `sales_forecast_lines` | **未** |
+| 10 | `sales_forecasts`, `sales_forecast_lines` | **済 2026-07** |
 
 
 ### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）
@@ -856,4 +856,4 @@ erDiagram
 
 ---
 
-*最終更新：* 段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。次は段階10。
+*最終更新：* 段階10（済 2026-07）、段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。本線0→10 完了。

@@ -941,7 +941,7 @@ GROUP BY product_id;
 | `id`                | bigint PK              | NO   | auto    |                            |
 | `sales_forecast_id` | FK → `sales_forecasts` | NO   | cascade |                            |
 | `product_id`        | FK → `products`        | NO   |         |                            |
-| `source_type`       | string(32)             | NO   |         | `order` / `purchase_order` |
+| `source_type`       | string(32)             | NO   |         | `order` / `purchase_order` / `product`（提出版集計） |
 | `source_id`         | unsignedBigInteger     | NO   |         | 受注 or 発注 id                |
 | `forecast_qty_m`    | decimal(12,2)          | NO   | 0       | 見通しm                       |
 | `forecast_sales`    | unsignedInteger        | NO   | 0       | 見通し売上                      |
@@ -1015,7 +1015,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | 出荷予定を DB 正に | `ShipmentPlanSeeder` | 3 | **済 2026-07** |
 | 8 | `shipments`, `shipment_roll_allocations` | 出荷登録 DB 化、`inbound_lots` / `shipment_lot_consumptions` / 関連 JSON 廃止 | `ShipmentSeeder` | 3・6・**7** | **済 2026-07** |
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` | 原価画面、糸入荷・糸引当を DB 化 | `CostFoundationSeeder` | 1・2・6 | **済 2026-07** |
-| 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | 見通し移行 | 2・3 | **未** |
+| 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | `SalesForecastSeeder` | 2・3 | **済 2026-07** |
 
 
 ### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）
@@ -1127,6 +1127,7 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | `2026_07_15_000003_*_create_receiving_roll_amendments` | 8b | 反明細修正履歴 |
 | `2026_07_15_000004_*_drop_legacy_inbound_lot_tables` | 8 | 旧 `inbound_lots` / `shipment_lot_consumptions` 削除 |
 | `2026_07_16_000001_*_create_cost_and_yarn_tables` | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` |
+| `2026_07_17_000001_*_create_sales_forecast_tables` | 10 | `sales_forecasts` + `sales_forecast_lines`（下書き version=0 + 提出版） |
 
 各段階の Seeder はその段階のマイグレ直後に `DatabaseSeeder` へ `call` を追加する。取引系（3以降）は段階ごとに `php artisan migrate:fresh --seed` で通し確認する。
 
@@ -1162,6 +1163,14 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 - [x] 糸入荷で `receiving` + `consumption`（参照 `receiving_line`）が記録される
 - [x] `receiving_lines.qty_kg` は `ReceivingLineTotals::sync` のみ
 - [x] `yarn_allocations.json` / `yarn_stock_state.json` 参照廃止（DB 投入時）
+
+### 段階10 完了条件
+
+- [x] `sales_forecasts` + `sales_forecast_lines` 作成
+- [x] 下書き（`version=0`）で受注・発注別の手入力が保存・リセットできる
+- [x] 提出版（`version>=1`）が版管理され、差分比較が動く
+- [x] `sales_forecast_*.json` 参照廃止
+- [x] `SalesForecastTest` 通過
 
 ### 段階8a 完了条件（任意）
 
@@ -1235,8 +1244,8 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | 8 | `DemoData::shipments()` | `shipments` + `shipment_roll_allocations` | [x] |
 | 8 | `inbound_lots` | `product_rolls`（移行後廃止） | [x] |
 | 9 | レシピ・単価・糸在庫・糸引当 | 原価系テーブル + `yarn_allocations` | [x] |
-| 10 | 売上見通し JSON | `sales_forecasts` 系 | [ ] |
+| 10 | 売上見通し JSON | `sales_forecasts` 系 | [x] |
 
 ---
 
-*最終更新：* 段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。次は段階10。
+*最終更新：* 段階10（済 2026-07）、段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。本線0→10 完了。
