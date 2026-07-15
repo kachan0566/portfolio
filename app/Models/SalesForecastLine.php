@@ -20,6 +20,18 @@ class SalesForecastLine extends Model
         'note',
     ];
 
+    private static ?string $draftTargetYm = null;
+
+    private static ?int $draftForecastId = null;
+
+    /** @var array<string, float> */
+    private static array $draftQtyByKey = [];
+
+    private static bool $draftPreloaded = false;
+
+    /** @var array<int, bool> */
+    private static array $productHasDraftById = [];
+
     protected function casts(): array
     {
         return [
@@ -39,12 +51,68 @@ class SalesForecastLine extends Model
         return $this->belongsTo(Product::class);
     }
 
+    /** @internal テスト用にドラフト読み込みキャッシュを破棄する */
+    public static function resetDraftCacheForTesting(): void
+    {
+        self::invalidateDraftCache();
+    }
+
+    public static function invalidateDraftCache(): void
+    {
+        self::$draftTargetYm = null;
+        self::$draftForecastId = null;
+        self::$draftQtyByKey = [];
+        self::$draftPreloaded = false;
+        self::$productHasDraftById = [];
+    }
+
+    public static function preloadDraftForMonth(string $targetYm): void
+    {
+        if (self::$draftPreloaded && self::$draftTargetYm === $targetYm) {
+            return;
+        }
+
+        self::$draftTargetYm = $targetYm;
+        self::$draftQtyByKey = [];
+        self::$productHasDraftById = [];
+        $draft = SalesForecast::ensureDraft($targetYm);
+        self::$draftForecastId = $draft->id;
+        self::$draftPreloaded = true;
+
+        foreach (self::query()
+            ->where('sales_forecast_id', $draft->id)
+            ->whereIn('source_type', [
+                SalesForecastSourceType::ORDER,
+                SalesForecastSourceType::PURCHASE_ORDER,
+            ])
+            ->get(['product_id', 'source_type', 'source_id', 'forecast_qty_m']) as $line) {
+            $productId = (int) $line->product_id;
+            self::$draftQtyByKey[self::draftKey(
+                $productId,
+                (string) $line->source_type,
+                (int) $line->source_id,
+            )] = round((float) $line->forecast_qty_m, 2);
+            self::$productHasDraftById[$productId] = true;
+        }
+    }
+
+    public static function productHasSavedDraft(int $productId, string $targetYm): bool
+    {
+        self::preloadDraftForMonth($targetYm);
+
+        return self::$productHasDraftById[$productId] ?? false;
+    }
+
     public static function findDraftQty(
         int $productId,
         string $targetYm,
         string $sourceType,
         int $sourceId,
     ): ?float {
+        if (self::$draftPreloaded && self::$draftTargetYm === $targetYm) {
+            return self::$draftQtyByKey[self::draftKey($productId, $sourceType, $sourceId)] ?? null;
+        }
+
         $draft = SalesForecast::ensureDraft($targetYm);
 
         $line = self::query()
@@ -121,6 +189,8 @@ class SalesForecastLine extends Model
 
             $draft->update(['submitted_at' => $now]);
         });
+
+        self::invalidateDraftCache();
     }
 
     public static function clearDraftForProduct(int $productId, string $targetYm): void
@@ -142,5 +212,12 @@ class SalesForecastLine extends Model
                 SalesForecastSourceType::PURCHASE_ORDER,
             ])
             ->delete();
+
+        self::invalidateDraftCache();
+    }
+
+    private static function draftKey(int $productId, string $sourceType, int $sourceId): string
+    {
+        return "{$productId}|{$sourceType}|{$sourceId}";
     }
 }

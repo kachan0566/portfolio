@@ -37,6 +37,28 @@ class DemoData
     /** 生機品番の標準：1反あたりのメートル数 */
     public const METERS_PER_TAN_GREIGE = 100;
 
+    /** @var array<string, bool> */
+    private static array $databaseUsageCache = [];
+
+    /** @internal テスト用に DB 利用判定のキャッシュを破棄する */
+    public static function resetDatabaseUsageCacheForTesting(): void
+    {
+        self::$databaseUsageCache = [];
+    }
+
+    private static function cachedDatabaseUsage(string $key, callable $resolver): bool
+    {
+        if (array_key_exists($key, self::$databaseUsageCache)) {
+            return self::$databaseUsageCache[$key];
+        }
+
+        try {
+            return self::$databaseUsageCache[$key] = (bool) $resolver();
+        } catch (\Throwable) {
+            return self::$databaseUsageCache[$key] = false;
+        }
+    }
+
     /** カテゴリ一覧 */
     public static function categories(): Collection
     {
@@ -1040,33 +1062,21 @@ class DemoData
 
     public static function usesPurchaseOrderDatabase(): bool
     {
-        try {
-            return Schema::hasTable('purchase_orders')
-                && Schema::hasTable('purchase_order_lines')
-                && PurchaseOrder::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('purchase_orders', fn () => Schema::hasTable('purchase_orders')
+            && Schema::hasTable('purchase_order_lines')
+            && PurchaseOrder::query()->exists());
     }
 
     public static function usesOrderDatabase(): bool
     {
-        try {
-            return Schema::hasTable('orders')
-                && Order::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('orders', fn () => Schema::hasTable('orders')
+            && Order::query()->exists());
     }
 
     public static function usesOrderAllocationDatabase(): bool
     {
-        try {
-            return Schema::hasTable('order_allocations')
-                && self::usesOrderDatabase();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('order_allocations', fn () => Schema::hasTable('order_allocations')
+            && self::usesOrderDatabase());
     }
 
     public static function purchaseOrdersOfType(string $type): Collection
@@ -1299,73 +1309,45 @@ class DemoData
 
     public static function usesReceivingDatabase(): bool
     {
-        try {
-            return Schema::hasTable('receivings')
-                && Receiving::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('receivings', fn () => Schema::hasTable('receivings')
+            && Receiving::query()->exists());
     }
 
     public static function usesGreigeRollDatabase(): bool
     {
-        try {
-            return Schema::hasTable('greige_rolls')
-                && \App\Models\GreigeRoll::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('greige_rolls', fn () => Schema::hasTable('greige_rolls')
+            && \App\Models\GreigeRoll::query()->exists());
     }
 
     public static function usesProductRollDatabase(): bool
     {
-        try {
-            return Schema::hasTable('product_rolls')
-                && \App\Models\ProductRoll::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('product_rolls', fn () => Schema::hasTable('product_rolls')
+            && \App\Models\ProductRoll::query()->exists());
     }
 
     public static function usesShipmentDatabase(): bool
     {
-        try {
-            return Schema::hasTable('shipments')
-                && \App\Models\Shipment::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('shipments', fn () => Schema::hasTable('shipments')
+            && \App\Models\Shipment::query()->exists());
     }
 
     public static function usesRecipeDatabase(): bool
     {
-        try {
-            return Schema::hasTable('product_recipes')
-                && ProductRecipe::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('product_recipes', fn () => Schema::hasTable('product_recipes')
+            && ProductRecipe::query()->exists());
     }
 
     public static function usesMaterialPriceDatabase(): bool
     {
-        try {
-            return Schema::hasTable('material_prices')
-                && MaterialPrice::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('material_prices', fn () => Schema::hasTable('material_prices')
+            && MaterialPrice::query()->exists());
     }
 
     public static function usesYarnStockDatabase(): bool
     {
-        try {
-            return Schema::hasTable('yarn_stock_movements')
-                && Schema::hasTable('yarn_allocations')
-                && YarnStockMovement::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::cachedDatabaseUsage('yarn_stock', fn () => Schema::hasTable('yarn_stock_movements')
+            && Schema::hasTable('yarn_allocations')
+            && YarnStockMovement::query()->exists());
     }
 
     /** 在庫移動履歴 */

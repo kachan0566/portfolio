@@ -17,10 +17,10 @@ class SalesController extends Controller
         $search = ListSearch::params($request);
         $selectedProductId = $request->filled('product_id') ? (int) $request->query('product_id') : null;
 
-        $forecast = SalesForecastEngine::build($ym);
         $allByProduct = DemoData::monthlySalesByProduct($ym);
 
         if ($tab === 'forecast') {
+            $forecast = SalesForecastEngine::build($ym);
             $activeForecastLines = $forecast->lines->filter(
                 fn ($line) => $line->has_forecast_activity || $line->actual_qty > 0
             );
@@ -28,11 +28,24 @@ class SalesController extends Controller
                 'code_fields' => [],
                 'sku_fields' => ['sku'],
             ]);
+            $forecastTrend = SalesForecastEngine::forecastTrend($ym, $selectedProductId, forecast: $forecast);
+            $forecastComparison = SalesForecastEngine::buildComparison($ym, $forecast);
+            $costWarnings = DemoData::collectCostWarnings(
+                $forecast->lines->where('cost_calculable', false)->pluck('product_id'),
+                $ym
+            );
         } else {
+            $forecast = SalesForecastEngine::buildForActualTab($ym);
             $byProduct = ListSearch::filter($allByProduct, $search, [
                 'code_fields' => [],
                 'sku_fields' => ['sku', 'product'],
             ]);
+            $forecastTrend = collect();
+            $forecastComparison = null;
+            $costWarnings = DemoData::collectCostWarnings(
+                $allByProduct->where('cost_calculable', false)->pluck('product_id'),
+                $ym
+            );
         }
 
         $kpiRows = $selectedProductId !== null
@@ -66,12 +79,9 @@ class SalesController extends Controller
             'forecastRemainingQty' => (float) $forecastKpiRows->sum('forecast_remaining_qty'),
             'forecastRemainingSales' => (int) $forecastKpiRows->sum('forecast_remaining_sales'),
             'forecastRemainingProfit' => (int) $forecastCalculable->sum('forecast_remaining_profit'),
-            'forecastTrend' => SalesForecastEngine::forecastTrend($ym, $selectedProductId),
-            'forecastComparison' => SalesForecastEngine::buildComparison($ym),
-            'costWarnings' => DemoData::collectCostWarnings(
-                $forecast->lines->where('cost_calculable', false)->pluck('product_id'),
-                $ym
-            ),
+            'forecastTrend' => $forecastTrend,
+            'forecastComparison' => $forecastComparison,
+            'costWarnings' => $costWarnings,
             'ym' => $ym,
             'monthOptions' => DemoData::salesMonthOptions(),
             'selectedProductId' => $selectedProductId,
