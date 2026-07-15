@@ -12,7 +12,7 @@ use App\Models\ShipTo;
 use App\Models\Supplier;
 use App\Support\DemoData;
 use App\Support\DemoState;
-use App\Support\FabricTanRoll;
+use App\Services\Purchase\PurchaseOrderShowData;
 use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
 use App\Support\ListSearch;
@@ -75,22 +75,29 @@ class PurchaseOrderController extends Controller
             );
         }
 
-        $tanRolls = collect();
-        if ($purchase->type === PurchaseOrderType::GREIGE) {
-            $tanRolls = FabricTanRoll::forPo((int) $purchase->id)
-                ->filter(fn ($roll) => $roll->stage === FabricTanRoll::STAGE_GREIGE_WIP);
-        } elseif ($purchase->type === PurchaseOrderType::PRODUCT) {
-            $tanRolls = FabricTanRoll::forPo((int) $purchase->id)
-                ->filter(fn ($roll) => $roll->stage === FabricTanRoll::STAGE_PRODUCT);
-        }
+        $poModel = PurchaseOrder::query()
+            ->with([
+                'lines.material',
+                'lines.greige',
+                'lines.product.greige',
+            ])
+            ->find($purchase->id);
 
-        $poModel = PurchaseOrder::query()->with('lines.material', 'lines.greige', 'lines.product')->find($purchase->id);
-        $poLines = $poModel?->lineDisplayRows() ?? [];
+        $orderLines = $poModel !== null
+            ? PurchaseOrderShowData::orderLines($poModel)
+            : [];
+        $receivingBySku = $poModel !== null
+            ? PurchaseOrderShowData::receivingBySku($poModel)
+            : [];
+        $receivedDetailRows = $poModel !== null
+            ? PurchaseOrderShowData::receivedDetailRows($poModel)
+            : [];
 
         return view('purchases.show', [
             'purchase' => $purchase,
-            'poLines' => $poLines,
-            'tanRolls' => $tanRolls,
+            'orderLines' => $orderLines,
+            'receivingBySku' => $receivingBySku,
+            'receivedDetailRows' => $receivedDetailRows,
             'product' => $purchase->type === PurchaseOrderType::PRODUCT
                 ? DemoData::findProduct((int) $purchase->product_id)
                 : null,
@@ -99,9 +106,6 @@ class PurchaseOrderController extends Controller
                 PurchaseOrderType::PRODUCT => DemoData::findGreigeByProductId((int) $purchase->product_id),
                 default => null,
             },
-            'material' => $purchase->type === PurchaseOrderType::YARN
-                ? DemoData::findMaterial((int) $purchase->material_id)
-                : null,
             'greigeStock' => $purchase->type === PurchaseOrderType::PRODUCT
                 ? GreigeInventory::forPurchase($purchase->id)
                 : null,

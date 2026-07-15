@@ -116,6 +116,59 @@ class PurchaseOrderLine extends Model
         return max(0.0, $this->orderedQty() - $this->receivedQty());
     }
 
+    public function orderedTan(): float
+    {
+        $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
+
+        if ($type === PurchaseOrderType::YARN) {
+            return 0.0;
+        }
+
+        if ((float) ($this->qty_tan ?? 0) > 0) {
+            return (float) $this->qty_tan;
+        }
+
+        if ($type === PurchaseOrderType::GREIGE) {
+            return QtyHelper::tanCount(
+                (int) ($this->qty_meters ?? 0),
+                null,
+                true,
+                $this->greige?->sku,
+            );
+        }
+
+        return QtyHelper::tanCount((int) ($this->qty_meters ?? 0), (int) ($this->product_id ?? 0));
+    }
+
+    public function receivedTan(): float
+    {
+        $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
+
+        if ($type === PurchaseOrderType::YARN) {
+            return 0.0;
+        }
+
+        if ((float) ($this->received_qty_tan ?? 0) > 0) {
+            return (float) $this->received_qty_tan;
+        }
+
+        if ($type === PurchaseOrderType::GREIGE) {
+            return QtyHelper::tanCount(
+                (int) ($this->received_qty_m ?? 0),
+                null,
+                true,
+                $this->greige?->sku,
+            );
+        }
+
+        return QtyHelper::tanCount((int) ($this->received_qty_m ?? 0), (int) ($this->product_id ?? 0));
+    }
+
+    public function remainingTan(): float
+    {
+        return max(0.0, $this->orderedTan() - $this->receivedTan());
+    }
+
     public function metersPerTanValue(): int
     {
         $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
@@ -153,7 +206,6 @@ class PurchaseOrderLine extends Model
     public function toDisplayRow(): array
     {
         $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
-        $remaining = $this->remainingQty();
 
         $row = [
             'id' => $this->id,
@@ -161,22 +213,28 @@ class PurchaseOrderLine extends Model
             'sku' => $this->skuLabel(),
             'ordered' => $this->orderedQty(),
             'received' => $this->receivedQty(),
-            'remaining' => $remaining,
+            'remaining' => $this->remainingQty(),
+            'ordered_tan' => $this->orderedTan(),
+            'received_tan' => $this->receivedTan(),
+            'remaining_tan' => $this->remainingTan(),
         ];
 
         if ($type === PurchaseOrderType::YARN) {
             $row['unit'] = 'kg';
-            $row['name'] = $this->material?->name ?? '—';
+            $row['material_name'] = $this->material?->name ?? '—';
+            $row['ordered_kg'] = (float) ($this->qty_kg ?? 0);
         } elseif ($type === PurchaseOrderType::GREIGE) {
-            $row['unit'] = 'm';
-            $row['qty_tan'] = (float) ($this->qty_tan ?? 0);
-            $row['name'] = $this->greige?->name ?? '—';
+            $row['unit'] = '反';
+            $row['greige_sku'] = $this->greige?->sku ?? '—';
+            $row['greige_name'] = $this->greige?->name ?? '—';
             $row['meters_per_tan'] = $this->metersPerTanValue();
         } else {
-            $row['unit'] = 'm';
-            $row['qty_tan'] = (float) ($this->qty_tan ?? 0);
-            $row['name'] = $this->product?->sku ?? '—';
+            $row['unit'] = '反';
             $row['product_id'] = $this->product_id;
+            $row['product_sku'] = $this->product?->sku ?? '—';
+            $row['product_color'] = $this->product?->color ?? '';
+            $row['greige_sku'] = $this->product?->greige?->sku ?? '—';
+            $row['greige_name'] = $this->product?->greige?->name ?? '—';
             $row['meters_per_tan'] = $this->metersPerTanValue();
         }
 
