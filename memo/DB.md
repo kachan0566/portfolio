@@ -9,7 +9,9 @@
 | `DB.md`（本書） | 列名・型・制約・インデックス・移行手順          |
 
 
-**まだマイグレーションは書かない。** 壁打ちと学習用。実装するときは段階（後述）に沿って進める。
+テーブル定義は実装前の設計メモも含む。**実装するときは「実装段階とマイグレーション順」の本線（0→10）に沿う。** 拡張（8a・8b）は必要になったら本線8の後に追加する。
+
+**テーブルのつながり（ER図）** … [`DBplan.md` の「全体のつながり（図一覧）」](DBplan.md#全体のつながり図一覧) を参照（物の流れ + 領域別5枚）。
 
 ---
 
@@ -545,7 +547,7 @@ ORDER BY po.id, pol.line_no;
 | `line_no`                | unsignedSmallInteger        | NO   |         | 入荷内の行番号（1始まり）                    |
 | `qty_tan`                | decimal(8,2)                | NO   | 0       | 反数合計（表示用キャッシュ）                   |
 | `qty_m`                  | unsignedInteger             | NO   | 0       | 実測m合計（表示用キャッシュ）                  |
-| `qty_kg`                 | decimal(12,3)               | NO   | 0       | 糸kg合計（表示用キャッシュ。段階8まで直接セットも可）   |
+| `qty_kg`                 | decimal(12,3)               | NO   | 0       | 糸kg合計（表示用キャッシュ。段階9まで直接セットも可）   |
 | `created_at`             | timestamp                   | YES  |         |                                 |
 | `updated_at`             | timestamp                   | YES  |         |                                 |
 
@@ -564,7 +566,7 @@ ORDER BY po.id, pol.line_no;
 
 ---
 
-#### `receiving_roll_amendments`（入荷反明細の変更履歴）【将来・段階6c以降】
+#### `receiving_roll_amendments`（入荷反明細の変更履歴）【段階8b】
 
 反明細（`greige_rolls` / `product_rolls`）修正時に、**どの反が変わったか**と**変更前の入荷明細合計**を残す。
 
@@ -591,11 +593,11 @@ ORDER BY po.id, pol.line_no;
 
 **運用:** 合計・明細画面は常に **最新**（`receiving_lines.qty_*` + rolls）。履歴画面で amendments を表示。反修正 UI 実装時にマイグレーション追加。
 
-### 複数明細行 UI（段階6d・設計メモ）
+### 複数明細行 UI（段階8a・設計メモ）
 
 DB は複数行対応済み。UI 拡張時の方針：
 
-| 画面 | 現状（6b） | 将来（6d） |
+| 画面 | 現状（段階6） | 段階8a |
 | --- | --- | --- |
 | 入荷登録 | 発注1件 → `receiving_lines` 1行 | 発注明細行を複数選択 → `line_no` ごとに行作成 |
 | 入荷一覧 | 1入荷1行（`lines->first()`） | 明細行ごとに1行、またはヘッダ＋ネスト表示 |
@@ -694,7 +696,7 @@ WHERE status = 'in_stock'
 GROUP BY product_id;
 ```
 
-**移行元:** `ProductRoll` JSON / 旧 `inbound_lots`（段階7で置き換え）
+**移行元:** `ProductRoll` JSON / 旧 `inbound_lots`（段階8で置き換え）
 
 ---
 
@@ -953,24 +955,67 @@ m 単位のかたまり在庫。→ `product_rolls` へ移行後にテーブル�
 
 ## 実装段階とマイグレーション順
 
-`DBplan.md` の段階に対応する。**1段階 = 1〜2個のマイグレーションファイル** が目安。
+`DBplan.md` の段階に対応する。**1段階 = マイグレーション（1〜2本）→ Seeder → アプリ → 完了条件チェック** が目安。
+
+**進め方**
+
+- **本線（0→10）** は番号順にのみ進む。飛ばさない。
+- **拡張（8a・8b）** は本線8の後・本線9の前。省略可（省略時は 8→9 へ）。
+- 拡張の前倒し: 出荷前に反実測の訂正が必要 → **8b** を8より前へ。日常で1入荷に複数品目が必須 → **8a** を8より前へ。
+
+### 段階0（既存資産）
+
+Laravel 初期・在庫予測導入時に作成済み。本線1から触る前に把握しておく。
 
 
-| 段階  | マイグレーション内容                                                       | 依存             |
-| --- | ---------------------------------------------------------------- | -------------- |
-| 1   | `customers`, `suppliers`, `ship_tos`, `greiges` 作成               | なし             |
-| 2   | `products`, `materials` に列追加                                     | 段階1（`greiges`） |
-| 3   | `orders` 作成                                                      | 段階1・2          |
-| 4   | `purchase_orders` + `purchase_order_lines`                       | 段階1〜3          |
-| 5   | `order_allocations`                                              | 段階3・4          |
-| 6   | `receivings`, `receiving_lines`, `greige_rolls`, `product_rolls` | 段階4（**実装済み 2026-07**） |
-| 6b  | `receiving_lines.qty_*` 追加、入荷登録 DB 化、発注残 DB 読み取り                 | 段階6（**実装済み 2026-07**） |
-| 6c  | `receiving_roll_amendments` + 反明細修正 UI                        | 段階6b・将来       |
-| 6d  | 入荷・発注の複数明細行 UI（同一種別のみ）                                      | 段階6b・将来       |
-| 7   | `shipments`, `shipment_roll_allocations`、旧テーブルデータ移行              | 段階3・6b         |
-| 7b  | `shipment_plans.order_id` FK 化 + 反数列追加                           | 段階3            |
-| 8   | レシピ3 + `material_prices` + `yarn_stock_movements`                | 段階1・2          |
-| 9   | `sales_forecasts`, `sales_forecast_lines`                        | 段階2・3          |
+| テーブル | 作成元 | 本線での扱い |
+| --- | --- | --- |
+| `products`, `materials`, `users` | Laravel 初期 | 段階2で拡張（products/materials） |
+| `inbound_lots`, `shipment_plans`, `shipment_lot_consumptions` | `2026_06_29_*_create_inventory_forecast_tables` | 段階7〜8で整理・置き換え |
+| `forecast_manual_adjustments`, `month_end_forecasts`, `month_end_forecast_lines` | 同上 | 既存維持。段階10は `sales_forecasts` 系を追加 |
+
+
+### 本線ロードマップ
+
+
+| 段階 | マイグレーション | アプリ作業 | Seeder | 依存 | 状態 |
+| --- | --- | --- | --- | --- | --- |
+| 0 | （上表・既存） | 現状維持 | — | Laravel 初期 | **済** |
+| 1 | `customers`, `suppliers`, `ship_tos`, `greiges` | マスタ画面を DB 優先に | `MasterFoundationSeeder` | 0 | **済 2026-07** |
+| 2 | `products`, `materials` に列追加 | 同上 | `MasterCatalogSeeder` | 1 | **済 2026-07** |
+| 3 | `orders` | 受注 CRUD を DB 化 | `OrderSeeder` | 1・2 | **済 2026-07** |
+| 4 | `purchase_orders` + `purchase_order_lines` | 発注画面 DB 化 | `PurchaseOrderSeeder` | 1〜3 | **済 2026-07** |
+| 5 | `order_allocations` | `StockAllocation` JSON 廃止 | `OrderAllocationSeeder` | 3・4 | **済 2026-07** |
+| 6 | `receivings`, `receiving_lines`（**`qty_*` 初回から**）, `greige_rolls`, `product_rolls` | `ReceivingRegistrar`, `ReceivingLineTotals::sync`, `PurchaseOrderLineReceiver`, 発注残 DB 優先, 入荷一覧（1明細運用） | `ReceivingSeeder` | 4 | **済 2026-07**（qty 列は追補マイグレあり・下表） |
+| 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | 出荷予定を DB 正に | 既存データ移行 | 3 | **未** |
+| 8 | `shipments`, `shipment_roll_allocations` | 出荷登録 DB 化、`inbound_lots` / `shipment_lot_consumptions` / 関連 JSON 廃止 | デモ移行 | 3・6・**7** | **未** |
+| 9 | レシピ3 + `material_prices` + `yarn_stock_movements` | 原価画面、糸入荷を movements に接続 | 原価系 | 1・2・6 | **未** |
+| 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | 見通し移行 | 2・3 | **未** |
+
+
+### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）
+
+
+| 段階 | 内容 | 依存 | デフォルト位置 |
+| --- | --- | --- | --- |
+| 8a | 入荷・発注の複数明細行 UI（同一種別のみ） | 6 | 本線8の直後 |
+| 8b | `receiving_roll_amendments` + 反明細修正 UI | 6・`ReceivingLineTotals` | 8a の直後（8a 省略時は8の直後） |
+
+
+**8b の注意:** マイグレーション単体禁止。反明細修正 UI と同じタイミングで実装する。
+
+### 旧番号との対応（移行用）
+
+
+| 旧 | 新 |
+| --- | --- |
+| 6b | 6（アプリ作業の一部） |
+| 7b | 7 |
+| 7（出荷実績） | 8 |
+| 6d | 8a |
+| 6c | 8b |
+| 8（糸・原価） | 9 |
+| 9（見通し） | 10 |
 
 
 ### 段階1のマイグレーション例（学習用）
@@ -1014,19 +1059,89 @@ Schema::table('products', function (Blueprint $table) {
 });
 ```
 
+### 段階6のマイグレーション例（学習用・理想形）
+
+`qty_*` は `receiving_lines` 作成時から含める（既存環境は `2026_07_11_*` で追補済み。巻き直さなくてよい）。
+
+```php
+Schema::create('receiving_lines', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('receiving_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('purchase_order_line_id')->constrained();
+    $table->unsignedSmallInteger('line_no');
+    $table->decimal('qty_tan', 8, 2)->default(0);
+    $table->unsignedInteger('qty_m')->default(0);
+    $table->decimal('qty_kg', 12, 3)->default(0);
+    $table->timestamps();
+    $table->unique(['receiving_id', 'line_no']);
+});
+```
+
 ---
 
-## シーダー方針
+## マイグレーションファイル対応表
+
+理想段階と、現リポジトリのファイルの対応。理想と異なる分割は **ドキュメント注記のみ**（既存マイグレは巻き直さない）。
 
 
-| 段階  | Seeder              | データ源                             |
-| --- | ------------------- | -------------------------------- |
-| 1   | `CustomerSeeder` など | `DemoData::customers()` 等を配列から投入 |
-| 2   | `ProductSeeder` 更新  | `greige_sku` → `greige_id` 解決    |
-| 3以降 | 取引系                 | JSON / `DemoData` から変換スクリプト      |
+| マイグレーションファイル | 理想段階 | 備考 |
+| --- | --- | --- |
+| `2026_06_09_*_create_products_table` | 0 | Laravel 初期 |
+| `2026_06_14_*_create_materials_table` | 0 | 同上 |
+| `2026_06_29_*_create_inventory_forecast_tables` | 0 | `inbound_lots`, `shipment_plans` 等 |
+| `2026_07_07_*_create_master_foundation_tables` | 1 | |
+| `2026_07_08_000001_*_catalog` | 2 | |
+| `2026_07_08_000002_*_orders` | 3 | |
+| `2026_07_08_000004_*_purchase_orders` | 4 | |
+| `2026_07_08_000006_*_purchase_order_lines` | 4 | 理想は4で1ファイルに統合可 |
+| `2026_07_08_000005_*_order_allocations` | 5 | |
+| `2026_07_08_000007_*_receiving_and_roll` | 6 | |
+| `2026_07_11_*_add_qty_columns_to_receiving_lines` | 6 | 理想は 000007 に含む |
+| （未作成）`shipment_plans` 拡張 | 7 | FK + 反数列 |
+| （未作成）`shipments` 系 | 8 | |
 
+各段階の Seeder はその段階のマイグレ直後に `DatabaseSeeder` へ `call` を追加する。取引系（3以降）は段階ごとに `php artisan migrate:fresh --seed` で通し確認する。
 
-**コツ:** まずマスタだけ DB に入れ、画面が動くことを確認してから受注・発注へ進む。
+---
+
+## 段階ごとの完了条件
+
+共通: マイグレーション up/down 確認、Seeder でデモ再現、該当画面が DB 優先、Feature テスト 1本以上、移行チェックリスト該当行を [x]。
+
+### 段階6 完了条件（段階7 着手前）
+
+- [x] `receiving_lines` に `qty_tan` / `qty_m` / `qty_kg`（B案キャッシュ）
+- [x] `ReceivingLineTotals::sync` + `PurchaseOrderLineReceiver`（発注明細 `received_qty_*` 同期）
+- [x] `ReceivingRegistrar` による入荷登録 DB 化（1明細・現 UI）
+- [x] `DemoState::effectiveReceivedQty` / `poRemaining` が DB 優先
+- [x] 入荷一覧が `receiving_lines.qty_*` を表示
+
+### 段階7 完了条件（段階8 着手前）
+
+- [ ] `shipment_plans.order_id` に FK 制約
+- [ ] `confirmed_qty_tan` / `shipped_qty_tan` 列あり
+- [ ] 出荷予定画面が DB 優先
+
+### 段階8 完了条件（段階9 着手前）
+
+- [ ] `shipments` + `shipment_roll_allocations` 作成
+- [ ] 出荷登録が DB 化
+- [ ] `inbound_lots` / `shipment_lot_consumptions` 参照廃止
+
+### 段階9 完了条件（段階10 着手前）
+
+- [ ] レシピ3 + `material_prices` + `yarn_stock_movements`
+- [ ] 糸入荷が `yarn_stock_movements` に記録（`qty_kg` 暫定から脱却）
+
+### 段階8a 完了条件（任意）
+
+- [ ] 1入荷に複数 `receiving_lines` 登録可
+- [ ] 発注・入荷・一覧が明細行単位表示
+
+### 段階8b 完了条件（任意）
+
+- [ ] 反明細修正 UI あり
+- [ ] 修正時に `receiving_roll_amendments` へ履歴、合計は `qty_*` 再同期
 
 ---
 
@@ -1053,27 +1168,19 @@ Schema::table('products', function (Blueprint $table) {
 ### Q. 入荷の複数品目はどう扱う？
 
 - **DB**は対応済み：`receivings` 1件に `receiving_lines` 複数行（`(receiving_id, line_no)` ユニーク）
-- **アプリ（段階6b）**は 1入荷1明細行（`line_no = 1`）で運用。一覧も `lines->first()` 表示
-- **段階6d（将来）**で入荷登録・一覧を明細行単位に拡張。発注の複数明細行 UI（段階6d）とセット
+- **アプリ（段階6）**は 1入荷1明細行（`line_no = 1`）で運用。一覧も `lines->first()` 表示
+- **段階8a**で入荷登録・一覧を明細行単位に拡張。発注の複数明細行 UI とセット
 - **非対応:** 1入荷に糸＋製品など **種別の混在**（1発注＝同一 `purchase_orders.type` のみ）
 
 ### Q. `receiving_lines.qty_*` と rolls の関係は？
 
 - rolls / movements が **在庫の正**
 - `qty_*` は **一覧・明細用キャッシュ**（`ReceivingLineTotals::sync` で自動更新。手入力しない）
-- 反明細修正時は **最新を表示**し、変更内容は `receiving_roll_amendments` に履歴として残す（段階6c）
+- 反明細修正時は **最新を表示**し、変更内容は `receiving_roll_amendments` に履歴として残す（段階8b）
 
----
+### Q. 8a/8b を飛ばして段階9に進んでよい？
 
-## 段階6b 完了条件（段階7着手前）
-
-- [x] `receiving_lines` に `qty_tan` / `qty_m` / `qty_kg`（B案キャッシュ）
-- [x] `ReceivingLineTotals::sync` + `PurchaseOrderLineReceiver`（発注明細 `received_qty_*` 同期）
-- [x] `ReceivingRegistrar` による入荷登録 DB 化（1明細・現 UI）
-- [x] `DemoState::effectiveReceivedQty` / `poRemaining` が DB 優先
-- [x] 入荷一覧が `receiving_lines.qty_*` を表示
-- [ ] 糸入荷の正は段階8の `yarn_stock_movements` まで `qty_kg` キャッシュで暫定
-- [ ] 変更履歴・複数明細 UI は段階6c / 6d
+よい。本線は 8→9。8a/8b は運用が必要になったら戻って実装する。
 
 ---
 
@@ -1081,22 +1188,25 @@ Schema::table('products', function (Blueprint $table) {
 
 実装時に1行ずつ確認する。
 
-- [ ] `DemoData::customers()` → `customers`
-- [ ] `DemoData::suppliers()` → `suppliers`
-- [ ] `DemoData::shipTos()` → `ship_tos`
-- [ ] `DemoData::greiges()` → `greiges`
-- [ ] `DemoData::products()` → `products`（`greige_id` 変換）
-- [ ] `DemoData::materials()` → `materials`
-- [x] `DemoData::orders()` → `orders`
-- [x] `DemoData::purchaseOrders()` → `purchase_orders` + `purchase_order_lines`（旧 子3テーブルは統合済み）
-- [x] `StockAllocation` JSON → `order_allocations`
-- [x] `DemoData::receivings()` → `receivings` + `receiving_lines` + 反明細
-- [x] `GreigeRoll` / `ProductRoll` JSON → `greige_rolls` / `product_rolls`
-- [ ] `DemoData::shipments()` → `shipments` + `shipment_roll_allocations`
-- [ ] `inbound_lots` → `product_rolls`（段階7）
-- [ ] レシピ・単価・糸在庫 → 原価系テーブル
-- [ ] 売上見通し JSON → `sales_forecasts` 系
+
+| 段階 | 移行元 | 移行先 | 状態 |
+| --- | --- | --- | --- |
+| 1 | `DemoData::customers()` | `customers` | [ ] |
+| 1 | `DemoData::suppliers()` | `suppliers` | [ ] |
+| 1 | `DemoData::shipTos()` | `ship_tos` | [ ] |
+| 1 | `DemoData::greiges()` | `greiges` | [ ] |
+| 2 | `DemoData::products()` | `products`（`greige_id` 変換） | [ ] |
+| 2 | `DemoData::materials()` | `materials` | [ ] |
+| 3 | `DemoData::orders()` | `orders` | [x] |
+| 4 | `DemoData::purchaseOrders()` | `purchase_orders` + `purchase_order_lines` | [x] |
+| 5 | `StockAllocation` JSON | `order_allocations` | [x] |
+| 6 | `DemoData::receivings()` | `receivings` + `receiving_lines` + 反明細 | [x] |
+| 6 | `GreigeRoll` / `ProductRoll` JSON | `greige_rolls` / `product_rolls` | [x] |
+| 8 | `DemoData::shipments()` | `shipments` + `shipment_roll_allocations` | [ ] |
+| 8 | `inbound_lots` | `product_rolls`（移行後廃止） | [ ] |
+| 9 | レシピ・単価・糸在庫 | 原価系テーブル | [ ] |
+| 10 | 売上見通し JSON | `sales_forecasts` 系 | [ ] |
 
 ---
 
-*最終更新：* 段階6b（B案 `qty_*` キャッシュ、入荷 DB 化、発注残 DB 読み取り）実装済み。変更履歴は段階6c、複数明細 UI は段階6d。糸の正は段階8まで `qty_kg` 暫定。
+*最終更新：* 段階番号を本線0〜10・拡張8a/8bに整理。段階6まで実装済み（2026-07）。次は段階7（`shipment_plans` FK + 反数列）。

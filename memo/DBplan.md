@@ -110,39 +110,216 @@
 
 
 
-## 全体のつながり（ER図）
+## 全体のつながり（図一覧）
+
+テーブルが多いので、**業務の流れに沿って6枚**に分けています。まず図1で全体像を掴み、詳細は図2〜6を見てください。
+
+列・型の詳細は [`DB.md`](DB.md) を参照。
+
+### 図1. 物の流れ（全体像）
+
+繊維の製造・販売の流れです。マスタ → 仕入れ → 在庫 → 販売の順に物が動きます。
+
+```mermaid
+flowchart LR
+    subgraph マスタ
+        M[糸 materials]
+        G[生機 greiges]
+        P[製品 products]
+        G -->|染色で色違い| P
+    end
+
+    subgraph 仕入れ
+        PO[発注 purchase_orders]
+        POL[発注明細 purchase_order_lines]
+        RC[入荷 receivings]
+        RL[入荷明細 receiving_lines]
+        PO --> POL --> RL
+        RC --> RL
+    end
+
+    subgraph 在庫
+        YM[糸在庫 yarn_stock_movements]
+        GR[生機反 greige_rolls]
+        PR[製品反 product_rolls]
+    end
+
+    subgraph 販売
+        O[受注 orders]
+        OA[引当 order_allocations]
+        SP[出荷予定 shipment_plans]
+        SH[出荷 shipments]
+        O --> OA
+        O --> SP --> SH
+    end
+
+    M -->|糸発注| POL
+    G -->|生機発注| POL
+    P -->|製品発注| POL
+    RL -->|入荷登録| GR
+    RL -->|入荷登録| PR
+    RL -->|入荷登録| YM
+    GR -->|染色| PR
+    PR -->|出荷| SH
+    OA -.->|在庫 or 発注から確保| PR
+    OA -.->|未入荷分| PO
+```
+
+**ポイント**
+
+- **マスタ** … 品番の辞書（在庫数は持たない）
+- **発注 → 入荷** … 仕入れの記録
+- **反（rolls）** … 実際の在庫の単位（1行 = 物理的な1反）
+- **受注 → 引当 → 出荷** … お客様への販売
+
+---
+
+### 図2. マスタのつながり
+
+取引テーブルは除き、**品番の親子関係**だけに絞った図です。
 
 ```mermaid
 erDiagram
-    customers ||--o{ orders : "受注"
-    products ||--o{ orders : "品番"
-    greiges ||--o{ products : "親品番"
-    greiges ||--o{ greige_rolls : "生機反"
-    products ||--o{ product_rolls : "製品反"
-    greige_rolls ||--o{ product_rolls : "染色元"
-    suppliers ||--o{ purchase_orders : "発注先"
+    greiges ||--o{ products : "1生機→複数製品"
+    customers ||--o{ orders : "得意先"
+    products ||--o{ orders : "受注品番"
+
+    customers {
+        bigint id PK
+        string name
+    }
+    greiges {
+        bigint id PK
+        string sku
+    }
+    products {
+        bigint id PK
+        string sku
+        bigint greige_id FK
+    }
+    materials {
+        bigint id PK
+        string sku
+        string type
+    }
+    suppliers {
+        bigint id PK
+        string type
+    }
+    ship_tos {
+        bigint id PK
+        string type
+    }
+    orders {
+        bigint id PK
+        bigint customer_id FK
+        bigint product_id FK
+    }
+```
+
+| テーブル | 役割 | 主なつながり先 |
+| --- | --- | --- |
+| `customers` | お客さん | → `orders` |
+| `suppliers` | 仕入先 | → `purchase_orders` |
+| `ship_tos` | 納入先（工場・倉庫） | → `purchase_orders` |
+| `greiges` | 生機品番 | → `products`、発注・在庫 |
+| `products` | 製品品番 | ← `greiges`、→ 受注・在庫 |
+| `materials` | 糸・染料など | → 発注・レシピ・糸在庫 |
+
+---
+
+### 図3. 発注 → 入荷 → 在庫
+
+仕入れの流れだけに絞った図です。
+
+```mermaid
+erDiagram
+    suppliers ||--o{ purchase_orders : "仕入先"
     ship_tos ||--o{ purchase_orders : "納入先"
-    orders ||--o| purchase_orders : "生産意図"
+    orders ||--o| purchase_orders : "生産意図(任意)"
     purchase_orders ||--o{ purchase_order_lines : "明細"
-    materials ||--o{ purchase_order_lines : "糸品番"
-    greiges ||--o{ purchase_order_lines : "生機品番"
-    products ||--o{ purchase_order_lines : "製品品番"
-    orders ||--o{ order_allocations : "引当"
-    purchase_orders ||--o{ order_allocations : "発注引当"
-    receivings ||--o{ receiving_lines : "入荷明細"
+    materials ||--o{ purchase_order_lines : "糸発注時"
+    greiges ||--o{ purchase_order_lines : "生機発注時"
+    products ||--o{ purchase_order_lines : "製品発注時"
     purchase_order_lines ||--o{ receiving_lines : "入荷対象"
-    receiving_lines ||--o{ greige_rolls : "入荷登録"
-    receiving_lines ||--o{ product_rolls : "入荷登録"
-    orders ||--o{ shipment_plans : "出荷予定"
-    orders ||--o{ shipments : "出荷実績"
-    shipments ||--o{ shipment_roll_allocations : "反消費"
-    product_rolls ||--o{ shipment_roll_allocations : "出荷"
-    products ||--o| product_recipes : "染色レシピ"
-    greiges ||--o| greige_recipes : "織りレシピ"
-    greige_recipes ||--o{ greige_recipe_lines : "糸使用量"
-    materials ||--o{ material_prices : "月次単価"
+    receivings ||--o{ receiving_lines : "入荷ヘッダ"
+    receiving_lines ||--o{ greige_rolls : "生機反を登録"
+    receiving_lines ||--o{ product_rolls : "製品反を登録"
+    purchase_orders ||--o{ greige_rolls : "由来発注"
+    purchase_orders ||--o{ product_rolls : "由来発注"
+    greige_rolls ||--o{ product_rolls : "染色元(任意)"
     materials ||--o{ yarn_stock_movements : "糸入出庫"
 ```
+
+**覚え方**
+
+1. `purchase_orders` … 発注の「表紙」（種別: 糸 / 生機 / 製品）
+2. `purchase_order_lines` … 何を何量発注したか（明細行）
+3. `receivings` + `receiving_lines` … 実際に届いた記録
+4. `greige_rolls` / `product_rolls` / `yarn_stock_movements` … **在庫の正**（ここが実物）
+
+`purchase_orders.order_id` は「この発注はどの受注のためか」という**メモ**で、数量の引当（`order_allocations`）とは別物です。
+
+---
+
+### 図4. 受注 → 引当 → 出荷
+
+販売側だけに絞った図です。
+
+```mermaid
+erDiagram
+    customers ||--o{ orders : "得意先"
+    products ||--o{ orders : "品番"
+    orders ||--o{ order_allocations : "何反を確保したか"
+    products ||--o{ order_allocations : "製品"
+    purchase_orders ||--o{ order_allocations : "発注から引当(任意)"
+    orders ||--o{ shipment_plans : "出荷予定"
+    products ||--o{ shipment_plans : "品番"
+    orders ||--o{ shipments : "出荷実績"
+    products ||--o{ shipments : "品番"
+    shipments ||--o{ shipment_roll_allocations : "どの反を出したか"
+    product_rolls ||--o| shipment_roll_allocations : "1反は1回だけ出荷"
+```
+
+| テーブル | 何を記録するか |
+| --- | --- |
+| `orders` | お客様からの注文 |
+| `order_allocations` | 在庫 or 未入荷発注から、受注に何反割り当てたか |
+| `shipment_plans` | いつ・何反出す予定か |
+| `shipments` | 実際に出荷した記録 |
+| `shipment_roll_allocations` | 出荷した**製品反**を1本ずつ紐づけ |
+
+---
+
+### 図5. 原価・レシピ
+
+```mermaid
+erDiagram
+    products ||--o| product_recipes : "1製品1レシピ"
+    greiges ||--o| greige_recipes : "1生機1レシピ"
+    greige_recipes ||--o{ greige_recipe_lines : "糸の使用量"
+    materials ||--o{ greige_recipe_lines : "使う糸"
+    materials ||--o{ material_prices : "月ごとの単価"
+```
+
+- `product_recipes` … 染色・加工の費用（円/m）
+- `greige_recipes` + `greige_recipe_lines` … 織るのに必要な糸（kg/m）
+- `material_prices` … 糸の月次単価
+
+---
+
+### 図6. 予測・見通し
+
+```mermaid
+erDiagram
+    products ||--o{ forecast_manual_adjustments : "手動調整"
+    products ||--o{ month_end_forecast_lines : "月末在庫予測"
+    month_end_forecasts ||--o{ month_end_forecast_lines : "明細"
+    sales_forecasts ||--o{ sales_forecast_lines : "売上見通し"
+    products ||--o{ sales_forecast_lines : "品番"
+```
+
+`sales_forecast_lines` の `source_type` / `source_id` は、受注 or 発注を**文字列 + ID で参照**する形式（外部キー制約なし）です。
 
 
 
@@ -339,7 +516,7 @@ erDiagram
 
 種別は紐づく `purchase_order_lines` と親 `purchase_orders.type` から導出。1入荷に複数行可（同一種別のみ）。糸＋製品の混在はしない。
 
-**将来:** `receiving_roll_amendments`（反明細修正履歴・段階6c）、複数明細行 UI（段階6d）
+**将来（拡張）:** `receiving_roll_amendments`（反明細修正履歴・段階8b）、複数明細行 UI（段階8a）
 
 ---
 
@@ -395,7 +572,7 @@ erDiagram
 
 - **何のため？** （旧設計）m 単位のかたまり在庫。部分消費前提
 - **移行先** → `product_rolls`（1物理反＝1行、丸ごと出荷）
-- **注意** 既存マイグレーション・JSON ブートストラップは段階7で置き換え
+- **注意** 既存マイグレーション・JSON ブートストラップは段階8で置き換え
 
 ---
 
@@ -580,23 +757,52 @@ erDiagram
 
 ## 実装の優先順位（段階）
 
-いきなり全テーブルは作らない。壁打ちと学習しやすい順：
+いきなり全テーブルは作らない。壁打ちと学習しやすい順。マイグレーション詳細・完了条件は [`DB.md`](DB.md) の「実装段階とマイグレーション順」を参照。
+
+**進め方**
+
+- **本線（0→10）** は番号順にのみ進む。飛ばさない。
+- **拡張（8a・8b）** は本線8の後・本線9の前。省略可（省略時は 8→9 へ）。
+
+### 本線ロードマップ
 
 
-| 段階  | テーブル                                                             | 理由               |
-| --- | ---------------------------------------------------------------- | ---------------- |
-| 1   | `customers`, `suppliers`, `ship_tos`, `greiges`                  | マスタの土台。依存が少ない    |
-| 2   | `products`, `materials` 拡張                                       | 既存テーブルに列追加       |
-| 3   | `orders`（`order_qty_mode` 含む）                                    | 受注画面が中心          |
-| 4   | `purchase_orders` + `purchase_order_lines`                       | 発注画面・受注との紐づけ（**実装済み 2026-07**） |
-| 5   | `order_allocations`                                              | 引当画面。JSON置き換え    |
-| 6   | `receivings`, `receiving_lines`, `greige_rolls`, `product_rolls` | 入荷・反明細（**実装済み 2026-07**） |
-| 6b  | `receiving_lines.qty_*`、入荷 DB 化、発注残 DB 読み取り | **実装済み 2026-07** |
-| 6c  | `receiving_roll_amendments` + 反明細修正 UI | 将来 |
-| 6d  | 入荷・発注の複数明細行 UI | 将来 |
-| 7   | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` 廃止 | 段階6b 完了後 |
-| 8   | レシピ・単価・糸在庫                                                       | 原価画面             |
-| 9   | `sales_forecasts` 系                                              | 売上見通しの JSON 置き換え |
+| 段階 | 内容 | 状態 |
+| --- | --- | --- |
+| 0 | Laravel 初期テーブル・在庫予測系（`products`, `materials`, `inbound_lots`, `shipment_plans` 等） | **済** |
+| 1 | `customers`, `suppliers`, `ship_tos`, `greiges` | **済 2026-07** |
+| 2 | `products`, `materials` 拡張 | **済 2026-07** |
+| 3 | `orders`（`order_qty_mode` 含む） | **済 2026-07** |
+| 4 | `purchase_orders` + `purchase_order_lines` | **済 2026-07** |
+| 5 | `order_allocations`（`StockAllocation` JSON 廃止） | **済 2026-07** |
+| 6 | `receivings`, `receiving_lines`（`qty_*` 含む）, `greige_rolls`, `product_rolls`、入荷 DB 化・発注残 DB 優先 | **済 2026-07** |
+| 7 | `shipment_plans`：`order_id` FK + `confirmed_qty_tan` / `shipped_qty_tan` | **未** |
+| 8 | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` / `shipment_lot_consumptions` 廃止 | **未** |
+| 9 | レシピ3 + `material_prices` + `yarn_stock_movements` | **未** |
+| 10 | `sales_forecasts`, `sales_forecast_lines` | **未** |
+
+
+### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）
+
+
+| 段階 | 内容 | デフォルト位置 |
+| --- | --- | --- |
+| 8a | 入荷・発注の複数明細行 UI（同一種別のみ） | 本線8の直後 |
+| 8b | `receiving_roll_amendments` + 反明細修正 UI | 8a の直後（8a 省略時は8の直後） |
+
+
+### 旧番号との対応（移行用）
+
+
+| 旧 | 新 |
+| --- | --- |
+| 6b | 6（アプリ作業の一部） |
+| 7b | 7 |
+| 7（出荷実績） | 8 |
+| 6d | 8a |
+| 6c | 8b |
+| 8（糸・原価） | 9 |
+| 9（見通し） | 10 |
 
 
 ---
@@ -650,4 +856,4 @@ erDiagram
 
 ---
 
-*最終更新：段階6b（B案 qty キャッシュ、ReceivingRegistrar、発注残 DB 読み取り）実装済み。変更履歴は段階6c、複数明細 UI は段階6d。*
+*最終更新：* 段階番号を本線0〜10・拡張8a/8bに整理。段階6まで実装済み（2026-07）。次は段階7（`shipment_plans` FK + 反数列）。
