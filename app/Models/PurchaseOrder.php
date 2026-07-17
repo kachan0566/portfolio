@@ -160,6 +160,8 @@ class PurchaseOrder extends Model
             $row['yarn_requirements'] = DemoData::greigeYarnRequirements($sku, $row['qty_meters']);
             $row['manual_stage'] = DemoState::effectivePoStage((int) $this->id)
                 ?: PurchaseOrderStages::normalizeGreigeManualStage($detail?->stage);
+            $row['finish_date'] = $detail?->finish_date?->toDateString()
+                ?? $this->due_date?->toDateString();
         } else {
             $product = $detail?->product;
             $productId = (int) ($detail?->product_id ?? 0);
@@ -256,6 +258,8 @@ class PurchaseOrder extends Model
             $row['received'] = (int) ($line->received_qty_m ?? 0);
             $row['yarn_requirements'] = DemoData::greigeYarnRequirements($greigeSku, $row['qty_meters']);
             $row['manual_stage'] = PurchaseOrderStages::normalizeGreigeManualStage($line->stage);
+            $row['finish_date'] = $line->finish_date?->toDateString()
+                ?? $this->due_date?->toDateString();
         } else {
             $productId = (int) ($line->product_id ?? 0);
             $row['product_id'] = $productId;

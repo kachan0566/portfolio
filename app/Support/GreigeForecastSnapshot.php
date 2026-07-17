@@ -5,11 +5,11 @@ namespace App\Support;
 use Illuminate\Support\Collection;
 
 /**
- * 月末在庫予想の提出版スナップショット（デモ用 JSON）。
+ * 生機月末在庫予想の提出版スナップショット（デモ用 JSON）。
  */
-class ForecastSnapshot
+class GreigeForecastSnapshot
 {
-    private const FILE = 'month_end_forecast_snapshots.json';
+    private const FILE = 'greige_month_end_forecast_snapshots.json';
 
     /** @var list<array<string, mixed>>|null */
     private static ?array $cache = null;
@@ -56,18 +56,6 @@ class ForecastSnapshot
     public static function maxVersionForMonth(string $targetYm): int
     {
         return (int) self::forMonth($targetYm)->max('version');
-    }
-
-    public static function previousMonthSubmittedTotal(string $targetYm): ?int
-    {
-        $prev = \DateTimeImmutable::createFromFormat('Y-m', $targetYm);
-        if (! $prev) {
-            return null;
-        }
-        $prevYm = $prev->modify('-1 month')->format('Y-m');
-        $latest = self::latestForMonth($prevYm);
-
-        return $latest ? (int) ($latest->total_forecast_value ?? 0) : null;
     }
 
     /**

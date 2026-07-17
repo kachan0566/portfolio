@@ -93,13 +93,19 @@
                     </div>
                 </div>
 
-                @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT)
+                @if (in_array($purchase->type, [\App\Support\PurchaseOrderType::PRODUCT, \App\Support\PurchaseOrderType::GREIGE], true))
                     <div class="form-row">
                         <div class="field">
                             <label class="label" for="finish_date">入荷予定日</label>
                             <input class="input" type="date" id="finish_date" name="finish_date"
                                    value="{{ old('finish_date', $purchase->finish_date ?? '') }}">
-                            <p class="field-hint">月末在庫予想の入荷予定計算に使用します（納期とは別）。</p>
+                            <p class="field-hint">
+                                @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT)
+                                    月末在庫予想の入荷予定計算に使用します（納期とは別）。
+                                @else
+                                    染工場への到着予定日です（織工場との納期とは別）。
+                                @endif
+                            </p>
                         </div>
                         <div class="field" style="flex:1;">
                             <label class="label" for="arrival_memo">メモ</label>
@@ -112,7 +118,7 @@
                         <label class="label" for="arrival_memo">メモ</label>
                         <textarea class="textarea" id="arrival_memo" name="arrival_memo" rows="3"
                                   placeholder="例）入荷に関するメモ">{{ old('arrival_memo', $purchase->arrival_memo ?? '') }}</textarea>
-                        <p class="field-hint">糸・生機発注の入荷予定日は納期と同じです。納期を変更すると入荷予定日も連動します。</p>
+                        <p class="field-hint">糸発注の入荷予定日は納期と同じです。納期を変更すると入荷予定日も連動します。</p>
                     </div>
                 @endif
 

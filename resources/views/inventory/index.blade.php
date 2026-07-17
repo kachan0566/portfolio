@@ -73,20 +73,10 @@
                    style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'product' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
                     製品在庫
                 </a>
-                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'forecast', 'ym' => $forecastYm])) }}"
-                   class="btn btn-ghost btn-sm"
-                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'forecast' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
-                    月末在庫予想
-                </a>
-                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'long_term'])) }}"
-                   class="btn btn-ghost btn-sm"
-                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'long_term' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
-                    長期在庫
-                </a>
                 <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'greige'])) }}"
                    class="btn btn-ghost btn-sm"
                    style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'greige' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
-                    生機在庫（染工場）
+                    生機在庫
                     @if ($greigeEntries->isNotEmpty())
                         <span class="badge badge-amber badge--plain" style="margin-left:4px;">{{ $greigeEntries->count() }}</span>
                     @endif
@@ -96,12 +86,36 @@
                    style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'yarn' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
                     糸在庫
                 </a>
+                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'forecast_combined', 'ym' => $forecastYm])) }}"
+                   class="btn btn-ghost btn-sm"
+                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'forecast_combined' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
+                    月末予想在庫
+                </a>
+                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'forecast', 'ym' => $forecastYm])) }}"
+                   class="btn btn-ghost btn-sm"
+                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'forecast' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
+                    製品月末予想
+                </a>
+                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'greige_forecast', 'ym' => $forecastYm])) }}"
+                   class="btn btn-ghost btn-sm"
+                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'greige_forecast' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
+                    生機月末予想
+                </a>
+                <a href="{{ route('inventory.index', array_merge($search, ['tab' => 'long_term'])) }}"
+                   class="btn btn-ghost btn-sm"
+                   style="border-radius:6px 6px 0 0;margin-bottom:-1px;{{ $tab === 'long_term' ? 'border:1px solid var(--border);border-bottom-color:var(--surface);background:var(--surface);font-weight:600;' : 'border:1px solid transparent;' }}">
+                    長期在庫
+                </a>
             </div>
         </div>
     </div>
 
-    @if ($tab === 'forecast')
+    @if ($tab === 'forecast_combined')
+        @include('inventory.partials.combined-forecast-tab')
+    @elseif ($tab === 'forecast')
         @include('inventory.partials.forecast-tab')
+    @elseif ($tab === 'greige_forecast')
+        @include('inventory.partials.greige-forecast-tab')
     @elseif ($tab === 'long_term')
         @include('inventory.partials.long-term-tab')
     @elseif ($tab === 'yarn')

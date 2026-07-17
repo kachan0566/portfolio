@@ -50,9 +50,9 @@ class InventoryForecastTest extends TestCase
         $response = $this->get(route('inventory.index', ['tab' => 'forecast', 'ym' => DemoData::CURRENT_YM]));
 
         $response->assertOk();
-        $response->assertSee('月末在庫予想', false);
-        $response->assertSee('品番別明細', false);
         $response->assertSee('提出版として保存', false);
+        $response->assertSee('手動調整の登録', false);
+        $response->assertSee('品番別明細', false);
         $response->assertSee('検索', false);
     }
 

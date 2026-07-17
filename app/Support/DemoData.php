@@ -917,6 +917,7 @@ class DemoData
                 'greige_sku' => 'KB-A', 'qty_tan' => 5.0, 'meters_per_tan' => 100, 'qty_meters' => 500,
                 'received' => 0,
                 'order_date' => '2026-06-18', 'due_date' => '2026-06-28',
+                'finish_date' => '2026-06-25',
             ],
             [
                 'id' => 5, 'code' => 'PO-G-2606-002', 'type' => PurchaseOrderType::GREIGE,
@@ -925,6 +926,7 @@ class DemoData
                 'greige_sku' => 'KB-T', 'qty_tan' => 4.0, 'meters_per_tan' => 100, 'qty_meters' => 400,
                 'received' => 200,
                 'order_date' => '2026-06-10', 'due_date' => '2026-06-22',
+                'finish_date' => '2026-06-18',
             ],
             [
                 'id' => 6, 'code' => 'PO-G-2606-003', 'type' => PurchaseOrderType::GREIGE,
@@ -933,6 +935,7 @@ class DemoData
                 'greige_sku' => 'KB-B', 'qty_tan' => 4.0, 'meters_per_tan' => 100, 'qty_meters' => 400,
                 'received' => 0,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-05',
+                'finish_date' => '2026-07-02',
             ],
             // --- 製品発注（受注連動） ---
             [
@@ -1150,6 +1153,7 @@ class DemoData
             $row['yarn_requirements'] = self::greigeYarnRequirements($row['sku'], $row['qty_meters']);
             $row['manual_stage'] = DemoState::effectivePoStage((int) $row['id'])
                 ?: PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null);
+            $row['finish_date'] = $row['finish_date'] ?? $row['due_date'] ?? null;
         } else {
             $product = self::findProduct((int) ($row['product_id'] ?? 0));
             $row['product_id'] = (int) ($row['product_id'] ?? 0);
@@ -1179,7 +1183,9 @@ class DemoData
     public static function expectedArrivalDate(object $po): string
     {
         return match ($po->type ?? PurchaseOrderType::PRODUCT) {
-            PurchaseOrderType::PRODUCT => (string) ($po->finish_date ?? ''),
+            PurchaseOrderType::PRODUCT, PurchaseOrderType::GREIGE => (string) (
+                $po->finish_date ?? $po->due_date ?? $po->eta ?? ''
+            ),
             default => (string) ($po->eta ?? $po->due_date ?? ''),
         };
     }

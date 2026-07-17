@@ -238,6 +238,7 @@ class PurchaseOrderController extends Controller
                         'qty_meters' => $line['qty_meters'],
                         'received_qty_tan' => 0,
                         'received_qty_m' => 0,
+                        'finish_date' => $request->input('due_date'),
                     ]);
                 } else {
                     PurchaseOrderLine::query()->create([
@@ -378,6 +379,9 @@ class PurchaseOrderController extends Controller
                 }
             }
             $this->syncLineStages($model, $request, PurchaseOrderType::GREIGE);
+            if ($request->filled('finish_date')) {
+                $model->primaryLine()?->update(['finish_date' => $request->input('finish_date')]);
+            }
         }
 
         if ($type === PurchaseOrderType::PRODUCT) {
@@ -424,12 +428,12 @@ class PurchaseOrderController extends Controller
         $date = $validated['expected_arrival_date'] ?? null;
         $model->update([
             'arrival_memo' => (string) ($validated['arrival_memo'] ?? ''),
-            'due_date' => $date !== null && $type !== PurchaseOrderType::PRODUCT
+            'due_date' => $date !== null && $type === PurchaseOrderType::YARN
                 ? $date
                 : $model->due_date,
         ]);
 
-        if ($date !== null && $type === PurchaseOrderType::PRODUCT) {
+        if ($date !== null && in_array($type, [PurchaseOrderType::PRODUCT, PurchaseOrderType::GREIGE], true)) {
             $model->primaryLine()?->update(['finish_date' => $date]);
         }
 
