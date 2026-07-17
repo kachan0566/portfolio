@@ -48,6 +48,26 @@ class PurchaseOrderTest extends TestCase
         $response->assertSee('染工場から6/16上がり連絡あり', false);
     }
 
+    public function test_patch_arrival_persists_greige_finish_date_without_changing_due_date(): void
+    {
+        $po = PurchaseOrder::query()->where('code', 'PO-G-2606-001')->first();
+        $this->assertNotNull($po);
+        $originalDueDate = $po->due_date?->toDateString();
+
+        $response = $this->patch(route('purchases.patch-arrival', $po->id), [
+            'expected_arrival_date' => '2026-06-24',
+            'arrival_memo' => '染工場入荷見込み',
+        ]);
+
+        $response->assertRedirect(route('purchases.index'));
+        $response->assertSessionHas('success');
+
+        $po->refresh()->load('lines');
+        $this->assertSame($originalDueDate, $po->due_date?->toDateString());
+        $this->assertSame('2026-06-24', $po->primaryLine()?->finish_date?->toDateString());
+        $this->assertSame('染工場入荷見込み', $po->arrival_memo);
+    }
+
     public function test_patch_arrival_persists_product_finish_date_and_memo(): void
     {
         $po = PurchaseOrder::query()->where('code', 'PO-2606-002')->first();
@@ -117,5 +137,30 @@ class PurchaseOrderTest extends TestCase
         $index = $this->get(route('purchases.index'));
         $index->assertSee('PO-G-');
         $index->assertSee('下書き');
+    }
+
+    public function test_update_greige_persists_finish_date_separately_from_due_date(): void
+    {
+        $po = PurchaseOrder::query()->where('code', 'PO-G-2606-003')->first();
+        $this->assertNotNull($po);
+        $line = $po->primaryLine();
+        $this->assertNotNull($line);
+
+        $response = $this->put(route('purchases.update', $po->id), [
+            'supplier_id' => $po->supplier_id,
+            'ship_to_id' => $po->ship_to_id,
+            'order_date' => $po->order_date?->toDateString(),
+            'due_date' => '2026-07-10',
+            'status' => $po->status,
+            'finish_date' => '2026-07-03',
+            'arrival_memo' => '入荷予定更新',
+        ]);
+
+        $response->assertRedirect(route('purchases.show', $po->id));
+
+        $po->refresh()->load('lines');
+        $this->assertSame('2026-07-10', $po->due_date?->toDateString());
+        $this->assertSame('2026-07-03', $po->primaryLine()?->finish_date?->toDateString());
+        $this->assertSame('入荷予定更新', $po->arrival_memo);
     }
 }

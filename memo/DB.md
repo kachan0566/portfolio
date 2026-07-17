@@ -108,10 +108,11 @@
 
 | 種別 | いまの保存先 | 備考 |
 | ---- | ------------ | ---- |
-| 糸・生機 | `purchase_orders.due_date` | 入荷予定日＝納期 |
+| 糸 | `purchase_orders.due_date` | 入荷予定日＝納期 |
+| 生機 | `purchase_orders.due_date`（納期） / `purchase_order_lines.finish_date`（入荷予定） | 製品と同様に分離 |
 | 製品 | `purchase_order_lines.finish_date` | 納期（`due_date`）とは別 |
 
-生機の入荷予定日と納期の分離（`finish_date` / `due_date`）は **生機月末予想フェーズで導入予定**。
+生機の入荷予定日は `finish_date` に保存する。未設定時は `due_date` をフォールバック表示する。
 
 #### 染工場の生機在庫（`greige_rolls`）
 
@@ -182,7 +183,8 @@
 
 | 種別   | 保存先                                       | 一覧の「入荷予定日」 |
 | ---- | ----------------------------------------- | ---------- |
-| 糸・生機 | `purchase_orders.due_date`                | 同上（生機の分離は将来） |
+| 糸 | `purchase_orders.due_date`                | 同上         |
+| 生機 | `purchase_order_lines.finish_date`（明細行ごと） | 同上（未設定時は `due_date`） |
 | 製品   | `purchase_order_lines.finish_date`（明細行ごと） | 同上         |
 
 
@@ -499,7 +501,7 @@ ORDER BY po.id, pol.line_no;
 | `received_qty_tan`  | decimal(8,2)           | YES  | null    | 入荷済み反数                           |
 | `received_qty_m`    | unsignedInteger        | YES  | null    | 入荷済み実測m合計                        |
 | `stage`             | string(50)             | YES  | null    | 生機・製品の手動工程（`織編機投入済` / `染機投入済`）   |
-| `finish_date`       | date                   | YES  | null    | 製品：上がり予定日（一覧の入荷予定・在庫予想）          |
+| `finish_date`       | date                   | YES  | null    | 生機・製品：入荷予定日（一覧の入荷予定・在庫予想）          |
 | `contact_date`      | date                   | YES  | null    | 製品：連絡日                           |
 | `created_at`        | timestamp              | YES  |         |                                  |
 | `updated_at`        | timestamp              | YES  |         |                                  |

@@ -79,6 +79,7 @@ class PurchaseOrderSeeder extends Seeder
                         'received_qty_tan' => $receivedTan,
                         'received_qty_m' => $receivedM,
                         'stage' => PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null),
+                        'finish_date' => $row['finish_date'] ?? $row['due_date'] ?? null,
                     ]),
                 );
             } else {
