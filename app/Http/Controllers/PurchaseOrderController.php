@@ -10,6 +10,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\ShipTo;
 use App\Models\Supplier;
+use App\Services\Inventory\GreigeDyeInput;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Services\Purchase\PurchaseOrderShowData;
@@ -295,7 +296,7 @@ class PurchaseOrderController extends Controller
                     'line_no' => $line->line_no,
                     'sku' => $line->skuLabel(),
                     'stage_editable' => PurchaseOrderLineDisplay::manualStageEditable($poModel, $line),
-                    'manual_stage' => PurchaseOrderLineDisplay::effectiveManualStage($line),
+                    'manual_stage' => (string) ($line->stage ?? ''),
                     'current_stage' => PurchaseOrderLineDisplay::label($poModel, $line),
                 ];
             }
@@ -307,7 +308,7 @@ class PurchaseOrderController extends Controller
             'shipTos' => ShipTo::forPurchaseType($type),
             'statuses' => PurchaseOrderStatus::labelsFor($type),
             'manualStageEditable' => PurchaseOrderDisplay::manualStageEditable($purchase),
-            'manualStage' => PurchaseOrderDisplay::effectiveManualStage($purchase),
+            'manualStage' => (string) ($poModel?->primaryLine()?->stage ?? ''),
             'manualStageOptions' => PurchaseOrderStages::manualOptionsFor($type),
             'lineStageRows' => $lineStageRows,
             'lineStageOptions' => PurchaseOrderStages::manualOptionsFor($type),
@@ -381,17 +382,23 @@ class PurchaseOrderController extends Controller
 
         if ($type === PurchaseOrderType::PRODUCT) {
             $received = DemoState::effectiveReceivedQty($purchase, $target);
-            $productPatch = [];
-            if ($received <= 0 && $request->filled('stage')) {
-                $productPatch['stage'] = PurchaseOrderStages::normalizeProductManualStage(
-                    (string) $request->input('stage')
-                );
+            if ($received <= 0 && $request->has('stage')) {
+                $line = $model->primaryLine();
+                if ($line !== null) {
+                    $stageValue = $request->input('stage');
+                    $error = GreigeDyeInput::applyLineStageChange(
+                        $line,
+                        $stageValue !== null && $stageValue !== ''
+                            ? (string) $stageValue
+                            : null
+                    );
+                    if ($error !== null) {
+                        return back()->withInput()->withErrors(['stage' => $error]);
+                    }
+                }
             }
             if ($request->filled('finish_date')) {
-                $productPatch['finish_date'] = $request->input('finish_date');
-            }
-            if ($productPatch !== []) {
-                $model->primaryLine()?->update($productPatch);
+                $model->primaryLine()?->update(['finish_date' => $request->input('finish_date')]);
             }
             $this->syncLineStages($model, $request, PurchaseOrderType::PRODUCT);
         }
@@ -440,6 +447,9 @@ class PurchaseOrderController extends Controller
         $target = $this->findPurchase($purchase);
         if (($target->type ?? '') === PurchaseOrderType::GREIGE) {
             YarnInventory::releaseGreigePo($purchase);
+        }
+        if (($target->type ?? '') === PurchaseOrderType::PRODUCT) {
+            GreigeDyeInput::revertPurchaseOrder($purchase);
         }
 
         PurchaseOrder::query()->whereKey($purchase)->update([
@@ -527,10 +537,19 @@ class PurchaseOrderController extends Controller
                 ]);
             }
 
-            if ($type === PurchaseOrderType::PRODUCT && $stageValue !== null && $stageValue !== '') {
-                $line->update([
-                    'stage' => PurchaseOrderStages::normalizeProductManualStage((string) $stageValue),
-                ]);
+            if ($type === PurchaseOrderType::PRODUCT && array_key_exists((string) $lineId, $lineStages)) {
+                $stageValue = $lineStages[$lineId];
+                $error = GreigeDyeInput::applyLineStageChange(
+                    $line,
+                    $stageValue !== null && $stageValue !== ''
+                        ? (string) $stageValue
+                        : null
+                );
+                if ($error !== null) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "line_stages.{$lineId}" => $error,
+                    ]);
+                }
             }
         }
     }

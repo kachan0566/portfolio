@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\PurchaseOrderLine;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'greige_id',
     'purchase_order_id',
     'receiving_line_id',
+    'dyeing_purchase_order_line_id',
     'tan_qty',
     'actual_qty_m',
     'nominal_meters',
@@ -23,6 +25,8 @@ class GreigeRoll extends Model
 
     public const STATUS_PARTIALLY_CONSUMED = 'partially_consumed';
 
+    public const STATUS_IN_DYEING = 'in_dyeing';
+
     public const STATUS_CONSUMED = 'consumed';
 
     protected function casts(): array
@@ -31,6 +35,7 @@ class GreigeRoll extends Model
             'greige_id' => 'integer',
             'purchase_order_id' => 'integer',
             'receiving_line_id' => 'integer',
+            'dyeing_purchase_order_line_id' => 'integer',
             'tan_qty' => 'decimal:2',
             'actual_qty_m' => 'decimal:2',
             'nominal_meters' => 'integer',
@@ -56,6 +61,12 @@ class GreigeRoll extends Model
         return $this->belongsTo(ReceivingLine::class);
     }
 
+    /** @return BelongsTo<PurchaseOrderLine, $this> */
+    public function dyeingPurchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class, 'dyeing_purchase_order_line_id');
+    }
+
     /** @return array<string, mixed> */
     public function toSupportArray(): array
     {
@@ -65,6 +76,7 @@ class GreigeRoll extends Model
             'greige_sku' => $this->greige?->sku ?? '',
             'purchase_order_id' => $this->purchase_order_id,
             'receiving_id' => $this->receivingLine?->receiving_id,
+            'dyeing_purchase_order_line_id' => $this->dyeing_purchase_order_line_id,
             'tan_qty' => (float) $this->tan_qty,
             'actual_qty_m' => (float) $this->actual_qty_m,
             'nominal_meters' => (int) ($this->nominal_meters ?? 0),

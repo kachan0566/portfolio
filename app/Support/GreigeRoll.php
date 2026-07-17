@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\GreigeRoll as GreigeRollModel;
 use App\Models\PurchaseOrderLine;
 use App\Models\ReceivingLine;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
 
 /**
@@ -16,6 +17,8 @@ class GreigeRoll
     public const STATUS_IN_STOCK = 'in_stock';
 
     public const STATUS_PARTIALLY_CONSUMED = 'partially_consumed';
+
+    public const STATUS_IN_DYEING = 'in_dyeing';
 
     public const STATUS_CONSUMED = 'consumed';
 
@@ -70,6 +73,60 @@ class GreigeRoll
         return collect(self::all())
             ->filter(fn ($roll) => (string) ($roll['greige_sku'] ?? '') === $greigeSku
                 && in_array((string) ($roll['status'] ?? ''), [self::STATUS_IN_STOCK, self::STATUS_PARTIALLY_CONSUMED], true))
+            ->sortBy([
+                ['received_date', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->map(fn ($roll) => (object) $roll)
+            ->values();
+    }
+
+    /** @return Collection<int, object> */
+    public static function forDyeingLine(int $lineId): Collection
+    {
+        return collect(self::all())
+            ->filter(fn ($roll) => (int) ($roll['dyeing_purchase_order_line_id'] ?? 0) === $lineId
+                && (string) ($roll['status'] ?? '') === self::STATUS_IN_DYEING)
+            ->sortBy('id')
+            ->map(fn ($roll) => (object) $roll)
+            ->values();
+    }
+
+    /** @return Collection<int, object> */
+    public static function inDyeingForPurchaseOrder(int $purchaseOrderId): Collection
+    {
+        $lineIds = [];
+        if (Schema::hasTable('purchase_order_lines')) {
+            $lineIds = PurchaseOrderLine::query()
+                ->where('purchase_order_id', $purchaseOrderId)
+                ->pluck('id')
+                ->all();
+        }
+
+        return collect(self::all())
+            ->filter(function ($roll) use ($lineIds) {
+                if ((string) ($roll['status'] ?? '') !== self::STATUS_IN_DYEING) {
+                    return false;
+                }
+
+                $lineId = (int) ($roll['dyeing_purchase_order_line_id'] ?? 0);
+
+                return $lineId > 0 && in_array($lineId, $lineIds, true);
+            })
+            ->sortBy([
+                ['received_date', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->map(fn ($roll) => (object) $roll)
+            ->values();
+    }
+
+    /** @return Collection<int, object> */
+    public static function inDyeingForSku(string $greigeSku): Collection
+    {
+        return collect(self::all())
+            ->filter(fn ($roll) => (string) ($roll['greige_sku'] ?? '') === $greigeSku
+                && (string) ($roll['status'] ?? '') === self::STATUS_IN_DYEING)
             ->sortBy([
                 ['received_date', 'asc'],
                 ['id', 'asc'],
@@ -134,8 +191,9 @@ class GreigeRoll
                 $roll = GreigeRollModel::query()->create([
                 'code' => (string) ($attributes['code'] ?? ''),
                 'greige_id' => $greige?->id,
-                'purchase_order_id' => $attributes['purchase_order_id'] ?? null,
-                'receiving_line_id' => $receivingLineId,
+                    'purchase_order_id' => $attributes['purchase_order_id'] ?? null,
+                    'receiving_line_id' => $receivingLineId,
+                    'dyeing_purchase_order_line_id' => $attributes['dyeing_purchase_order_line_id'] ?? null,
                 'tan_qty' => QtyHelper::roundReceivingTan((float) ($attributes['tan_qty'] ?? 1.0)),
                 'actual_qty_m' => round((float) ($attributes['actual_qty_m'] ?? 0), 2),
                 'nominal_meters' => (int) ($attributes['nominal_meters'] ?? DemoData::METERS_PER_TAN_GREIGE),
@@ -180,7 +238,7 @@ class GreigeRoll
             }
 
             $payload = [];
-            foreach (['code', 'purchase_order_id', 'tan_qty', 'actual_qty_m', 'nominal_meters', 'status', 'received_date'] as $key) {
+            foreach (['code', 'purchase_order_id', 'tan_qty', 'actual_qty_m', 'nominal_meters', 'status', 'received_date', 'dyeing_purchase_order_line_id'] as $key) {
                 if (array_key_exists($key, $attributes)) {
                     $payload[$key] = $attributes[$key];
                 }
@@ -299,6 +357,9 @@ class GreigeRoll
             'greige_sku' => (string) ($roll['greige_sku'] ?? ''),
             'purchase_order_id' => isset($roll['purchase_order_id']) ? (int) $roll['purchase_order_id'] : null,
             'receiving_id' => isset($roll['receiving_id']) ? (int) $roll['receiving_id'] : null,
+            'dyeing_purchase_order_line_id' => isset($roll['dyeing_purchase_order_line_id'])
+                ? (int) $roll['dyeing_purchase_order_line_id']
+                : null,
             'tan_qty' => QtyHelper::roundReceivingTan((float) ($roll['tan_qty'] ?? 1.0)),
             'actual_qty_m' => round((float) ($roll['actual_qty_m'] ?? 0), 2),
             'nominal_meters' => (int) ($roll['nominal_meters'] ?? DemoData::METERS_PER_TAN_GREIGE),

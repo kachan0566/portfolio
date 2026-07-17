@@ -6,6 +6,7 @@ use App\Services\Fabric\TanRollRecorder;
 use App\Support\DemoData;
 use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
+use App\Support\GreigeRoll;
 use App\Support\QtyHelper;
 use Tests\TestCase;
 
@@ -39,6 +40,12 @@ class FabricTanRollTest extends TestCase
     {
         FabricTanRoll::replaceAll([]);
         TanRollRecorder::recordWeavingCompletion(5, 'KB-T', 2, 200, '2026-06-18');
+
+        foreach (GreigeRoll::inStockForSku('KB-T') as $roll) {
+            GreigeRoll::update((int) $roll->id, [
+                'status' => GreigeRoll::STATUS_IN_DYEING,
+            ]);
+        }
 
         $result = TanRollRecorder::recordDyeingCompletion(2, 3, '2026-06-16');
         $this->assertGreaterThan(0, $result['total_meters']);

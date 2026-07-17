@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Services\Inventory\GreigeDyeInput;
 use App\Support\DemoData;
 use App\Support\DemoOverlay;
 use App\Support\DemoState;
 use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
+use App\Support\GreigeRoll;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use App\Support\YarnInventory;
@@ -27,6 +29,9 @@ class InventoryTabTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        FabricTanRoll::resetBootstrap();
+        GreigeDyeInput::resetBootstrapForTesting();
+        GreigeRoll::resetCacheForTesting();
         $this->seed(MasterFoundationSeeder::class);
         $this->seed(MasterCatalogSeeder::class);
         $this->seed(OrderSeeder::class);
@@ -51,7 +56,8 @@ class InventoryTabTest extends TestCase
         $entries = GreigeInventory::entries();
 
         $this->assertTrue($entries->contains(fn ($e) => $e->po_code === 'PO-G-2606-002'));
-        $this->assertSame(200, GreigeInventory::totalMetersForSku('KB-T'));
+        // 染機投入済の既存明細へ bootstrap で生機が引当済みのため、入荷200mは在庫に残らない
+        $this->assertSame(0, GreigeInventory::totalMetersForSku('KB-T'));
     }
 
     public function test_yarn_inventory_shows_base_stock(): void
