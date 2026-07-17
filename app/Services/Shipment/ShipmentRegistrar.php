@@ -9,6 +9,12 @@ use App\Support\QtyHelper;
 use App\Support\ShipmentPlan;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * 出荷実績の登録と在庫減少の共通入口。
+ *
+ * 呼び出し元: ShipmentController（Blade 手入力）、将来の工場・倉庫向け API コントローラー。
+ * 設計メモ: memo/integration/factory-receiving.md（出荷連携は段階12予定）
+ */
 class ShipmentRegistrar
 {
     /**

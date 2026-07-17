@@ -2,6 +2,15 @@
 
 「何を書けばいいか」「どこまで書けば十分か」を、初心者向けに整理します。
 
+## このプロジェクトでの使い分け
+
+| 対象 | 書き方 | 例 |
+| --- | --- | --- |
+| **社内の Blade 画面**（フォーム・リダイレクト） | このファイルのテンプレート（JSON ではなくフォーム例） | [`purchases.patch-arrival-API.md`](purchases.patch-arrival-API.md) |
+| **将来の工場向け JSON API** | OpenAPI または同テンプレートの JSON 版。着手用メモは [`memo/integration/factory-receiving.md`](../integration/factory-receiving.md) | 未作成（段階11で追加） |
+
+社内画面用に OpenAPI は不要。工場連携を実装するときだけ、連携部分の仕様書を足す。
+
 ---
 
 ## 基本の型（テンプレート）

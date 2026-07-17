@@ -90,6 +90,8 @@
 
 ## 将来拡張
 
+連携の実装チェックリスト・着手順は [`memo/integration/factory-receiving.md`](../memo/integration/factory-receiving.md) を参照。
+
 ### 染工場・織工場システム連携
 
 | 現状 | 将来 |
