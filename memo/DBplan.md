@@ -780,6 +780,8 @@ erDiagram
 | 8 | `shipments`, `shipment_roll_allocations`、旧 `inbound_lots` / `shipment_lot_consumptions` 廃止 | **済 2026-07** |
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` | **済 2026-07** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | **済 2026-07** |
+| 11（将来） | 工場向け入荷 API・`ReceivingRegistrar` 共用・二重登録防止 | **未着手** → [`integration/factory-receiving.md`](integration/factory-receiving.md) |
+| 12（将来） | 工場向け出荷 API・`ShipmentRegistrar` 共用 | **未着手** |
 
 
 ### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）

@@ -1018,6 +1018,17 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | `SalesForecastSeeder` | 2・3 | **済 2026-07** |
 
 
+### 将来ロードマップ（本線10の後。未着手）
+
+工場システム連携は本線完了後に着手する。詳細は [`memo/integration/factory-receiving.md`](integration/factory-receiving.md)。
+
+
+| 段階 | マイグレーション / アプリ | 内容 | 依存 | 状態 |
+| --- | --- | --- | --- | --- |
+| 11 | `receivings` に `external_id`, `source_supplier_id`（ユニーク制約）等 | 工場向け入荷 API（`routes/api.php`）、認証、`ReceivingRegistrar` 共用、二重登録防止 | 6・4 | **未着手** |
+| 12 | （要検討） | 工場向け出荷 API、`ShipmentRegistrar` 共用 | 8・11 | **未着手** |
+
+
 ### 拡張ロードマップ（本線8の後・本線9の前。スキップ可）
 
 

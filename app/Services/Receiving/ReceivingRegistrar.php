@@ -13,6 +13,12 @@ use App\Support\PurchaseOrderType;
 use App\Support\StockAllocation;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * 入荷実績の登録と在庫反映の共通入口。
+ *
+ * 呼び出し元: ReceivingController（Blade 手入力）、将来の工場向け API コントローラー。
+ * 設計メモ: memo/integration/factory-receiving.md
+ */
 class ReceivingRegistrar
 {
     /**
