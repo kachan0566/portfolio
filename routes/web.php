@@ -79,6 +79,10 @@ Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory
 Route::get('/inventory/forecast/csv', [InventoryForecastController::class, 'exportCsv'])->name('inventory.forecast.csv');
 Route::post('/inventory/forecast/snapshot', [InventoryForecastController::class, 'storeSnapshot'])->name('inventory.forecast.snapshot');
 Route::post('/inventory/forecast/adjustments', [InventoryForecastController::class, 'storeAdjustment'])->name('inventory.forecast.adjustments');
+Route::get('/inventory/greige-forecast/csv', [InventoryForecastController::class, 'exportGreigeCsv'])->name('inventory.greige-forecast.csv');
+Route::post('/inventory/greige-forecast/snapshot', [InventoryForecastController::class, 'storeGreigeSnapshot'])->name('inventory.greige-forecast.snapshot');
+Route::post('/inventory/greige-forecast/adjustments', [InventoryForecastController::class, 'storeGreigeAdjustment'])->name('inventory.greige-forecast.adjustments');
+Route::post('/inventory/forecast-combined/snapshot', [InventoryForecastController::class, 'storeCombinedSnapshot'])->name('inventory.forecast-combined.snapshot');
 Route::get('/inventory/forecast/{product}', [InventoryForecastController::class, 'showProduct'])->name('inventory.forecast.show');
 Route::get('/inventory/long-term/{product}', [InventoryForecastController::class, 'longTermDetail'])->name('inventory.long-term.show');
 Route::post('/inventory/{product}/allocate', [InventoryController::class, 'allocate'])->name('inventory.allocate');

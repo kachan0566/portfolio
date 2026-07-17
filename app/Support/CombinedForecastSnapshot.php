@@ -5,11 +5,11 @@ namespace App\Support;
 use Illuminate\Support\Collection;
 
 /**
- * 月末在庫予想の提出版スナップショット（デモ用 JSON）。
+ * 製品＋生機の合算月末在庫予想スナップショット（デモ用 JSON）。
  */
-class ForecastSnapshot
+class CombinedForecastSnapshot
 {
-    private const FILE = 'month_end_forecast_snapshots.json';
+    private const FILE = 'combined_month_end_forecast_snapshots.json';
 
     /** @var list<array<string, mixed>>|null */
     private static ?array $cache = null;
@@ -58,34 +58,20 @@ class ForecastSnapshot
         return (int) self::forMonth($targetYm)->max('version');
     }
 
-    public static function previousMonthSubmittedTotal(string $targetYm): ?int
-    {
-        $prev = \DateTimeImmutable::createFromFormat('Y-m', $targetYm);
-        if (! $prev) {
-            return null;
-        }
-        $prevYm = $prev->modify('-1 month')->format('Y-m');
-        $latest = self::latestForMonth($prevYm);
-
-        return $latest ? (int) ($latest->total_forecast_value ?? 0) : null;
-    }
-
     /**
      * @param  array<string, mixed>  $header
-     * @param  list<array<string, mixed>>  $lines
      */
-    public static function save(array $header, array $lines): object
+    public static function save(array $header): object
     {
         $targetYm = (string) $header['target_ym'];
 
-        return self::saveWithVersion($header, $lines, self::maxVersionForMonth($targetYm) + 1);
+        return self::saveWithVersion($header, self::maxVersionForMonth($targetYm) + 1);
     }
 
     /**
      * @param  array<string, mixed>  $header
-     * @param  list<array<string, mixed>>  $lines
      */
-    public static function saveWithVersion(array $header, array $lines, int $version): object
+    public static function saveWithVersion(array $header, int $version): object
     {
         $snapshots = self::all();
         $snapshot = [
@@ -97,8 +83,11 @@ class ForecastSnapshot
             'submitted_at' => date('c'),
             'submission_status' => 'submitted',
             'total_forecast_value' => (int) ($header['total_forecast_value'] ?? 0),
-            'total_long_term_value' => (int) ($header['total_long_term_value'] ?? 0),
-            'lines' => $lines,
+            'total_current_stock_value' => (int) ($header['total_current_stock_value'] ?? 0),
+            'product_forecast_value' => (int) ($header['product_forecast_value'] ?? 0),
+            'greige_forecast_value' => (int) ($header['greige_forecast_value'] ?? 0),
+            'product_summary' => $header['product_summary'] ?? [],
+            'greige_summary' => $header['greige_summary'] ?? [],
         ];
 
         $snapshots[] = $snapshot;

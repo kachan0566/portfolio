@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Inventory\CombinedMonthEndForecastEngine;
+use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\AllocationConversion;
@@ -88,14 +90,18 @@ class InventoryController extends Controller
         );
 
         $tab = $request->query('tab', 'product');
-        if (! in_array($tab, ['product', 'forecast', 'long_term', 'greige', 'yarn'], true)) {
+        if (! in_array($tab, ['product', 'forecast_combined', 'forecast', 'greige_forecast', 'long_term', 'greige', 'yarn'], true)) {
             $tab = 'product';
         }
 
         $forecastYm = $this->resolveForecastYm($request);
+        $combinedForecast = $tab === 'forecast_combined' ? CombinedMonthEndForecastEngine::build($forecastYm) : null;
         $forecast = $tab === 'forecast' ? MonthEndForecastEngine::build($forecastYm) : null;
         $forecastLines = null;
         $forecastSummary = null;
+        $greigeForecast = $tab === 'greige_forecast' ? GreigeMonthEndForecastEngine::build($forecastYm) : null;
+        $greigeForecastLines = null;
+        $greigeForecastSummary = null;
 
         if ($forecast !== null) {
             $forecastLines = ListSearch::filter($forecast->lines, $search, [
@@ -112,6 +118,22 @@ class InventoryController extends Controller
                 },
             ]);
             $forecastSummary = MonthEndForecastEngine::summarizeLines($forecastLines, $forecastYm);
+        }
+
+        if ($greigeForecast !== null) {
+            $greigeForecastLines = ListSearch::filter($greigeForecast->lines, $search, [
+                'code_fields' => [],
+                'sku_fields' => ['greige_sku', 'sku'],
+                'status_resolver' => function ($line, $status) {
+                    return match ($status) {
+                        '正常' => $line->warnings === [],
+                        '原価未登録' => in_array('原価未登録', $line->warnings, true),
+                        '在庫不足予想' => $line->is_negative,
+                        default => false,
+                    };
+                },
+            ]);
+            $greigeForecastSummary = GreigeMonthEndForecastEngine::summarizeLines($greigeForecastLines, $forecastYm);
         }
 
         $longTerm = $tab === 'long_term' ? LongTermInventoryEngine::build() : null;
@@ -164,9 +186,13 @@ class InventoryController extends Controller
             'search' => $search,
             'forecastYm' => $forecastYm,
             'forecastMonthOptions' => DemoData::forecastMonthOptions(),
+            'combinedForecast' => $combinedForecast,
             'forecast' => $forecast,
             'forecastLines' => $forecastLines,
             'forecastSummary' => $forecastSummary,
+            'greigeForecast' => $greigeForecast,
+            'greigeForecastLines' => $greigeForecastLines,
+            'greigeForecastSummary' => $greigeForecastSummary,
             'longTerm' => $longTerm,
         ]);
     }
