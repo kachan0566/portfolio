@@ -34,9 +34,32 @@ class FabricTanRoll
             return;
         }
 
+        if (DemoData::usesGreigeRollDatabase() || DemoData::usesProductRollDatabase()) {
+            self::markBootstrappedFromDatabase();
+
+            return;
+        }
+
         self::$bootstrapping = true;
         \App\Services\Fabric\TanRollBootstrap::run();
         self::$bootstrapping = false;
+
+        self::writeBootstrapFlag(self::BOOTSTRAP_FLAG);
+    }
+
+    private static function markBootstrappedFromDatabase(): void
+    {
+        self::writeBootstrapFlag(self::BOOTSTRAP_FLAG);
+        self::writeBootstrapFlag(GreigeRoll::BOOTSTRAP_FLAG);
+        self::writeBootstrapFlag(ProductRoll::BOOTSTRAP_FLAG);
+    }
+
+    private static function writeBootstrapFlag(string $flagName): void
+    {
+        $flag = storage_path('app/'.$flagName);
+        if (is_file($flag)) {
+            return;
+        }
 
         $dir = dirname($flag);
         if (! is_dir($dir)) {

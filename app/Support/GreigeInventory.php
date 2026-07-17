@@ -24,6 +24,8 @@ class GreigeInventory
      */
     public static function entries(): Collection
     {
+        \App\Services\Inventory\GreigeDyeInput::bootstrapIfNeeded();
+
         return DemoData::purchaseOrders()
             ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::GREIGE)
             ->map(function ($po) {
@@ -34,15 +36,18 @@ class GreigeInventory
                     return null;
                 }
 
-                $rolls = GreigeRoll::forPo($poId)
-                    ->filter(fn ($roll) => in_array($roll->status, [
-                        GreigeRoll::STATUS_IN_STOCK,
-                        GreigeRoll::STATUS_PARTIALLY_CONSUMED,
-                    ], true));
+                $rolls = GreigeRoll::forPo($poId);
+                $stockRolls = $rolls->filter(fn ($roll) => in_array($roll->status, [
+                    GreigeRoll::STATUS_IN_STOCK,
+                    GreigeRoll::STATUS_PARTIALLY_CONSUMED,
+                ], true));
 
-                if ($rolls->isNotEmpty()) {
-                    $received = (int) round($rolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
-                    $rollCount = (float) $rolls->sum(fn ($roll) => (float) $roll->tan_qty);
+                if (DemoData::usesGreigeRollDatabase() && $rolls->isNotEmpty()) {
+                    $received = (int) round($stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
+                    $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
+                } elseif ($stockRolls->isNotEmpty()) {
+                    $received = (int) round($stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
+                    $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
                 } else {
                     $received = (int) floor(DemoState::effectiveReceivedQty($poId, $po));
                     if ($received <= 0) {

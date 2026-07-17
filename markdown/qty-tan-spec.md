@@ -36,7 +36,8 @@
 | キー | 生機品番 ＋ **生機発注**（PO） |
 | データ源 | `GreigeRoll`（反明細）があればそれを優先。なければ発注の入荷済み数量 |
 | 増えるタイミング | **生機発注への入荷処理**（織り上がり登録） |
-| 減るタイミング | **染色完了登録**（`TanRollRecorder::recordDyeingCompletion`）で製品反へ移動 |
+| 減るタイミング（在庫から外れる） | **製品発注を染機投入済にしたとき**（`GreigeDyeInput` → `in_dyeing`） |
+| 減るタイミング（消費） | **染色完了登録**（`TanRollRecorder::recordDyeingCompletion`）で `consumed` |
 | 画面 | 在庫一覧 **生機タブ** ＋ 発注詳細 |
 
 ### 発注工程との対応（表示のみ）
@@ -46,7 +47,8 @@
 | 画面の工程表示 | 在庫との関係 |
 | --- | --- |
 | 生機出荷済（染工場入荷開始） | 入荷済みならこのラベルになるが、在庫は **入荷記録** で増える |
-| 染機投入済（製品発注の手動工程） | 製品側の表示。生機在庫の減少は **染色完了登録** で行う |
+| 染機投入済（製品発注の手動工程） | 生機反を `in_dyeing` に移動（`GreigeDyeInput`）。生機在庫カウントから外れる |
+| 染色完了登録 | `in_dyeing` の反を `consumed` にし、製品反を生成 |
 
 ---
 
@@ -69,6 +71,7 @@
 | `app/Support/GreigeRoll.php` | 生機の物理反（1反 = 1レコード） |
 | `app/Support/ProductRoll.php` | 製品の物理反 |
 | `app/Support/GreigeInventory.php` | 生機在庫一覧の組み立て（入荷ベース） |
+| `app/Services/Inventory/GreigeDyeInput.php` | 染機投入に連動した生機反の `in_dyeing` 移動 |
 | `app/Services/Fabric/TanRollRecorder.php` | 織り上がり・染め上がりの反登録 |
 | `app/Support/DemoState.php` | 発注の手動工程オーバーレイ・デモ用染色移動 |
 | `app/Support/PurchaseOrderDisplay.php` | 発注の工程表示ラベル |

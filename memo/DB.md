@@ -50,7 +50,7 @@
 | マスタ            | 在庫列      | 実際の在庫の出どころ                              |
 | -------------- | -------- | --------------------------------------- |
 | `products`     | **持たない** | `product_rolls`（`status = in_stock`）の合計 |
-| `greiges`      | **持たない** | `greige_rolls`（在庫あり status）の合計          |
+| `greiges`      | **持たない** | `greige_rolls`（`in_stock` / `partially_consumed`）の合計 |
 | `materials`（糸） | **持たない** | `yarn_stock_movements` の合計              |
 
 
@@ -104,7 +104,27 @@
 
 分納判定: `status = partial` または `received_qty < ordered_qty`（種別ごとの数量列で比較）。
 
-入荷予定日の UI は **行ごと1入力のまま**（糸・生機＝`due_date`、製品＝`finish_date`）。工程別の予定日入力画面は作らない。
+入荷予定日の UI は **行ごと1入力のまま**。工程別の予定日入力画面は作らない。
+
+| 種別 | いまの保存先 | 備考 |
+| ---- | ------------ | ---- |
+| 糸・生機 | `purchase_orders.due_date` | 入荷予定日＝納期 |
+| 製品 | `purchase_order_lines.finish_date` | 納期（`due_date`）とは別 |
+
+生機の入荷予定日と納期の分離（`finish_date` / `due_date`）は **生機月末予想フェーズで導入予定**。
+
+#### 染工場の生機在庫（`greige_rolls`）
+
+| 動き | タイミング | 実装 |
+| ---- | ---------- | ---- |
+| 増える | 生機発注の入荷登録 | `GreigeRoll` 作成（`in_stock`） |
+| 減る（在庫から外れる） | 製品発注明細を **染機投入済** にしたとき | `GreigeDyeInput` → `in_dyeing` |
+| 減る（消費） | 染色完了登録 | `TanRollRecorder::recordDyeingCompletion` → `consumed` |
+
+`in_dyeing` の反は染工場の **染色仕掛** であり、生機在庫合計には含めない。  
+製品在庫は染色完了・製品入荷で増える（染機投入時点では増えない）。
+
+染機投入予定日（生機月末予想の出荷側）は **未定**。候補: `contact_date` の流用、または専用列 `dye_input_date`。
 
 #### 糸発注（すべて自動。`stage` 列は持たない）
 
@@ -134,7 +154,7 @@
 
 | 順   | 工程名   | 手動/自動  | 判定（概要）                                  |
 | --- | ----- | ------ | --------------------------------------- |
-| 1   | 染機投入済 | **手動** | `purchase_order_lines.stage`（未設定時もここ扱い） |
+| 1   | 染機投入済 | **手動** | `purchase_order_lines.stage = '染機投入済'` のとき生機反を `in_dyeing` へ（`GreigeDyeInput`） |
 | 2   | 製品在庫中 | 自動     | 一部入荷あり（`partial` 等）                     |
 | —   | 入荷完了  | 自動     | `status = received`                     |
 
@@ -162,7 +182,7 @@
 
 | 種別   | 保存先                                       | 一覧の「入荷予定日」 |
 | ---- | ----------------------------------------- | ---------- |
-| 糸・生機 | `purchase_orders.due_date`                | 同上         |
+| 糸・生機 | `purchase_orders.due_date`                | 同上（生機の分離は将来） |
 | 製品   | `purchase_order_lines.finish_date`（明細行ごと） | 同上         |
 
 
@@ -193,8 +213,9 @@
 
 | 値                    | 意味        |
 | -------------------- | --------- |
-| `in_stock`           | 在庫あり      |
-| `partially_consumed` | 染色で一部使用済み |
+| `in_stock`           | 染工場に在庫あり（生機在庫に含める） |
+| `partially_consumed` | 一部使用済み（生機在庫に含める） |
+| `in_dyeing`          | 染機投入済み・染色仕掛（生機在庫に含めない） |
 | `consumed`           | 使い切り      |
 
 
@@ -649,10 +670,11 @@ DB は複数行対応済み。UI の進捗：
 | `greige_id`         | FK → `greiges`         | NO   |              |                  |
 | `purchase_order_id` | FK → `purchase_orders` | YES  | null         | 由来発注（照会・引当のため保持） |
 | `receiving_line_id` | FK → `receiving_lines` | NO   |              | 入荷明細行            |
+| `dyeing_purchase_order_line_id` | FK → `purchase_order_lines` | YES | null | 染機投入した製品発注明細 |
 | `tan_qty`           | decimal(8,2)           | NO   | 1.00         | 反数（0.25刻み可）      |
 | `actual_qty_m`      | decimal(12,2)          | NO   | 0            | **織り実測m**        |
 | `nominal_meters`    | unsignedInteger        | YES  | null         | 参考：標準長（表示用）      |
-| `status`            | string(32)             | NO   | `'in_stock'` |                  |
+| `status`            | string(32)             | NO   | `'in_stock'` | `in_stock` / `partially_consumed` / `in_dyeing` / `consumed` |
 | `received_date`     | date                   | NO   |              | FIFO 用           |
 | `created_at`        | timestamp              | YES  |              |                  |
 | `updated_at`        | timestamp              | YES  |              |                  |

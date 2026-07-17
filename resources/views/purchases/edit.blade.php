@@ -127,9 +127,7 @@
                                     </div>
                                     @if ($lineRow['stage_editable'] && ($lineStageOptions ?? []) !== [])
                                         <select class="select" name="line_stages[{{ $lineRow['id'] }}]" style="max-width:320px;">
-                                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
-                                                <option value="">（未設定）</option>
-                                            @endif
+                                            <option value="">（未設定）</option>
                                             @foreach ($lineStageOptions as $option)
                                                 <option value="{{ $option }}" @selected($option === $lineRow['manual_stage'])>{{ $option }}</option>
                                             @endforeach
@@ -153,9 +151,7 @@
                     <div class="field">
                         <label class="label" for="stage">生産工程</label>
                         <select class="select" id="stage" name="stage" style="max-width:320px;">
-                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
-                                <option value="">（未設定）</option>
-                            @endif
+                            <option value="">（未設定）</option>
                             @foreach ($manualStageOptions as $option)
                                 <option value="{{ $option }}" @selected($option === $manualStage)>{{ $option }}</option>
                             @endforeach
