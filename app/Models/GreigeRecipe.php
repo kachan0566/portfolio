@@ -30,4 +30,11 @@ class GreigeRecipe extends Model
     {
         return $this->hasMany(GreigeRecipeLine::class);
     }
+
+    public static function existsForSku(string $sku): bool
+    {
+        return self::query()
+            ->whereHas('greige', fn ($query) => $query->where('sku', $sku))
+            ->exists();
+    }
 }

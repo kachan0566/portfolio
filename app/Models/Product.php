@@ -29,13 +29,47 @@ class Product extends Model
     }
 
     /** @return Collection<int, object> */
-    public static function displayCatalog(): Collection
+    public static function displayList(): Collection
     {
         return self::query()
             ->with('greige')
             ->orderBy('id')
             ->get()
             ->map(fn (self $product) => $product->toDisplayObject());
+    }
+
+    /** @return Collection<int, object> */
+    public static function displayCatalog(): Collection
+    {
+        return self::displayList();
+    }
+
+    public static function findDisplay(int $id): ?object
+    {
+        $product = self::query()->with('greige')->find($id);
+
+        return $product?->toDisplayObject();
+    }
+
+    public static function findDisplayOrFail(int $id): object
+    {
+        $product = self::query()->with('greige')->findOrFail($id);
+
+        return $product->toDisplayObject();
+    }
+
+    /** @return Collection<int, object{id: int, name: string}> */
+    public static function categoryOptions(): Collection
+    {
+        return self::query()
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->values()
+            ->map(fn (string $name, int $index) => (object) [
+                'id' => $index + 1,
+                'name' => $name,
+            ]);
     }
 
     public function toDisplayObject(): object
