@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Services\Inventory\GreigeDyeInput;
 use App\Support\DemoData;
-use App\Support\DemoOverlay;
 use App\Support\DemoState;
 use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;

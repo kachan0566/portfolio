@@ -2,16 +2,26 @@
 
 namespace Tests\Unit;
 
+use App\Models\MaterialPrice;
+use App\Models\Product;
 use App\Support\DemoData;
-use App\Support\DemoOverlay;
+use App\Support\MasterCatalog;
+use Database\Seeders\CostFoundationSeeder;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class UnitProfitTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
-        DemoOverlay::clear();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
     }
 
     public function test_unit_profit_summary_calculates_margin(): void
@@ -46,14 +56,14 @@ class UnitProfitTest extends TestCase
         $this->assertNull($summary->margin_percent);
     }
 
-    public function test_save_product_price_updates_products_collection(): void
+    public function test_product_price_update_reflects_in_profit_summary(): void
     {
-        DemoOverlay::saveProductPrice(1, 1500);
+        Product::query()->whereKey(1)->update(['price' => 1500]);
 
-        $product = DemoData::findProduct(1);
-        $this->assertSame(1500, $product->price);
+        $this->assertSame(1500, (int) Product::query()->find(1)?->price);
+        $this->assertSame(1500, (int) MasterCatalog::findProduct(1)?->price);
 
-        $summary = DemoData::unitProfitSummary(1, '2026-06');
+        $summary = DemoData::unitProfitSummary(1, '2026-06', 1500);
         $this->assertSame(1500, $summary->price);
         $this->assertSame(-228, $summary->profit);
     }

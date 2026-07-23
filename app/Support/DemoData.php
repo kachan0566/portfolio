@@ -99,13 +99,7 @@ class DemoData
             (object) ['id' => 7, 'sku' => 'FAB-T-BK', 'greige_sku' => 'KB-T', 'greige_name' => 'Tシャツ生機', 'color' => 'ブラック',   'price' => 950,  'category' => '生地', 'unit' => '反', 'meters_per_tan' => self::METERS_PER_TAN_PRODUCT, 'stock' => 120,  'stock_min' => 150],
         ];
 
-        $priceUpdates = DemoOverlay::productPriceUpdates();
-
-        return collect($rows)->map(function ($p) use ($priceUpdates) {
-            if (isset($priceUpdates[$p->id])) {
-                $p->price = $priceUpdates[$p->id];
-            }
-
+        return collect($rows)->map(function ($p) {
             $perTan = $p->meters_per_tan ?? self::METERS_PER_TAN_PRODUCT;
             $p->stock_tan = isset($p->stock_tan)
                 ? QtyHelper::roundTan((float) $p->stock_tan)
@@ -206,7 +200,7 @@ class DemoData
             return $result;
         }
 
-        return array_replace_recursive(self::baseRecipeData(), DemoOverlay::recipeOverrides());
+        return self::baseRecipeData();
     }
 
     public static function processingCost(int $productId): int
@@ -262,7 +256,7 @@ class DemoData
             return $result;
         }
 
-        return array_replace_recursive(self::baseGreigeRecipeData(), DemoOverlay::greigeRecipeOverrides());
+        return self::baseGreigeRecipeData();
     }
 
     public static function hasGreigeRecipe(string $greigeSku): bool
@@ -517,16 +511,8 @@ class DemoData
         $priceMap = [];
         foreach ($rows as $row) {
             foreach ($row['prices'] as $ym => $price) {
-                $priceMap[DemoOverlay::yarnPriceKey($row['material_id'], $ym)] = $price;
+                $priceMap[$row['material_id'].'|'.$ym] = $price;
             }
-        }
-
-        foreach (DemoOverlay::yarnPriceUpdates() as $key => $price) {
-            $priceMap[$key] = $price;
-        }
-
-        foreach (DemoOverlay::yarnPriceAdditions() as $addition) {
-            $priceMap[DemoOverlay::yarnPriceKey($addition['material_id'], $addition['ym'])] = $addition['price'];
         }
 
         $result = collect();
@@ -685,7 +671,7 @@ class DemoData
             ? $breakdown->greige_cost + $processingCost
             : null;
 
-        $product = self::findProduct($productId);
+        $product = MasterCatalog::findProduct($productId) ?? self::findProduct($productId);
         $price = $priceOverride ?? (int) ($product->price ?? 0);
         $profit = $unitCost !== null ? $price - $unitCost : null;
         $marginPercent = ($profit !== null && $price > 0)

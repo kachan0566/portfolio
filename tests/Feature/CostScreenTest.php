@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Support\DemoData;
-use App\Support\DemoOverlay;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderSeeder;
@@ -22,7 +21,6 @@ class CostScreenTest extends TestCase
         $this->seed(MasterCatalogSeeder::class);
         $this->seed(OrderSeeder::class);
         $this->seed(ShipmentPlanSeeder::class);
-        DemoOverlay::clear();
     }
 
     public function test_sales_screen_renders_with_kpi_cost_and_profit_columns(): void

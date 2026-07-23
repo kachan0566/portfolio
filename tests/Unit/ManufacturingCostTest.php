@@ -2,16 +2,24 @@
 
 namespace Tests\Unit;
 
+use App\Models\MaterialPrice;
 use App\Support\DemoData;
-use App\Support\DemoOverlay;
+use Database\Seeders\CostFoundationSeeder;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ManufacturingCostTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
-        DemoOverlay::clear();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
     }
 
     public function test_unit_cost_breakdown_uses_greige_cost_plus_dyeing(): void
@@ -77,7 +85,11 @@ class ManufacturingCostTest extends TestCase
 
     public function test_monthly_sales_marks_uncalculable_rows(): void
     {
-        DemoOverlay::addYarnPrice(1, '2026-07', 600);
+        MaterialPrice::query()->create([
+            'material_id' => 1,
+            'ym' => '2026-07',
+            'unit_price' => 600,
+        ]);
 
         $rows = DemoData::monthlySalesByProduct();
         $this->assertNotEmpty($rows);

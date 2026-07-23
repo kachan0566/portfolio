@@ -2,31 +2,48 @@
 
 namespace Tests\Feature;
 
-use App\Support\DemoData;
-use App\Support\DemoOverlay;
+use App\Models\ReceivingLine;
+use App\Models\YarnStockMovement;
+use App\Services\Receiving\ReceivingRegistrar;
+use App\Support\YarnMovementType;
 use App\Support\DemoState;
 use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
+use App\Support\ProductRoll as ProductRollSupport;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use App\Support\YarnInventory;
+use Database\Seeders\CostFoundationSeeder;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderAllocationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\PurchaseOrderSeeder;
+use Database\Seeders\ReceivingSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ReceivingTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
-        DemoOverlay::clear();
-        $this->clearDemoStorage();
+        ProductRollSupport::resetCacheForTesting();
         FabricTanRoll::resetBootstrap();
+        $this->seedBase();
     }
 
-    private function clearDemoStorage(): void
+    private function seedBase(): void
     {
-        foreach (glob(storage_path('app/*_state.json')) ?: [] as $file) {
-            @unlink($file);
-        }
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(PurchaseOrderSeeder::class);
+        $this->seed(OrderAllocationSeeder::class);
+        $this->seed(ReceivingSeeder::class);
     }
 
     public function test_receiving_index_shows_three_types(): void
@@ -40,19 +57,36 @@ class ReceivingTest extends TestCase
         $response->assertSee('RC-2606-002');
     }
 
-    public function test_yarn_receiving_increases_stock(): void
+    public function test_yarn_receiving_registers_movements_and_po_line(): void
     {
         $before = YarnInventory::effectiveStockKg(1);
 
-        $response = $this->post(route('receivings.store'), [
-            'type' => PurchaseOrderType::YARN,
-            'po_id' => 10,
-            'qty' => 100,
-            'date' => '2026-06-26',
-        ]);
+        $result = ReceivingRegistrar::register(
+            10,
+            '2026-06-26',
+            PurchaseOrderType::YARN,
+            qtyKg: 100.0,
+        );
 
-        $response->assertRedirect(route('receivings.index'));
-        $this->assertSame($before + 100.0, YarnInventory::effectiveStockKg(1));
+        // 織工場入荷は入庫と消費が同量で相殺され、在庫合計は変わらない
+        $this->assertSame($before, YarnInventory::effectiveStockKg(1));
+
+        $line = ReceivingLine::query()
+            ->whereHas('receiving', fn ($q) => $q->where('code', $result['code']))
+            ->first();
+        $this->assertNotNull($line);
+        $this->assertSame(100.0, (float) $line->qty_kg);
+
+        $this->assertDatabaseHas('yarn_stock_movements', [
+            'material_id' => 1,
+            'movement_type' => YarnMovementType::RECEIVING,
+            'qty_kg' => 100.0,
+        ]);
+        $this->assertDatabaseHas('yarn_stock_movements', [
+            'material_id' => 1,
+            'movement_type' => YarnMovementType::CONSUMPTION,
+            'qty_kg' => -100.0,
+        ]);
     }
 
     public function test_greige_receiving_shows_in_inventory(): void
