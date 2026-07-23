@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Support\MasterCatalog;
 
 use App\Models\Greige;
+use App\Models\PurchaseOrder;
 use Illuminate\Support\Collection;
 
 /**
@@ -52,7 +53,7 @@ class GreigeInventory
                     $received = (int) round($stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
                     $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
                 } else {
-                    $received = (int) floor(DemoState::effectiveReceivedQty($poId, $po));
+                    $received = (int) floor(PurchaseOrder::receivedQtyFor($poId, $po));
                     if ($received <= 0) {
                         return null;
                     }

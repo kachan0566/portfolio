@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
-use App\Support\DemoState;
 use App\Support\ShipmentPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +13,7 @@ class ShipmentPlanController extends Controller
     public function create(int $order): View
     {
         $target = Order::findForDisplay($order) ?? abort(404);
-        $remaining = DemoState::orderRemaining($order);
+        $remaining = Order::remainingFor($order);
         $existing = ShipmentPlan::forOrder($order);
 
         return view('shipment-plans.create', [
@@ -35,7 +34,7 @@ class ShipmentPlanController extends Controller
         ]);
 
         $qty = (float) $request->input('confirmed_qty_m');
-        $remaining = (float) DemoState::orderRemaining($order);
+        $remaining = (float) Order::remainingFor($order);
         $alreadyPlanned = (float) ShipmentPlan::forOrder($order)
             ->whereIn('status', [ShipmentPlan::STATUS_CONFIRMED, ShipmentPlan::STATUS_PARTIAL])
             ->sum(fn ($p) => ShipmentPlan::unshippedQty($p));

@@ -104,7 +104,7 @@
                                 <div class="t-muted" style="font-size:12px;margin-bottom:4px;">{{ $pair->po->supplier ?? '' }}</div>
                                 <div class="t-muted" style="font-size:12px;margin-bottom:8px;">
                                     発注 @include('partials.qty', ['qty' => $pair->po->qty_meters ?? 0, 'productId' => $product->id])
-                                    ／ 入荷済 @include('partials.qty', ['qty' => \App\Support\DemoState::effectiveReceivedQty($pair->po_id), 'productId' => $product->id])
+                                    ／ 入荷済 @include('partials.qty', ['qty' => \App\Models\PurchaseOrder::receivedQtyFor((int) $pair->po_id), 'productId' => $product->id])
                                     ／ 残 @include('partials.qty', ['qty' => $pair->po_remaining_qty, 'productId' => $product->id])
                                 </div>
                                 <div class="field" style="max-width:200px;">
@@ -213,7 +213,7 @@
                                     <td><span class="badge badge-amber badge--plain">発注</span></td>
                                     <td class="code-cell"><a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a></td>
                                     <td>{{ $po->supplier }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => \App\Support\DemoState::poRemaining($po->id), 'productId' => $product->id])</td>
+                                    <td class="num mono">@include('partials.qty', ['qty' => \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po), 'productId' => $product->id])</td>
                                     <td class="mono">{{ \App\Support\DemoData::expectedArrivalDate($po) }}</td>
                                 </tr>
                             @endforeach

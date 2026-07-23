@@ -134,8 +134,8 @@
                         @php
                             $stockUsed = $stockUsageByPo[$po->id] ?? 0;
                             $poUsed = $poUsageByPo[$po->id] ?? 0;
-                            $received = \App\Support\DemoState::effectiveReceived($po->id);
-                            $poRem = \App\Support\DemoState::poRemaining($po->id);
+                            $received = (int) floor(\App\Models\PurchaseOrder::receivedQtyFor((int) $po->id, $po));
+                            $poRem = \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po);
                         @endphp
                         <div class="po-usage-item">
                             <div class="po-usage-item__code">

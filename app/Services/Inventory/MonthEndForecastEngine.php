@@ -4,10 +4,11 @@ namespace App\Services\Inventory;
 
 use App\Support\MasterCatalog;
 
+use App\Models\Order;
 use App\Models\Product;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
-use App\Support\DemoState;
+use App\Support\ProductStock;
 use App\Support\ForecastManualAdjustment;
 use App\Support\ForecastSnapshot;
 use Illuminate\Support\Collection;
@@ -46,7 +47,7 @@ class MonthEndForecastEngine
     public static function buildLine(int $productId, object $product, string $targetYm, ?string $monthEnd = null): object
     {
         $monthEnd ??= self::monthEndDate($targetYm);
-        $currentStock = (float) DemoState::effectiveStock($productId);
+        $currentStock = (float) ProductStock::effectiveStock($productId);
         $inbound = self::inboundScheduled($productId, $targetYm);
         $outbound = self::outboundConfirmed($productId, $targetYm);
         $manual = ForecastManualAdjustment::totalFor($productId, $targetYm);
@@ -227,7 +228,7 @@ class MonthEndForecastEngine
         return DemoData::orders()
             ->where('product_id', $productId)
             ->map(function ($order) {
-                $order->remaining = DemoState::orderRemaining((int) $order->id);
+                $order->remaining = Order::remainingFor((int) $order->id);
 
                 return $order;
             })

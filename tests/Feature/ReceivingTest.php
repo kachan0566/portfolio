@@ -6,7 +6,8 @@ use App\Models\ReceivingLine;
 use App\Models\YarnStockMovement;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\YarnMovementType;
-use App\Support\DemoState;
+use App\Models\PurchaseOrder;
+use App\Support\ProductStock;
 use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
 use App\Support\ProductRoll as ProductRollSupport;
@@ -92,7 +93,7 @@ class ReceivingTest extends TestCase
     public function test_greige_receiving_shows_in_inventory(): void
     {
         $before = GreigeInventory::totalMetersForSku('KB-A');
-        $remaining = (int) floor(DemoState::poRemaining(4));
+        $remaining = (int) floor(PurchaseOrder::remainingQtyFor(4));
         $qty = min(150, max(1, $remaining));
 
         $response = $this->post(route('receivings.store'), [
@@ -109,8 +110,8 @@ class ReceivingTest extends TestCase
 
     public function test_product_receiving_increases_stock(): void
     {
-        $before = DemoState::effectiveStock(6);
-        $remaining = (int) floor(DemoState::poRemaining(7));
+        $before = ProductStock::effectiveStock(6);
+        $remaining = (int) floor(PurchaseOrder::remainingQtyFor(7));
         $qty = min(20, max(1, $remaining));
 
         $response = $this->post(route('receivings.store'), [
@@ -122,6 +123,6 @@ class ReceivingTest extends TestCase
         ]);
 
         $response->assertRedirect(route('receivings.index'));
-        $this->assertSame($before + $qty, DemoState::effectiveStock(6));
+        $this->assertSame($before + $qty, ProductStock::effectiveStock(6));
     }
 }

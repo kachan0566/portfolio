@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
 use App\Services\Inventory\ShipmentRollAllocator;
 use App\Services\Shipment\ShipmentRegistrar;
 use App\Support\DemoData;
-use App\Support\DemoState;
+use App\Support\ProductStock;
 use App\Support\FabricQuantity;
 use App\Support\ListSearch;
 use App\Support\QtyHelper;
@@ -35,8 +36,8 @@ class ShipmentController extends Controller
         $pending = DemoData::orders()
             ->whereIn('status', ['未出荷', '一部出荷'])
             ->map(function ($order) {
-                $order->remaining = DemoState::orderRemaining($order->id);
-                $order->remaining_tan = DemoState::orderRemainingTan($order->id);
+                $order->remaining = Order::remainingFor($order->id);
+                $order->remaining_tan = Order::remainingTanFor($order->id);
                 $order->stock_allocated = StockAllocation::stockAllocatedForOrder($order->id);
                 $order->po_allocated = StockAllocation::poAllocatedForOrder($order->id);
                 $order->shippable_qty = StockAllocation::shippableQty($order->id);
@@ -72,8 +73,8 @@ class ShipmentController extends Controller
         $isMetersOrder = ($order->order_qty_mode ?? 'tan') === 'meters';
 
         if ($isMetersOrder) {
-            $qtyTan = QtyHelper::tanCountCeilForShipment(DemoState::orderRemainingM($orderId), (int) $order->product_id);
-            $qty = DemoState::orderRemainingM($orderId);
+            $qtyTan = QtyHelper::tanCountCeilForShipment(Order::remainingMetersFor($orderId), (int) $order->product_id);
+            $qty = Order::remainingMetersFor($orderId);
         } else {
             $resolved = FabricQuantity::resolve(
                 $request->input('qty_tan'),
@@ -103,8 +104,8 @@ class ShipmentController extends Controller
                 ->with('error', '出荷可能な現在庫引当は '.QtyHelper::format($shippable, $order->product_id).' です。発注引当のみの数量は出荷できません。');
         }
 
-        $effectiveStock = DemoState::effectiveStock($order->product_id);
-        if ($isMetersOrder && $effectiveStock < DemoState::orderRemainingM($orderId)) {
+        $effectiveStock = ProductStock::effectiveStock($order->product_id);
+        if ($isMetersOrder && $effectiveStock < Order::remainingMetersFor($orderId)) {
             return redirect()->route('shipments.create', ['order_id' => $orderId])
                 ->with('error', '在庫が不足しています。FIFOで足りる反数を確保できません。');
         } elseif (! $isMetersOrder && $qty > $effectiveStock) {
@@ -126,14 +127,7 @@ class ShipmentController extends Controller
                 ->with('success', $result['message']);
         }
 
-        DemoState::applyShipment($orderId, $order->product_id, $qtyTan, $qty);
-
-        $actualM = DemoState::effectiveShippedM($orderId);
-        $messageQty = $isMetersOrder
-            ? number_format($actualM).'m（実測）'
-            : QtyHelper::formatFromTan($qtyTan, $order->product_id);
-
-        return redirect()->route('shipments.index')
-            ->with('success', '受注 '.$order->code.' から '.$messageQty.' を出荷登録し、在庫を減少しました。');
+        return redirect()->route('shipments.create', ['order_id' => $orderId])
+            ->with('error', '出荷登録にはデータベースのセットアップが必要です。');
     }
 }

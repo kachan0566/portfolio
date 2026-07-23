@@ -6,7 +6,7 @@ use App\Support\MasterCatalog;
 
 use App\Models\Product;
 use App\Support\DemoData;
-use App\Support\DemoState;
+use App\Support\ProductStock;
 use App\Support\FabricTanRoll;
 use App\Support\ProductRoll;
 use Illuminate\Support\Collection;
@@ -53,7 +53,7 @@ class LongTermInventoryEngine
 
     public static function buildLine(int $productId, object $product, string $asOfDate, string $ym): object
     {
-        $currentStock = (float) DemoState::effectiveStock($productId);
+        $currentStock = (float) ProductStock::effectiveStock($productId);
         $lots = ProductRoll::inStockForProduct($productId)
             ->map(fn ($roll) => (object) [
                 'id' => (int) $roll->id,

@@ -5,9 +5,9 @@ namespace App\Services\Inventory;
 use App\Support\MasterCatalog;
 
 use App\Models\Greige;
+use App\Models\PurchaseOrder;
 use App\Services\Sales\SalesRecognition;
 use App\Support\DemoData;
-use App\Support\DemoState;
 use App\Support\GreigeForecastManualAdjustment;
 use App\Support\GreigeForecastSnapshot;
 use App\Support\GreigeInventory;
@@ -135,7 +135,7 @@ class GreigeMonthEndForecastEngine
             ->filter(fn ($po) => PurchaseOrderStatus::isActive($po->status ?? ''))
             ->filter(fn ($po) => SalesRecognition::countsPoForInboundMonth($po, $targetYm))
             ->map(function ($po) {
-                $remaining = (float) DemoState::poRemaining((int) $po->id);
+                $remaining = (float) PurchaseOrder::remainingQtyFor((int) $po->id, $po);
 
                 return (object) [
                     'po_id' => (int) $po->id,

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Support\DemoData;
-use App\Support\DemoState;
 use App\Support\PurchaseOrderDisplay;
 use App\Support\PurchaseOrderLineDisplay;
 use App\Support\PurchaseOrderLink;
@@ -16,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 #[Fillable([
     'code',
@@ -68,6 +68,107 @@ class PurchaseOrder extends Model
     public function primaryLine(): ?PurchaseOrderLine
     {
         return $this->lines->sortBy('line_no')->first();
+    }
+
+    public function receivedQty(): float
+    {
+        return match ((string) $this->type) {
+            PurchaseOrderType::YARN => (float) $this->lines->sum(
+                fn ($line) => (float) ($line->received_qty_kg ?? 0),
+            ),
+            default => (float) $this->lines->sum(
+                fn ($line) => (int) ($line->received_qty_m ?? 0),
+            ),
+        };
+    }
+
+    public function orderedQty(): float
+    {
+        return match ((string) $this->type) {
+            PurchaseOrderType::YARN => (float) $this->lines->sum(
+                fn ($line) => (float) ($line->qty_kg ?? 0),
+            ),
+            default => (float) $this->lines->sum(
+                fn ($line) => (int) ($line->qty_meters ?? 0),
+            ),
+        };
+    }
+
+    public function remainingQty(): float
+    {
+        return max(0.0, $this->orderedQty() - $this->receivedQty());
+    }
+
+    public function hasReceived(): bool
+    {
+        return $this->receivedQty() > 0;
+    }
+
+    public function hasRemaining(): bool
+    {
+        return $this->remainingQty() > 0;
+    }
+
+    public function manualStageValue(): string
+    {
+        $detail = $this->primaryLine();
+        $raw = match ((string) $this->type) {
+            PurchaseOrderType::GREIGE, PurchaseOrderType::PRODUCT => $detail?->stage,
+            default => null,
+        };
+
+        return match ((string) $this->type) {
+            PurchaseOrderType::PRODUCT => PurchaseOrderStages::normalizeProductManualStage($raw),
+            PurchaseOrderType::GREIGE => PurchaseOrderStages::normalizeGreigeManualStage($raw) ?? '',
+            default => '',
+        };
+    }
+
+    public static function receivedQtyFor(int $poId, ?object $displayPo = null): float
+    {
+        if (Schema::hasTable('purchase_orders')) {
+            $model = self::query()->with('lines')->find($poId);
+            if ($model !== null) {
+                return $model->receivedQty();
+            }
+        }
+
+        if ($displayPo !== null) {
+            return (float) ($displayPo->received ?? $displayPo->received_kg ?? 0);
+        }
+
+        return 0.0;
+    }
+
+    public static function remainingQtyFor(int $poId, ?object $displayPo = null): float
+    {
+        if (Schema::hasTable('purchase_orders')) {
+            $model = self::query()->with('lines')->find($poId);
+            if ($model !== null) {
+                return $model->remainingQty();
+            }
+        }
+
+        if ($displayPo !== null) {
+            $ordered = match ($displayPo->type ?? PurchaseOrderType::PRODUCT) {
+                PurchaseOrderType::YARN => (float) ($displayPo->qty_kg ?? $displayPo->qty ?? 0),
+                default => (float) ($displayPo->qty_meters ?? $displayPo->qty ?? 0),
+            };
+
+            return max(0.0, $ordered - self::receivedQtyFor($poId, $displayPo));
+        }
+
+        return 0.0;
+    }
+
+    public static function hasReceivedFor(int $poId, ?object $displayPo = null): bool
+    {
+        return self::receivedQtyFor($poId, $displayPo) > 0;
+    }
+
+    public static function hasRemainingFor(int $poId, ?object $displayPo = null): bool
+    {
+        return self::remainingQtyFor($poId, $displayPo) > 0;
     }
 
     /** @return Collection<int, object> */
@@ -158,7 +259,7 @@ class PurchaseOrder extends Model
             $row['meters_per_tan'] = (int) ($detail?->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
             $row['received'] = (int) $this->lines->sum(fn ($line) => (int) ($line->received_qty_m ?? 0));
             $row['yarn_requirements'] = DemoData::greigeYarnRequirements($sku, $row['qty_meters']);
-            $row['manual_stage'] = DemoState::effectivePoStage((int) $this->id)
+            $row['manual_stage'] = $this->manualStageValue()
                 ?: PurchaseOrderStages::normalizeGreigeManualStage($detail?->stage);
             $row['finish_date'] = $detail?->finish_date?->toDateString()
                 ?? $this->due_date?->toDateString();
@@ -181,7 +282,7 @@ class PurchaseOrder extends Model
             $row['received'] = (int) $this->lines->sum(fn ($line) => (int) ($line->received_qty_m ?? 0));
             $row['finish_date'] = $detail?->finish_date?->toDateString();
             $row['contact_date'] = $detail?->contact_date?->toDateString();
-            $row['manual_stage'] = DemoState::effectivePoStage((int) $this->id)
+            $row['manual_stage'] = $this->manualStageValue()
                 ?: PurchaseOrderStages::normalizeProductManualStage($detail?->stage);
         }
 

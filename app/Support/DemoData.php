@@ -822,7 +822,7 @@ class DemoData
                     ['qty_tan' => $r['qty_tan'], 'qty_meters' => $r['qty_meters'] ?? null],
                     (int) $r['product_id'],
                 );
-            $r['shipped_meters'] = (int) DemoState::effectiveShippedM((int) $r['id']);
+            $r['shipped_meters'] = (int) ($r['shipped_meters'] ?? $r['shipped'] ?? 0);
             $r['qty'] = $r['qty_meters'];
             $r['shipped'] = $r['shipped_meters'];
             $r['status'] = self::orderProgressStatus($r);
@@ -840,13 +840,13 @@ class DemoData
         $mode = $order['order_qty_mode'] ?? 'tan';
         if ($mode === 'meters') {
             $qty = (int) ($order['qty_meters'] ?? $order['qty'] ?? 0);
-            $shipped = (int) DemoState::effectiveShippedM((int) ($order['id'] ?? 0));
+            $shipped = (int) ($order['shipped_meters'] ?? $order['shipped'] ?? 0);
 
             return self::progressStatus($shipped, $qty, '受注');
         }
 
         $qtyTan = (float) ($order['qty_tan'] ?? 0);
-        $shippedTan = DemoState::effectiveShippedTan((int) ($order['id'] ?? 0));
+        $shippedTan = (float) ($order['shipped_tan'] ?? 0);
         if ($shippedTan <= 0) {
             return '未出荷';
         }
@@ -1145,8 +1145,7 @@ class DemoData
             $row['meters_per_tan'] = (int) ($row['meters_per_tan'] ?? self::METERS_PER_TAN_GREIGE);
             $row['received'] = (int) ($row['received'] ?? 0);
             $row['yarn_requirements'] = self::greigeYarnRequirements($row['sku'], $row['qty_meters']);
-            $row['manual_stage'] = DemoState::effectivePoStage((int) $row['id'])
-                ?: PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null);
+            $row['manual_stage'] = PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null);
             $row['finish_date'] = $row['finish_date'] ?? $row['due_date'] ?? null;
         } else {
             $product = self::findProduct((int) ($row['product_id'] ?? 0));
@@ -1163,8 +1162,7 @@ class DemoData
             }
             $row['qty'] = $row['qty_meters'];
             $row['received'] = (int) ($row['received'] ?? 0);
-            $row['manual_stage'] = DemoState::effectivePoStage((int) $row['id'])
-                ?: PurchaseOrderStages::normalizeProductManualStage($row['stage'] ?? null);
+            $row['manual_stage'] = PurchaseOrderStages::normalizeProductManualStage($row['stage'] ?? null);
         }
 
         $po = (object) $row;

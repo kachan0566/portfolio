@@ -98,7 +98,7 @@ class GreigeYarnReadiness
 
         $poId = (int) ($yarnPo->id ?? 0);
         $ordered = DemoData::purchaseOrderOrderedQty($yarnPo);
-        $received = DemoState::effectiveReceivedQty($poId, $yarnPo);
+        $received = PurchaseOrder::receivedQtyFor($poId, $yarnPo);
 
         return $ordered > 0 && $received + 0.001 >= $ordered;
     }
