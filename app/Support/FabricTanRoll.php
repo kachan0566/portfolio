@@ -17,64 +17,11 @@ class FabricTanRoll
 
     public const STAGE_CONSUMED = 'consumed';
 
-    public const FILE = 'fabric_tan_rolls.json';
-
-    public const BOOTSTRAP_FLAG = 'fabric_tan_rolls_bootstrapped.flag';
-
-    private static bool $bootstrapping = false;
-
-    public static function ensureBootstrapped(): void
-    {
-        if (self::$bootstrapping) {
-            return;
-        }
-
-        $flag = storage_path('app/'.self::BOOTSTRAP_FLAG);
-        if (is_file($flag)) {
-            return;
-        }
-
-        if (DemoData::usesGreigeRollDatabase() || DemoData::usesProductRollDatabase()) {
-            self::markBootstrappedFromDatabase();
-
-            return;
-        }
-
-        self::$bootstrapping = true;
-        \App\Services\Fabric\TanRollBootstrap::run();
-        self::$bootstrapping = false;
-
-        self::writeBootstrapFlag(self::BOOTSTRAP_FLAG);
-    }
-
-    private static function markBootstrappedFromDatabase(): void
-    {
-        self::writeBootstrapFlag(self::BOOTSTRAP_FLAG);
-        self::writeBootstrapFlag(GreigeRoll::BOOTSTRAP_FLAG);
-        self::writeBootstrapFlag(ProductRoll::BOOTSTRAP_FLAG);
-    }
-
-    private static function writeBootstrapFlag(string $flagName): void
-    {
-        $flag = storage_path('app/'.$flagName);
-        if (is_file($flag)) {
-            return;
-        }
-
-        $dir = dirname($flag);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        file_put_contents($flag, date('c'));
-    }
-
     /**
      * @return list<array<string, mixed>>
      */
     public static function all(): array
     {
-        self::ensureBootstrapped();
-
         $rolls = [];
         foreach (GreigeRoll::all() as $roll) {
             $rolls[] = self::fromGreigeRoll($roll);
@@ -91,8 +38,6 @@ class FabricTanRoll
     /** @return Collection<int, object> */
     public static function forPo(int $poId): Collection
     {
-        self::ensureBootstrapped();
-
         return GreigeRoll::forPo($poId)
             ->map(fn ($roll) => (object) self::fromGreigeRoll((array) $roll))
             ->concat(
@@ -105,8 +50,6 @@ class FabricTanRoll
     /** @return Collection<int, object> */
     public static function forGreigeSku(string $greigeSku, ?string $stage = self::STAGE_GREIGE_WIP): Collection
     {
-        self::ensureBootstrapped();
-
         return collect(GreigeRoll::all())
             ->filter(function ($roll) use ($greigeSku, $stage) {
                 if ((string) ($roll['greige_sku'] ?? '') !== $greigeSku) {
@@ -132,8 +75,6 @@ class FabricTanRoll
     /** @return Collection<int, object> */
     public static function forProduct(int $productId, ?string $stage = self::STAGE_PRODUCT): Collection
     {
-        self::ensureBootstrapped();
-
         if ($stage === self::STAGE_PRODUCT) {
             return ProductRoll::inStockForProduct($productId)
                 ->map(fn ($roll) => (object) self::fromProductRoll((array) $roll));
@@ -173,8 +114,6 @@ class FabricTanRoll
      */
     public static function create(array $attributes): object
     {
-        self::ensureBootstrapped();
-
         $stage = (string) ($attributes['stage'] ?? self::STAGE_GREIGE_WIP);
 
         if ($stage === self::STAGE_PRODUCT) {
@@ -229,18 +168,6 @@ class FabricTanRoll
 
         GreigeRoll::replaceAll($greigeRolls);
         ProductRoll::replaceAll($productRolls);
-    }
-
-    public static function resetBootstrap(): void
-    {
-        $flag = storage_path('app/'.self::BOOTSTRAP_FLAG);
-        if (is_file($flag)) {
-            unlink($flag);
-        }
-        GreigeRoll::resetBootstrap();
-        ProductRoll::resetBootstrap();
-        ShipmentRollAllocation::resetBootstrap();
-        self::$bootstrapping = false;
     }
 
     /**

@@ -7,7 +7,6 @@ use App\Support\MasterCatalog;
 use App\Models\Product;
 use App\Support\DemoData;
 use App\Support\ProductStock;
-use App\Support\FabricTanRoll;
 use App\Support\ProductRoll;
 use Illuminate\Support\Collection;
 
@@ -23,7 +22,6 @@ class LongTermInventoryEngine
 
     public static function build(?string $asOfDate = null): object
     {
-        FabricTanRoll::ensureBootstrapped();
         $asOfDate ??= DemoData::today();
         $ym = DemoData::CURRENT_YM;
 

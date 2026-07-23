@@ -13,10 +13,7 @@ use App\Models\ProductRecipe;
 use App\Models\PurchaseOrder;
 use App\Models\Receiving;
 use App\Models\ShipTo;
-use App\Models\Supplier;
-use App\Models\YarnStockMovement;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * フロント確認用のテストデータ置き場。
@@ -41,28 +38,6 @@ class DemoData
 
     /** 生機品番の標準：1反あたりのメートル数 */
     public const METERS_PER_TAN_GREIGE = 100;
-
-    /** @var array<string, bool> */
-    private static array $databaseUsageCache = [];
-
-    /** @internal テスト用に DB 利用判定のキャッシュを破棄する */
-    public static function resetDatabaseUsageCacheForTesting(): void
-    {
-        self::$databaseUsageCache = [];
-    }
-
-    private static function cachedDatabaseUsage(string $key, callable $resolver): bool
-    {
-        if (array_key_exists($key, self::$databaseUsageCache)) {
-            return self::$databaseUsageCache[$key];
-        }
-
-        try {
-            return self::$databaseUsageCache[$key] = (bool) $resolver();
-        } catch (\Throwable) {
-            return self::$databaseUsageCache[$key] = false;
-        }
-    }
 
     /** カテゴリ一覧 */
     public static function categories(): Collection
@@ -189,18 +164,14 @@ class DemoData
     /** @return array<int, array{processing_cost: int}> */
     public static function recipeData(): array
     {
-        if (self::usesRecipeDatabase()) {
-            $result = [];
-            foreach (ProductRecipe::query()->get() as $row) {
-                $result[(int) $row->product_id] = [
-                    'processing_cost' => (int) $row->processing_cost,
-                ];
-            }
-
-            return $result;
+        $result = [];
+        foreach (ProductRecipe::query()->get() as $row) {
+            $result[(int) $row->product_id] = [
+                'processing_cost' => (int) $row->processing_cost,
+            ];
         }
 
-        return self::baseRecipeData();
+        return $result;
     }
 
     public static function processingCost(int $productId): int
@@ -233,30 +204,26 @@ class DemoData
     /** @return array<string, array{lines: list<array{0: int, 1: float}>, loss_rate: float, weaving_cost: int}> */
     public static function greigeRecipeData(): array
     {
-        if (self::usesRecipeDatabase()) {
-            $result = [];
-            foreach (GreigeRecipe::query()->with(['greige', 'lines'])->get() as $header) {
-                $sku = $header->greige?->sku;
-                if ($sku === null) {
-                    continue;
-                }
-
-                $lines = [];
-                foreach ($header->lines as $line) {
-                    $lines[] = [(int) $line->material_id, (float) $line->qty_per_m];
-                }
-
-                $result[$sku] = [
-                    'lines' => $lines,
-                    'loss_rate' => (float) $header->loss_rate,
-                    'weaving_cost' => (int) $header->weaving_cost,
-                ];
+        $result = [];
+        foreach (GreigeRecipe::query()->with(['greige', 'lines'])->get() as $header) {
+            $sku = $header->greige?->sku;
+            if ($sku === null) {
+                continue;
             }
 
-            return $result;
+            $lines = [];
+            foreach ($header->lines as $line) {
+                $lines[] = [(int) $line->material_id, (float) $line->qty_per_m];
+            }
+
+            $result[$sku] = [
+                'lines' => $lines,
+                'loss_rate' => (float) $header->loss_rate,
+                'weaving_cost' => (int) $header->weaving_cost,
+            ];
         }
 
-        return self::baseGreigeRecipeData();
+        return $result;
     }
 
     public static function hasGreigeRecipe(string $greigeSku): bool
@@ -485,83 +452,43 @@ class DemoData
     /** 月別糸価格 */
     public static function materialPrices(): Collection
     {
-        if (self::usesMaterialPriceDatabase()) {
-            return MaterialPrice::query()
-                ->with('material')
-                ->orderBy('material_id')
-                ->orderBy('ym')
-                ->get()
-                ->map(function (MaterialPrice $row) {
-                    $material = $row->material;
+        return MaterialPrice::query()
+            ->with('material')
+            ->orderBy('material_id')
+            ->orderBy('ym')
+            ->get()
+            ->map(function (MaterialPrice $row) {
+                $material = $row->material;
 
-                    return (object) [
-                        'id' => (int) $row->id,
-                        'material_id' => (int) $row->material_id,
-                        'material_sku' => $material?->sku ?? '',
-                        'material' => $material?->name ?? '',
-                        'unit' => 'kg',
-                        'ym' => (string) $row->ym,
-                        'price' => (int) $row->unit_price,
-                    ];
-                });
-        }
-
-        $rows = self::baseMaterialPriceRowsForSeed();
-
-        $priceMap = [];
-        foreach ($rows as $row) {
-            foreach ($row['prices'] as $ym => $price) {
-                $priceMap[$row['material_id'].'|'.$ym] = $price;
-            }
-        }
-
-        $result = collect();
-        $id = 1;
-        foreach ($priceMap as $key => $price) {
-            [$materialId, $ym] = explode('|', $key, 2);
-            $material = self::findMaterial((int) $materialId);
-            if (! $material || ! self::isYarnMaterial((int) $materialId)) {
-                continue;
-            }
-            $result->push((object) [
-                'id' => $id++,
-                'material_id' => (int) $materialId,
-                'material_sku' => $material->sku,
-                'material' => $material->name,
-                'unit' => 'kg',
-                'ym' => $ym,
-                'price' => $price,
-            ]);
-        }
-
-        return $result->sortBy(['material_id', 'ym'])->values()->map(function ($row, $index) {
-            $row->id = $index + 1;
-
-            return $row;
-        });
+                return (object) [
+                    'id' => (int) $row->id,
+                    'material_id' => (int) $row->material_id,
+                    'material_sku' => $material?->sku ?? '',
+                    'material' => $material?->name ?? '',
+                    'unit' => 'kg',
+                    'ym' => (string) $row->ym,
+                    'price' => (int) $row->unit_price,
+                ];
+            });
     }
 
     public static function findYarnPrice(int $id): ?object
     {
-        if (self::usesMaterialPriceDatabase()) {
-            $row = MaterialPrice::query()->with('material')->find($id);
-            if ($row === null) {
-                return null;
-            }
-            $material = $row->material;
-
-            return (object) [
-                'id' => (int) $row->id,
-                'material_id' => (int) $row->material_id,
-                'material_sku' => $material?->sku ?? '',
-                'material' => $material?->name ?? '',
-                'unit' => 'kg',
-                'ym' => (string) $row->ym,
-                'price' => (int) $row->unit_price,
-            ];
+        $row = MaterialPrice::query()->with('material')->find($id);
+        if ($row === null) {
+            return null;
         }
+        $material = $row->material;
 
-        return self::materialPrices()->firstWhere('id', $id);
+        return (object) [
+            'id' => (int) $row->id,
+            'material_id' => (int) $row->material_id,
+            'material_sku' => $material?->sku ?? '',
+            'material' => $material?->name ?? '',
+            'unit' => 'kg',
+            'ym' => (string) $row->ym,
+            'price' => (int) $row->unit_price,
+        ];
     }
 
     public static function hasYarnPrice(int $materialId, string $ym): bool
@@ -798,38 +725,7 @@ class DemoData
     /** 受注一覧 */
     public static function orders(): Collection
     {
-        if (self::usesOrderDatabase()) {
-            return Order::displayList();
-        }
-
-        return self::baseOrderRows()->map(function ($r) {
-            $product = self::findProduct($r['product_id']);
-            $r['product'] = $product->sku;
-            $r['sku'] = $product->sku;
-            $r['color'] = $product->color;
-            $r['unit'] = $product->unit;
-            $r['order_qty_mode'] = $r['order_qty_mode'] ?? 'tan';
-            $r['qty_tan'] = ($r['order_qty_mode'] ?? 'tan') === 'tan'
-                ? QtyHelper::roundIntegerTan((float) ($r['qty_tan'] ?? FabricQuantity::tanFromRecord($r, (int) $r['product_id'])))
-                : FabricQuantity::tanFromRecord($r, (int) $r['product_id']);
-            $r['shipped_tan'] = FabricQuantity::tanFromRecord(
-                ['qty_tan' => $r['shipped_tan'] ?? null, 'qty' => $r['shipped'] ?? 0],
-                (int) $r['product_id'],
-            );
-            $r['qty_meters'] = ($r['order_qty_mode'] ?? 'tan') === 'meters'
-                ? (int) ($r['qty_meters'] ?? $r['qty'] ?? 0)
-                : FabricQuantity::metersFromRecord(
-                    ['qty_tan' => $r['qty_tan'], 'qty_meters' => $r['qty_meters'] ?? null],
-                    (int) $r['product_id'],
-                );
-            $r['shipped_meters'] = (int) ($r['shipped_meters'] ?? $r['shipped'] ?? 0);
-            $r['qty'] = $r['qty_meters'];
-            $r['shipped'] = $r['shipped_meters'];
-            $r['status'] = self::orderProgressStatus($r);
-            $r['is_new_today'] = $r['order_date'] === self::today();
-
-            return (object) $r;
-        });
+        return Order::displayList();
     }
 
     /**
@@ -1037,43 +933,7 @@ class DemoData
     /** 発注一覧（糸・生機・製品の3種別） */
     public static function purchaseOrders(): Collection
     {
-        if (self::usesPurchaseOrderDatabase()) {
-            return PurchaseOrder::displayList();
-        }
-
-        $rows = self::basePurchaseOrderRows()->all();
-
-        foreach (PurchaseOrderOverlay::additions() as $addition) {
-            $rows[] = $addition;
-        }
-
-        return collect($rows)->map(function ($r) {
-            $overrides = PurchaseOrderOverlay::overrides((int) $r['id']);
-            if (! empty($overrides)) {
-                $r = array_merge($r, $overrides);
-            }
-
-            return self::enrichPurchaseOrder($r);
-        });
-    }
-
-    public static function usesPurchaseOrderDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('purchase_orders', fn () => Schema::hasTable('purchase_orders')
-            && Schema::hasTable('purchase_order_lines')
-            && PurchaseOrder::query()->exists());
-    }
-
-    public static function usesOrderDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('orders', fn () => Schema::hasTable('orders')
-            && Order::query()->exists());
-    }
-
-    public static function usesOrderAllocationDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('order_allocations', fn () => Schema::hasTable('order_allocations')
-            && self::usesOrderDatabase());
+        return PurchaseOrder::displayList();
     }
 
     public static function purchaseOrdersOfType(string $type): Collection
@@ -1084,22 +944,7 @@ class DemoData
     /** 発注一覧用（明細行単位） */
     public static function purchaseOrderIndexRows(): Collection
     {
-        if (self::usesPurchaseOrderDatabase()) {
-            return PurchaseOrder::displayLineList();
-        }
-
-        return self::purchaseOrders()->flatMap(function ($po) {
-            $lineCount = max(1, (int) ($po->line_count ?? 1));
-            $lineStage = (string) ($po->stage ?? PurchaseOrderDisplay::label($po));
-
-            return [(object) array_merge((array) $po, [
-                'line_no' => 1,
-                'line_count' => $lineCount,
-                'purchase_order_line_id' => null,
-                'line_stage' => $lineStage,
-                'stage' => $lineStage,
-            ])];
-        })->values();
+        return PurchaseOrder::displayLineList();
     }
 
     /** @param  array<string, mixed>  $row */
@@ -1239,28 +1084,7 @@ class DemoData
     /** 出荷一覧 */
     public static function shipments(): Collection
     {
-        if (self::usesShipmentDatabase()) {
-            return \App\Models\Shipment::displayList();
-        }
-
-        $rows = [
-            ['id' => 1, 'code' => 'SH-2606-001', 'order_code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'date' => '2026-06-11', 'due_date' => '2026-06-12', 'ship_to' => '東レ商事 滋賀倉庫',     'note' => '時間指定 午前中'],
-            ['id' => 2, 'code' => 'SH-2606-002', 'order_code' => 'SO-2606-004', 'customer' => 'ユニフォーム製作所', 'product_id' => 2, 'qty' => 60,  'date' => '2026-06-12', 'due_date' => '2026-06-15', 'ship_to' => 'ユニフォーム製作所 本社', 'note' => ''],
-            ['id' => 3, 'code' => 'SH-2606-003', 'order_code' => 'SO-2606-002', 'customer' => 'アパレル東京',    'product_id' => 3, 'qty' => 80,  'date' => '2026-06-14', 'due_date' => '2026-06-18', 'ship_to' => 'アパレル東京 物流センター', 'note' => '分納の1回目'],
-            ['id' => 4, 'code' => 'SH-2606-004', 'order_code' => 'SO-2606-006', 'customer' => 'アパレル東京',    'product_id' => 1, 'qty' => 40,  'date' => '2026-06-15', 'due_date' => '2026-06-28', 'ship_to' => 'アパレル東京 物流センター', 'note' => ''],
-        ];
-
-        return collect($rows)->map(function ($r) {
-            $product = self::findProduct($r['product_id']);
-            $r['product'] = $product->sku;
-            $r['sku'] = $product->sku;
-            $r['color'] = $product->color;
-            $r['unit'] = $product->unit;
-            $r['price'] = $product->price;
-            $r['amount'] = $product->price * $r['qty'];
-
-            return (object) $r;
-        });
+        return \App\Models\Shipment::displayList();
     }
 
     /** 入荷の生データ（DemoState 参照なし） */
@@ -1278,74 +1102,7 @@ class DemoData
     /** 入荷一覧 */
     public static function receivings(): Collection
     {
-        if (self::usesReceivingDatabase()) {
-            return Receiving::displayList();
-        }
-
-        return self::baseReceivingRows()->map(function ($r) {
-            $r['po_type'] = $r['po_type'] ?? PurchaseOrderType::PRODUCT;
-
-            if ($r['po_type'] === PurchaseOrderType::YARN) {
-                $material = self::findMaterial((int) $r['material_id']);
-                $r['sku'] = $material->sku;
-                $r['unit'] = 'kg';
-                $r['qty'] = $r['qty_kg'];
-            } elseif ($r['po_type'] === PurchaseOrderType::GREIGE) {
-                $r['sku'] = $r['greige_sku'];
-                $r['unit'] = '反';
-                $r['qty'] = $r['qty_meters'];
-            } else {
-                $product = self::findProduct((int) $r['product_id']);
-                $r['product'] = $product->sku;
-                $r['sku'] = $product->sku;
-                $r['unit'] = $product->unit;
-            }
-
-            return (object) $r;
-        });
-    }
-
-    public static function usesReceivingDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('receivings', fn () => Schema::hasTable('receivings')
-            && Receiving::query()->exists());
-    }
-
-    public static function usesGreigeRollDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('greige_rolls', fn () => Schema::hasTable('greige_rolls')
-            && \App\Models\GreigeRoll::query()->exists());
-    }
-
-    public static function usesProductRollDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('product_rolls', fn () => Schema::hasTable('product_rolls')
-            && \App\Models\ProductRoll::query()->exists());
-    }
-
-    public static function usesShipmentDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('shipments', fn () => Schema::hasTable('shipments')
-            && \App\Models\Shipment::query()->exists());
-    }
-
-    public static function usesRecipeDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('product_recipes', fn () => Schema::hasTable('product_recipes')
-            && ProductRecipe::query()->exists());
-    }
-
-    public static function usesMaterialPriceDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('material_prices', fn () => Schema::hasTable('material_prices')
-            && MaterialPrice::query()->exists());
-    }
-
-    public static function usesYarnStockDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('yarn_stock', fn () => Schema::hasTable('yarn_stock_movements')
-            && Schema::hasTable('yarn_allocations')
-            && YarnStockMovement::query()->exists());
+        return Receiving::displayList();
     }
 
     /** 在庫移動履歴 */
@@ -1391,7 +1148,8 @@ class DemoData
         $fromShipments = self::shipments()->map(fn ($s) => substr($s->date, 0, 7));
         $fromPrices = self::materialPrices()->pluck('ym');
 
-        return $fromShipments->merge($fromPrices)
+        return collect($fromShipments->all())
+            ->merge($fromPrices)
             ->unique()
             ->sortDesc()
             ->values();
@@ -1412,7 +1170,10 @@ class DemoData
             $base = $base->prepend($current);
         }
 
-        return $base->unique()->sortDesc()->values();
+        return collect($base->all())
+            ->unique()
+            ->sortDesc()
+            ->values();
     }
 
     public static function isValidForecastMonth(string $ym): bool

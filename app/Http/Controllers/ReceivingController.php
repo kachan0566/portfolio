@@ -74,11 +74,6 @@ class ReceivingController extends Controller
                 ->with('error', '入荷する明細行を1行以上選択し、数量を正しく入力してください。');
         }
 
-        if (! DemoData::usesReceivingDatabase() || ! DemoData::usesPurchaseOrderDatabase()) {
-            return redirect()->route('receivings.create', ['type' => $poType])
-                ->with('error', '入荷登録にはデータベースのセットアップが必要です。');
-        }
-
         $result = ReceivingRegistrar::register($poId, $date, $poType, $entries);
 
         return redirect()->route('receivings.index')->with('success', $result['message']);
@@ -122,7 +117,7 @@ class ReceivingController extends Controller
             }
 
             $remaining = PurchaseOrderLine::query()->find($poLineId)?->remainingQty() ?? 0.0;
-            if ($remaining <= 0 && DemoData::usesPurchaseOrderDatabase()) {
+            if ($remaining <= 0) {
                 continue;
             }
 
@@ -239,13 +234,9 @@ class ReceivingController extends Controller
 
     private function resolveLegacyPoLineId(int $poId): int
     {
-        if (DemoData::usesPurchaseOrderDatabase()) {
-            $line = PurchaseOrder::query()->with('lines')->find($poId)?->lines->sortBy('line_no')->first();
+        $line = PurchaseOrder::query()->with('lines')->find($poId)?->lines->sortBy('line_no')->first();
 
-            return (int) ($line?->id ?? 0);
-        }
-
-        return 0;
+        return (int) ($line?->id ?? 0);
     }
 
     /**
@@ -293,10 +284,6 @@ class ReceivingController extends Controller
      */
     private function pendingPoLinesJson(string $type, $pending): string
     {
-        if (! DemoData::usesPurchaseOrderDatabase()) {
-            return '{}';
-        }
-
         $map = [];
         foreach ($pending as $po) {
             $model = PurchaseOrder::query()

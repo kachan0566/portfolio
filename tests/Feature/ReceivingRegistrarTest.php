@@ -11,7 +11,6 @@ use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\DemoData;
 use App\Support\ProductStock;
 use App\Models\PurchaseOrder;
-use App\Support\ProductRoll as ProductRollSupport;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use Database\Seeders\MasterCatalogSeeder;
@@ -26,12 +25,6 @@ use Tests\TestCase;
 class ReceivingRegistrarTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        ProductRollSupport::resetCacheForTesting();
-    }
 
     private function seedBase(): void
     {

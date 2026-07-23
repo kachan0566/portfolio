@@ -37,7 +37,6 @@ class ShipmentSeederTest extends TestCase
     {
         $this->assertSame(4, Shipment::query()->count());
         $this->assertDatabaseHas('shipments', ['code' => 'SH-2606-001']);
-        $this->assertTrue(DemoData::usesShipmentDatabase());
 
         $first = Shipment::query()->where('code', 'SH-2606-001')->first();
         $this->assertNotNull($first);

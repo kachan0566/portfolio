@@ -23,8 +23,6 @@ class GreigeDyeInputTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        GreigeRoll::resetCacheForTesting();
-        GreigeDyeInput::resetBootstrapForTesting();
     }
 
     private function seedInventoryBase(): void

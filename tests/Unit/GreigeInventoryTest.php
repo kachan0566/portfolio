@@ -4,10 +4,30 @@ namespace Tests\Unit;
 
 use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderAllocationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\PurchaseOrderSeeder;
+use Database\Seeders\ReceivingSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class GreigeInventoryTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(PurchaseOrderSeeder::class);
+        $this->seed(OrderAllocationSeeder::class);
+        $this->seed(ReceivingSeeder::class);
+    }
+
     public function test_entries_based_on_greige_po_received_qty(): void
     {
         $entry = GreigeInventory::entries()->firstWhere('po_code', 'PO-G-2606-002');

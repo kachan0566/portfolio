@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Shipment;
-use App\Support\DemoData;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;
@@ -38,7 +37,6 @@ class ShipmentIndexTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('SH-2606-001', false);
-        $this->assertTrue(DemoData::usesShipmentDatabase());
         $this->assertSame(4, Shipment::query()->count());
     }
 }

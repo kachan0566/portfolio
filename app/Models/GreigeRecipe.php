@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Schema;
 
 #[Fillable(['greige_id', 'loss_rate', 'weaving_cost'])]
 class GreigeRecipe extends Model
@@ -34,22 +33,8 @@ class GreigeRecipe extends Model
 
     public static function existsForSku(string $sku): bool
     {
-        if (self::usesDatabase()) {
-            return self::query()
-                ->whereHas('greige', fn ($query) => $query->where('sku', $sku))
-                ->exists();
-        }
-
-        return \App\Support\DemoData::hasGreigeRecipe($sku);
-    }
-
-    private static function usesDatabase(): bool
-    {
-        try {
-            return Schema::hasTable('greige_recipes')
-                && self::query()->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::query()
+            ->whereHas('greige', fn ($query) => $query->where('sku', $sku))
+            ->exists();
     }
 }

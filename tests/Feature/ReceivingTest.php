@@ -8,9 +8,7 @@ use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\YarnMovementType;
 use App\Models\PurchaseOrder;
 use App\Support\ProductStock;
-use App\Support\FabricTanRoll;
 use App\Support\GreigeInventory;
-use App\Support\ProductRoll as ProductRollSupport;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use App\Support\YarnInventory;
@@ -31,8 +29,6 @@ class ReceivingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        ProductRollSupport::resetCacheForTesting();
-        FabricTanRoll::resetBootstrap();
         $this->seedBase();
     }
 
