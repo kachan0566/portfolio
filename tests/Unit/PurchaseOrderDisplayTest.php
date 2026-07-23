@@ -4,13 +4,31 @@ namespace Tests\Unit;
 
 use App\Support\DemoData;
 use App\Support\PurchaseOrderStages;
-use App\Support\PurchaseOrderDisplay;
-use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderAllocationSeeder;
+use Database\Seeders\OrderSeeder;
+use Database\Seeders\PurchaseOrderSeeder;
+use Database\Seeders\ReceivingSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PurchaseOrderDisplayTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(OrderSeeder::class);
+        $this->seed(PurchaseOrderSeeder::class);
+        $this->seed(OrderAllocationSeeder::class);
+        $this->seed(ReceivingSeeder::class);
+    }
+
     public function test_received_product_shows_received_label(): void
     {
         $po = DemoData::purchaseOrders()->firstWhere('code', 'PO-2606-001');

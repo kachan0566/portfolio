@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\PurchaseOrder;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderType;
+use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderSeeder;
@@ -20,6 +21,7 @@ class PurchaseOrderSeederTest extends TestCase
     {
         $this->seed(MasterFoundationSeeder::class);
         $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
         $this->seed(OrderSeeder::class);
         $this->seed(PurchaseOrderSeeder::class);
     }

@@ -8,7 +8,6 @@ use App\Models\Receiving;
 use App\Models\ReceivingLine;
 use App\Support\DemoData;
 use App\Support\GreigeRoll as GreigeRollSupport;
-use App\Support\ProductRoll as ProductRollSupport;
 use App\Support\PurchaseOrderType;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -22,13 +21,6 @@ use Tests\TestCase;
 class ReceivingSeederTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        GreigeRollSupport::resetCacheForTesting();
-        ProductRollSupport::resetCacheForTesting();
-    }
 
     private function seedReceivings(): void
     {

@@ -4,7 +4,6 @@ namespace App\Services\Inventory;
 
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
-use App\Support\DemoData;
 use App\Support\GreigeRoll;
 use App\Support\GreigeSupply;
 use App\Support\PurchaseOrderLineDisplay;
@@ -12,15 +11,16 @@ use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * 製品発注明細の「染機投入済」に連動して、生機反を在庫から染色仕掛（in_dyeing）へ移す。
  */
 class GreigeDyeInput
 {
-    private const BOOTSTRAP_FLAG = 'greige_dye_input_bootstrapped.flag';
-
     private static bool $bootstrapping = false;
+
+    private static bool $bootstrapped = false;
 
     public static function applyLineStageChange(PurchaseOrderLine $line, ?string $stageValue): ?string
     {
@@ -114,30 +114,25 @@ class GreigeDyeInput
 
     public static function bootstrapIfNeeded(): void
     {
-        if (self::$bootstrapping || ! DemoData::usesGreigeRollDatabase()) {
+        if (self::$bootstrapping || self::$bootstrapped) {
             return;
         }
 
-        $flag = storage_path('app/'.self::BOOTSTRAP_FLAG);
-        if (is_file($flag)) {
+        try {
+            if (! Schema::hasTable('purchase_order_lines')) {
+                return;
+            }
+        } catch (\Throwable) {
             return;
         }
 
         self::bootstrap();
-
-        $dir = dirname($flag);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        file_put_contents($flag, date('c'));
+        self::$bootstrapped = true;
     }
 
     public static function resetBootstrapForTesting(): void
     {
-        $flag = storage_path('app/'.self::BOOTSTRAP_FLAG);
-        if (is_file($flag)) {
-            unlink($flag);
-        }
+        self::$bootstrapped = false;
     }
 
     public static function bootstrap(): void

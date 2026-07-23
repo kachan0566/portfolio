@@ -17,12 +17,6 @@ class OrderAllocationSeederTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        StockAllocation::resetCacheForTesting();
-    }
-
     private function seedAllocations(): void
     {
         $this->seed(MasterFoundationSeeder::class);
@@ -53,7 +47,6 @@ class OrderAllocationSeederTest extends TestCase
     {
         $this->seedAllocations();
 
-        $this->assertTrue(DemoData::usesOrderAllocationDatabase());
         $this->assertSame(9, count(StockAllocation::allLines()));
         $this->assertSame(120, StockAllocation::poAllocatedForOrder(2));
         $this->assertSame(80, StockAllocation::stockAllocatedForOrder(2));

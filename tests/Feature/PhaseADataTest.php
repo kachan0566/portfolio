@@ -7,8 +7,10 @@ use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\ShipToType;
 use App\Support\SupplierType;
+use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\OrderSeeder;
 use Database\Seeders\PurchaseOrderSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -22,6 +24,8 @@ class PhaseADataTest extends TestCase
         parent::setUp();
         $this->seed(MasterFoundationSeeder::class);
         $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
+        $this->seed(OrderSeeder::class);
         $this->seed(PurchaseOrderSeeder::class);
     }
 

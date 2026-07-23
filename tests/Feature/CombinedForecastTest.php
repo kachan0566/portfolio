@@ -4,16 +4,13 @@ namespace Tests\Feature;
 
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
-use App\Services\Inventory\GreigeDyeInput;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\CombinedForecastSnapshot;
 use App\Support\DemoData;
-use App\Support\FabricTanRoll;
 use App\Support\ForecastSnapshot;
 use App\Support\GreigeForecastManualAdjustment;
 use App\Support\GreigeForecastSnapshot;
-use App\Support\GreigeRoll;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;
@@ -30,9 +27,6 @@ class CombinedForecastTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        FabricTanRoll::resetBootstrap();
-        GreigeDyeInput::resetBootstrapForTesting();
-        GreigeRoll::resetCacheForTesting();
         $this->seed(MasterFoundationSeeder::class);
         $this->seed(MasterCatalogSeeder::class);
         $this->seed(OrderSeeder::class);

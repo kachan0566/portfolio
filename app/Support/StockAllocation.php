@@ -9,7 +9,6 @@ use Illuminate\Support\Collection;
 
 /**
  * 受注への在庫引当を記録する。
- * DB（order_allocations）が投入済みなら DB を正とし、未投入時は JSON ファイルに保存する。
  *
  * 行ベースのデータ形式:
  * {
@@ -30,143 +29,24 @@ class StockAllocation
 
     public const TYPE_PO = 'po';
 
-    private const FILE = 'stock_allocations.json';
-
-    /** @var list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>|null */
-    private static ?array $linesCache = null;
-
-    /** @internal テスト用にメモリキャッシュを破棄する */
-    public static function resetCacheForTesting(): void
-    {
-        self::$linesCache = null;
-    }
-
     /**
      * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
      */
     public static function allLines(): array
     {
-        if (DemoData::usesOrderAllocationDatabase()) {
-            return OrderAllocation::query()
-                ->orderBy('id')
-                ->get()
-                ->map(fn (OrderAllocation $row) => [
-                    'product_id' => (int) $row->product_id,
-                    'order_id' => (int) $row->order_id,
-                    'po_id' => (int) ($row->purchase_order_id ?? 0),
-                    'qty_tan' => QtyHelper::roundTan((float) $row->qty_tan),
-                    'qty' => (int) $row->qty_m,
-                    'type' => (string) $row->allocation_type,
-                ])
-                ->values()
-                ->all();
-        }
-
-        if (self::$linesCache !== null) {
-            return self::$linesCache;
-        }
-
-        $path = storage_path('app/'.self::FILE);
-        if (! is_file($path)) {
-            return self::$linesCache = [];
-        }
-
-        $data = json_decode((string) file_get_contents($path), true);
-        if (! is_array($data)) {
-            return self::$linesCache = [];
-        }
-
-        if (isset($data['lines']) && is_array($data['lines'])) {
-            return self::$linesCache = self::normalizeLines($data['lines']);
-        }
-
-        return self::$linesCache = self::migrateLegacyFormat($data);
-    }
-
-    /**
-     * @param  array<mixed, mixed>  $legacy
-     * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
-     */
-    private static function migrateLegacyFormat(array $legacy): array
-    {
-        $lines = [];
-
-        foreach ($legacy as $orderId => $poMap) {
-            if (! is_array($poMap)) {
-                continue;
-            }
-
-            $order = DemoData::orders()->firstWhere('id', (int) $orderId);
-            if (! $order) {
-                continue;
-            }
-
-            foreach ($poMap as $poId => $qty) {
-                $qty = (int) $qty;
-                if ($qty <= 0) {
-                    continue;
-                }
-
-                $lines[] = self::buildLine(
-                    (int) $order->product_id,
-                    (int) $orderId,
-                    (int) $poId,
-                    QtyHelper::tanCount($qty, (int) $order->product_id),
-                    self::inferType((int) $poId, $qty)
-                );
-            }
-        }
-
-        if (! empty($lines)) {
-            self::write($lines);
-        }
-
-        return $lines;
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $lines
-     * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
-     */
-    private static function normalizeLines(array $lines): array
-    {
-        $result = [];
-        $needsRewrite = false;
-
-        foreach ($lines as $line) {
-            if (! is_array($line)) {
-                continue;
-            }
-
-            $qtyTan = isset($line['qty_tan'])
-                ? QtyHelper::roundTan((float) $line['qty_tan'])
-                : QtyHelper::tanCount((int) ($line['qty'] ?? 0), (int) ($line['product_id'] ?? 0));
-            if ($qtyTan <= 0) {
-                continue;
-            }
-
-            $poId = (int) ($line['po_id'] ?? 0);
-            $productId = (int) ($line['product_id'] ?? 0);
-            $type = $line['type'] ?? null;
-            if (! in_array($type, [self::TYPE_STOCK, self::TYPE_PO], true)) {
-                $type = self::inferType($poId, QtyHelper::metersFromTan($qtyTan, $productId));
-                $needsRewrite = true;
-            }
-
-            $result[] = self::buildLine(
-                $productId,
-                (int) ($line['order_id'] ?? 0),
-                $poId,
-                $qtyTan,
-                $type
-            );
-        }
-
-        if ($needsRewrite && ! empty($result)) {
-            self::write($result);
-        }
-
-        return $result;
+        return OrderAllocation::query()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (OrderAllocation $row) => [
+                'product_id' => (int) $row->product_id,
+                'order_id' => (int) $row->order_id,
+                'po_id' => (int) ($row->purchase_order_id ?? 0),
+                'qty_tan' => QtyHelper::roundTan((float) $row->qty_tan),
+                'qty' => (int) $row->qty_m,
+                'type' => (string) $row->allocation_type,
+            ])
+            ->values()
+            ->all();
     }
 
     private static function inferType(int $poId, int $qty): string
@@ -211,26 +91,7 @@ class StockAllocation
      */
     private static function write(array $lines): void
     {
-        $lines = array_values($lines);
-
-        if (DemoData::usesOrderAllocationDatabase()) {
-            OrderAllocation::syncAll($lines);
-
-            return;
-        }
-
-        $path = storage_path('app/'.self::FILE);
-        $dir = dirname($path);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        file_put_contents(
-            $path,
-            json_encode(['lines' => $lines], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-        );
-
-        self::$linesCache = $lines;
+        OrderAllocation::syncAll(array_values($lines));
     }
 
     /** @return Collection<int, object> */
@@ -409,18 +270,7 @@ class StockAllocation
             );
         }
 
-        if (DemoData::usesOrderAllocationDatabase()) {
-            OrderAllocation::replaceForProduct($productId, $built);
-
-            return;
-        }
-
-        $all = collect(self::allLines())
-            ->reject(fn ($line) => $line['product_id'] === $productId)
-            ->values()
-            ->all();
-
-        self::write(array_merge($all, $built));
+        OrderAllocation::replaceForProduct($productId, $built);
     }
 
     /**
@@ -479,68 +329,17 @@ class StockAllocation
             return;
         }
 
-        if (DemoData::usesOrderAllocationDatabase()) {
-            OrderAllocation::upsertLine(self::buildLine($productId, $orderId, $poId, $qtyTan, $type));
-
-            return;
-        }
-
-        $all = self::allLines();
-        $merged = false;
-
-        foreach ($all as &$line) {
-            if ($line['product_id'] === $productId
-                && $line['order_id'] === $orderId
-                && $line['po_id'] === $poId
-                && $line['type'] === $type) {
-                $newTan = QtyHelper::roundTan($line['qty_tan'] + $qtyTan);
-                $line['qty_tan'] = $newTan;
-                $line['qty'] = QtyHelper::metersFromTan($newTan, $productId);
-                $merged = true;
-                break;
-            }
-        }
-        unset($line);
-
-        if (! $merged) {
-            $all[] = self::buildLine($productId, $orderId, $poId, $qtyTan, $type);
-        }
-
-        self::write($all);
+        OrderAllocation::upsertLine(self::buildLine($productId, $orderId, $poId, $qtyTan, $type));
     }
 
     public static function clearForOrder(int $orderId): void
     {
-        if (DemoData::usesOrderAllocationDatabase()) {
-            OrderAllocation::deleteForOrder($orderId);
-
-            return;
-        }
-
-        $all = collect(self::allLines())
-            ->reject(fn ($line) => $line['order_id'] === $orderId)
-            ->values()
-            ->all();
-
-        self::write($all);
+        OrderAllocation::deleteForOrder($orderId);
     }
 
     public static function removeLineFromOrder(int $orderId, int $poId, string $type): void
     {
-        if (DemoData::usesOrderAllocationDatabase()) {
-            OrderAllocation::deleteLine($orderId, $poId, $type);
-
-            return;
-        }
-
-        $all = collect(self::allLines())
-            ->reject(fn ($line) => $line['order_id'] === $orderId
-                && $line['po_id'] === $poId
-                && $line['type'] === $type)
-            ->values()
-            ->all();
-
-        self::write($all);
+        OrderAllocation::deleteLine($orderId, $poId, $type);
     }
 
     /** @deprecated removeLineFromOrder を使用 */

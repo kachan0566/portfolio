@@ -9,7 +9,6 @@ class ProductStock
 {
     public static function effectiveStockTan(int $productId): float
     {
-        FabricTanRoll::ensureBootstrapped();
         $rollTan = ProductRoll::stockTanForProduct($productId);
         if ($rollTan > 0) {
             return $rollTan;
@@ -20,7 +19,6 @@ class ProductStock
 
     public static function effectiveStock(int $productId): int
     {
-        FabricTanRoll::ensureBootstrapped();
         $rollM = ProductRoll::stockMetersForProduct($productId);
         if ($rollM > 0) {
             return (int) round($rollM);

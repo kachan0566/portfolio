@@ -57,7 +57,7 @@ class GreigeMonthEndForecastEngine
     public static function buildLine(string $greigeSku, object $greige, string $targetYm, ?string $monthEnd = null): object
     {
         $monthEnd ??= self::monthEndDate($targetYm);
-        $currentStock = (float) GreigeInventory::totalMetersForSku($greigeSku);
+        $currentStock = (float) GreigeRoll::stockMetersForSku($greigeSku);
         $inbound = self::inboundScheduled($greigeSku, $targetYm);
         $outbound = self::outboundScheduled($greigeSku, $targetYm);
         $manual = GreigeForecastManualAdjustment::totalFor($greigeSku, $targetYm);

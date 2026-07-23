@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Services\Inventory\GreigeDyeInput;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Support\DemoData;
-use App\Support\FabricTanRoll;
 use App\Support\GreigeRoll;
+use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;
@@ -23,11 +23,9 @@ class GreigeForecastTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        FabricTanRoll::resetBootstrap();
-        GreigeDyeInput::resetBootstrapForTesting();
-        GreigeRoll::resetCacheForTesting();
         $this->seed(MasterFoundationSeeder::class);
         $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
         $this->seed(OrderSeeder::class);
         $this->seed(PurchaseOrderSeeder::class);
         $this->seed(OrderAllocationSeeder::class);

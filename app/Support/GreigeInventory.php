@@ -46,10 +46,7 @@ class GreigeInventory
                     GreigeRoll::STATUS_PARTIALLY_CONSUMED,
                 ], true));
 
-                if (DemoData::usesGreigeRollDatabase() && $rolls->isNotEmpty()) {
-                    $received = (int) round($stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
-                    $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
-                } elseif ($stockRolls->isNotEmpty()) {
+                if ($stockRolls->isNotEmpty()) {
                     $received = (int) round($stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
                     $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
                 } else {

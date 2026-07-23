@@ -17,12 +17,6 @@ class StockAllocationWriteTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        StockAllocation::resetCacheForTesting();
-    }
-
     private function seedOrdersOnly(): void
     {
         $this->seed(MasterFoundationSeeder::class);

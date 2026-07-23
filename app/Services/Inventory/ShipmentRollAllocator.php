@@ -4,7 +4,6 @@ namespace App\Services\Inventory;
 
 use App\Models\ProductRoll as ProductRollModel;
 use App\Models\ShipmentRollAllocation;
-use App\Support\DemoData;
 use App\Support\ProductRoll;
 use App\Support\QtyHelper;
 use Illuminate\Support\Collection;
@@ -112,7 +111,7 @@ class ShipmentRollAllocator
     /** @return Collection<int, object> */
     private static function fifoInStock(int $productId): Collection
     {
-        if (DemoData::usesProductRollDatabase() && DB::transactionLevel() > 0) {
+        if (DB::transactionLevel() > 0) {
             return ProductRollModel::query()
                 ->where('product_id', $productId)
                 ->where('status', ProductRollModel::STATUS_IN_STOCK)
@@ -134,33 +133,12 @@ class ShipmentRollAllocator
         float $consumedQtyM,
         ?string $note,
     ): void {
-        if (self::usesAllocationDatabase()) {
-            ShipmentRollAllocation::query()->create([
-                'shipment_id' => $shipmentId,
-                'product_roll_id' => $productRollId,
-                'consumed_tan_qty' => QtyHelper::roundReceivingTan($consumedTanQty),
-                'consumed_qty_m' => round($consumedQtyM, 2),
-                'note' => $note,
-            ]);
-
-            return;
-        }
-
-        \App\Support\ShipmentRollAllocation::record(
-            $shipmentId,
-            $productRollId,
-            $consumedTanQty,
-            $consumedQtyM,
-            $note,
-        );
-    }
-
-    private static function usesAllocationDatabase(): bool
-    {
-        try {
-            return \Illuminate\Support\Facades\Schema::hasTable('shipment_roll_allocations');
-        } catch (\Throwable) {
-            return false;
-        }
+        ShipmentRollAllocation::query()->create([
+            'shipment_id' => $shipmentId,
+            'product_roll_id' => $productRollId,
+            'consumed_tan_qty' => QtyHelper::roundReceivingTan($consumedTanQty),
+            'consumed_qty_m' => round($consumedQtyM, 2),
+            'note' => $note,
+        ]);
     }
 }

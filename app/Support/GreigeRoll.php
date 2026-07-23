@@ -6,12 +6,10 @@ use App\Models\Greige;
 use App\Models\GreigeRoll as GreigeRollModel;
 use App\Models\PurchaseOrderLine;
 use App\Models\ReceivingLine;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
 
 /**
  * 生機の物理反（1在庫単位 = 1レコード）。
- * DB（greige_rolls）が投入済みなら DB を正とし、未投入時は JSON ファイルに保存する。
  */
 class GreigeRoll
 {
@@ -23,49 +21,18 @@ class GreigeRoll
 
     public const STATUS_CONSUMED = 'consumed';
 
-    public const FILE = 'greige_rolls.json';
-
-    public const BOOTSTRAP_FLAG = 'greige_rolls_bootstrapped.flag';
-
-    /** @var list<array<string, mixed>>|null */
-    private static ?array $cache = null;
-
-    /** @internal テスト用にメモリキャッシュを破棄する */
-    public static function resetCacheForTesting(): void
-    {
-        self::$cache = null;
-    }
-
     /**
      * @return list<array<string, mixed>>
      */
     public static function all(): array
     {
-        if (DemoData::usesGreigeRollDatabase()) {
-            return GreigeRollModel::query()
-                ->with(['greige', 'receivingLine'])
-                ->orderBy('id')
-                ->get()
-                ->map(fn (GreigeRollModel $roll) => self::normalizeRoll($roll->toSupportArray()))
-                ->values()
-                ->all();
-        }
-
-        if (self::$cache !== null) {
-            return self::$cache;
-        }
-
-        $path = storage_path('app/'.self::FILE);
-        if (! is_file($path)) {
-            return self::$cache = [];
-        }
-
-        $data = json_decode((string) file_get_contents($path), true);
-        if (! is_array($data) || ! isset($data['rolls']) || ! is_array($data['rolls'])) {
-            return self::$cache = [];
-        }
-
-        return self::$cache = self::normalizeRolls($data['rolls']);
+        return GreigeRollModel::query()
+            ->with(['greige', 'receivingLine'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (GreigeRollModel $roll) => self::normalizeRoll($roll->toSupportArray()))
+            ->values()
+            ->all();
     }
 
     /** @return Collection<int, object> */
@@ -96,13 +63,10 @@ class GreigeRoll
     /** @return Collection<int, object> */
     public static function inDyeingForPurchaseOrder(int $purchaseOrderId): Collection
     {
-        $lineIds = [];
-        if (Schema::hasTable('purchase_order_lines')) {
-            $lineIds = PurchaseOrderLine::query()
-                ->where('purchase_order_id', $purchaseOrderId)
-                ->pluck('id')
-                ->all();
-        }
+        $lineIds = PurchaseOrderLine::query()
+            ->where('purchase_order_id', $purchaseOrderId)
+            ->pluck('id')
+            ->all();
 
         return collect(self::all())
             ->filter(function ($roll) use ($lineIds) {
@@ -177,115 +141,69 @@ class GreigeRoll
      */
     public static function create(array $attributes): object
     {
-        if (DemoData::usesGreigeRollDatabase()) {
-            $greigeSku = (string) ($attributes['greige_sku'] ?? '');
-            $greige = Greige::findBySku($greigeSku);
-            $receivingLineId = (int) ($attributes['receiving_line_id'] ?? 0);
-            if ($receivingLineId <= 0) {
-                $receivingLineId = self::resolveReceivingLineId(
-                    (int) ($attributes['receiving_id'] ?? 0),
-                    (int) ($attributes['purchase_order_id'] ?? 0),
-                );
-            }
-
-            if ($greige !== null && $receivingLineId > 0) {
-                $roll = GreigeRollModel::query()->create([
-                'code' => (string) ($attributes['code'] ?? ''),
-                'greige_id' => $greige?->id,
-                    'purchase_order_id' => $attributes['purchase_order_id'] ?? null,
-                    'receiving_line_id' => $receivingLineId,
-                    'dyeing_purchase_order_line_id' => $attributes['dyeing_purchase_order_line_id'] ?? null,
-                'tan_qty' => QtyHelper::roundReceivingTan((float) ($attributes['tan_qty'] ?? 1.0)),
-                'actual_qty_m' => round((float) ($attributes['actual_qty_m'] ?? 0), 2),
-                'nominal_meters' => (int) ($attributes['nominal_meters'] ?? QtyHelper::METERS_PER_TAN_GREIGE),
-                'status' => (string) ($attributes['status'] ?? self::STATUS_IN_STOCK),
-                'received_date' => (string) ($attributes['received_date'] ?? date('Y-m-d')),
-                ]);
-
-                $roll->load(['greige', 'receivingLine']);
-
-                return (object) self::normalizeRoll($roll->toSupportArray());
-            }
+        $greigeSku = (string) ($attributes['greige_sku'] ?? '');
+        $greige = Greige::findBySku($greigeSku);
+        $receivingLineId = (int) ($attributes['receiving_line_id'] ?? 0);
+        if ($receivingLineId <= 0) {
+            $receivingLineId = self::resolveReceivingLineId(
+                (int) ($attributes['receiving_id'] ?? 0),
+                (int) ($attributes['purchase_order_id'] ?? 0),
+            );
         }
 
-        $rolls = self::all();
-        $nextId = (int) (collect($rolls)->max('id') ?? 0) + 1;
+        $roll = GreigeRollModel::query()->create([
+            'code' => (string) ($attributes['code'] ?? ''),
+            'greige_id' => $greige?->id,
+            'purchase_order_id' => $attributes['purchase_order_id'] ?? null,
+            'receiving_line_id' => $receivingLineId > 0 ? $receivingLineId : null,
+            'dyeing_purchase_order_line_id' => $attributes['dyeing_purchase_order_line_id'] ?? null,
+            'tan_qty' => QtyHelper::roundReceivingTan((float) ($attributes['tan_qty'] ?? 1.0)),
+            'actual_qty_m' => round((float) ($attributes['actual_qty_m'] ?? 0), 2),
+            'nominal_meters' => (int) ($attributes['nominal_meters'] ?? QtyHelper::METERS_PER_TAN_GREIGE),
+            'status' => (string) ($attributes['status'] ?? self::STATUS_IN_STOCK),
+            'received_date' => (string) ($attributes['received_date'] ?? date('Y-m-d')),
+        ]);
 
-        $roll = self::normalizeRoll(array_merge([
-            'id' => $nextId,
-            'code' => 'GR-'.$nextId,
-            'greige_sku' => '',
-            'purchase_order_id' => null,
-            'receiving_id' => null,
-            'tan_qty' => 1.0,
-            'actual_qty_m' => 0.0,
-            'nominal_meters' => QtyHelper::METERS_PER_TAN_GREIGE,
-            'status' => self::STATUS_IN_STOCK,
-            'received_date' => date('Y-m-d'),
-        ], $attributes));
+        $roll->load(['greige', 'receivingLine']);
 
-        $rolls[] = $roll;
-        self::persist($rolls);
-
-        return (object) $roll;
+        return (object) self::normalizeRoll($roll->toSupportArray());
     }
 
     public static function update(int $id, array $attributes): ?object
     {
-        if (DemoData::usesGreigeRollDatabase()) {
-            $roll = GreigeRollModel::query()->with(['greige', 'receivingLine'])->find($id);
-            if ($roll === null) {
-                return null;
-            }
-
-            $payload = [];
-            foreach (['code', 'purchase_order_id', 'tan_qty', 'actual_qty_m', 'nominal_meters', 'status', 'received_date', 'dyeing_purchase_order_line_id'] as $key) {
-                if (array_key_exists($key, $attributes)) {
-                    $payload[$key] = $attributes[$key];
-                }
-            }
-
-            if (isset($attributes['greige_sku'])) {
-                $greige = Greige::findBySku((string) $attributes['greige_sku']);
-                if ($greige !== null) {
-                    $payload['greige_id'] = $greige->id;
-                }
-            }
-
-            if (isset($attributes['receiving_id']) || isset($attributes['purchase_order_id'])) {
-                $receivingLineId = self::resolveReceivingLineId(
-                    (int) ($attributes['receiving_id'] ?? $roll->receivingLine?->receiving_id ?? 0),
-                    (int) ($attributes['purchase_order_id'] ?? $roll->purchase_order_id ?? 0),
-                );
-                if ($receivingLineId > 0) {
-                    $payload['receiving_line_id'] = $receivingLineId;
-                }
-            }
-
-            $roll->update($payload);
-            $roll->load(['greige', 'receivingLine']);
-
-            return (object) self::normalizeRoll($roll->fresh(['greige', 'receivingLine'])->toSupportArray());
+        $roll = GreigeRollModel::query()->with(['greige', 'receivingLine'])->find($id);
+        if ($roll === null) {
+            return null;
         }
 
-        $rolls = self::all();
-        $updated = null;
-
-        foreach ($rolls as &$roll) {
-            if ((int) $roll['id'] !== $id) {
-                continue;
+        $payload = [];
+        foreach (['code', 'purchase_order_id', 'tan_qty', 'actual_qty_m', 'nominal_meters', 'status', 'received_date', 'dyeing_purchase_order_line_id'] as $key) {
+            if (array_key_exists($key, $attributes)) {
+                $payload[$key] = $attributes[$key];
             }
-            $roll = self::normalizeRoll(array_merge($roll, $attributes));
-            $updated = (object) $roll;
-            break;
-        }
-        unset($roll);
-
-        if ($updated !== null) {
-            self::persist($rolls);
         }
 
-        return $updated;
+        if (isset($attributes['greige_sku'])) {
+            $greige = Greige::findBySku((string) $attributes['greige_sku']);
+            if ($greige !== null) {
+                $payload['greige_id'] = $greige->id;
+            }
+        }
+
+        if (isset($attributes['receiving_id']) || isset($attributes['purchase_order_id'])) {
+            $receivingLineId = self::resolveReceivingLineId(
+                (int) ($attributes['receiving_id'] ?? $roll->receivingLine?->receiving_id ?? 0),
+                (int) ($attributes['purchase_order_id'] ?? $roll->purchase_order_id ?? 0),
+            );
+            if ($receivingLineId > 0) {
+                $payload['receiving_line_id'] = $receivingLineId;
+            }
+        }
+
+        $roll->update($payload);
+        $roll->load(['greige', 'receivingLine']);
+
+        return (object) self::normalizeRoll($roll->fresh(['greige', 'receivingLine'])->toSupportArray());
     }
 
     /**
@@ -293,48 +211,10 @@ class GreigeRoll
      */
     public static function replaceAll(array $rolls): void
     {
-        if (DemoData::usesGreigeRollDatabase()) {
-            GreigeRollModel::query()->delete();
-            foreach (self::normalizeRolls($rolls) as $roll) {
-                self::create($roll);
-            }
-
-            return;
+        GreigeRollModel::query()->delete();
+        foreach (self::normalizeRolls($rolls) as $roll) {
+            self::create($roll);
         }
-
-        self::persist(self::normalizeRolls($rolls));
-    }
-
-    public static function resetBootstrap(): void
-    {
-        $flag = storage_path('app/'.self::BOOTSTRAP_FLAG);
-        $file = storage_path('app/'.self::FILE);
-        if (is_file($flag)) {
-            unlink($flag);
-        }
-        if (is_file($file)) {
-            unlink($file);
-        }
-        self::$cache = null;
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $rolls
-     */
-    private static function persist(array $rolls): void
-    {
-        $path = storage_path('app/'.self::FILE);
-        $dir = dirname($path);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        file_put_contents(
-            $path,
-            json_encode(['rolls' => self::normalizeRolls($rolls)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-        );
-
-        self::$cache = null;
     }
 
     /**

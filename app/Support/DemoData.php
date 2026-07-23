@@ -13,10 +13,7 @@ use App\Models\ProductRecipe;
 use App\Models\PurchaseOrder;
 use App\Models\Receiving;
 use App\Models\ShipTo;
-use App\Models\Supplier;
-use App\Models\YarnStockMovement;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * フロント確認用のテストデータ置き場。
@@ -41,28 +38,6 @@ class DemoData
 
     /** 生機品番の標準：1反あたりのメートル数 */
     public const METERS_PER_TAN_GREIGE = 100;
-
-    /** @var array<string, bool> */
-    private static array $databaseUsageCache = [];
-
-    /** @internal テスト用に DB 利用判定のキャッシュを破棄する */
-    public static function resetDatabaseUsageCacheForTesting(): void
-    {
-        self::$databaseUsageCache = [];
-    }
-
-    private static function cachedDatabaseUsage(string $key, callable $resolver): bool
-    {
-        if (array_key_exists($key, self::$databaseUsageCache)) {
-            return self::$databaseUsageCache[$key];
-        }
-
-        try {
-            return self::$databaseUsageCache[$key] = (bool) $resolver();
-        } catch (\Throwable) {
-            return self::$databaseUsageCache[$key] = false;
-        }
-    }
 
     /** カテゴリ一覧 */
     public static function categories(): Collection
@@ -961,25 +936,6 @@ class DemoData
         return PurchaseOrder::displayList();
     }
 
-    public static function usesPurchaseOrderDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('purchase_orders', fn () => Schema::hasTable('purchase_orders')
-            && Schema::hasTable('purchase_order_lines')
-            && PurchaseOrder::query()->exists());
-    }
-
-    public static function usesOrderDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('orders', fn () => Schema::hasTable('orders')
-            && Order::query()->exists());
-    }
-
-    public static function usesOrderAllocationDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('order_allocations', fn () => Schema::hasTable('order_allocations')
-            && self::usesOrderDatabase());
-    }
-
     public static function purchaseOrdersOfType(string $type): Collection
     {
         return self::purchaseOrders()->where('type', $type)->values();
@@ -1149,37 +1105,6 @@ class DemoData
         return Receiving::displayList();
     }
 
-    public static function usesReceivingDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('receivings', fn () => Schema::hasTable('receivings')
-            && Receiving::query()->exists());
-    }
-
-    public static function usesGreigeRollDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('greige_rolls', fn () => Schema::hasTable('greige_rolls')
-            && \App\Models\GreigeRoll::query()->exists());
-    }
-
-    public static function usesProductRollDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('product_rolls', fn () => Schema::hasTable('product_rolls')
-            && \App\Models\ProductRoll::query()->exists());
-    }
-
-    public static function usesShipmentDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('shipments', fn () => Schema::hasTable('shipments')
-            && \App\Models\Shipment::query()->exists());
-    }
-
-    public static function usesYarnStockDatabase(): bool
-    {
-        return self::cachedDatabaseUsage('yarn_stock', fn () => Schema::hasTable('yarn_stock_movements')
-            && Schema::hasTable('yarn_allocations')
-            && YarnStockMovement::query()->exists());
-    }
-
     /** 在庫移動履歴 */
     public static function stockMovements(): Collection
     {
@@ -1223,7 +1148,8 @@ class DemoData
         $fromShipments = self::shipments()->map(fn ($s) => substr($s->date, 0, 7));
         $fromPrices = self::materialPrices()->pluck('ym');
 
-        return $fromShipments->merge($fromPrices)
+        return collect($fromShipments->all())
+            ->merge($fromPrices)
             ->unique()
             ->sortDesc()
             ->values();
@@ -1244,7 +1170,10 @@ class DemoData
             $base = $base->prepend($current);
         }
 
-        return $base->unique()->sortDesc()->values();
+        return collect($base->all())
+            ->unique()
+            ->sortDesc()
+            ->values();
     }
 
     public static function isValidForecastMonth(string $ym): bool

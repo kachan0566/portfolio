@@ -3,7 +3,7 @@
 namespace Tests;
 
 use App\Models\SalesForecastLine;
-use App\Support\DemoData;
+use App\Services\Inventory\GreigeDyeInput;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -11,7 +11,7 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        DemoData::resetDatabaseUsageCacheForTesting();
+        GreigeDyeInput::resetBootstrapForTesting();
         SalesForecastLine::resetDraftCacheForTesting();
     }
 }
