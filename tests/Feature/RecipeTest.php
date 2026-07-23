@@ -2,16 +2,25 @@
 
 namespace Tests\Feature;
 
+use App\Models\Product;
 use App\Support\DemoData;
-use App\Support\DemoOverlay;
+use App\Support\MasterCatalog;
+use Database\Seeders\CostFoundationSeeder;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class RecipeTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
-        DemoOverlay::clear();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
     }
 
     public function test_index_shows_cost_breakdown_sections(): void
@@ -40,7 +49,10 @@ class RecipeTest extends TestCase
 
     public function test_index_reflects_saved_price_on_badges(): void
     {
-        DemoOverlay::saveProductPrice(1, 2500);
+        $this->put(route('recipes.update', 1), [
+            'processing_cost' => 475,
+            'price' => 2500,
+        ]);
 
         $response = $this->get(route('recipes.index'));
 
@@ -73,7 +85,7 @@ class RecipeTest extends TestCase
         $response->assertSee('value="1200"', false);
     }
 
-    public function test_update_saves_recipe_and_price_overlay(): void
+    public function test_update_saves_recipe_and_price_to_database(): void
     {
         $response = $this->put(route('recipes.update', 1), [
             'processing_cost' => 500,
@@ -82,7 +94,8 @@ class RecipeTest extends TestCase
 
         $response->assertRedirect(route('recipes.index'));
         $this->assertSame(500, DemoData::processingCost(1));
-        $this->assertSame(2500, DemoData::findProduct(1)->price);
+        $this->assertSame(2500, (int) Product::query()->find(1)?->price);
+        $this->assertSame(2500, (int) MasterCatalog::findProduct(1)?->price);
 
         $breakdown = DemoData::unitCostBreakdown(1, '2026-06');
         $this->assertSame(500.0, $breakdown->processing_cost);

@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Models\MaterialPrice;
-use App\Support\DemoData;
 use App\Support\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Schema;
@@ -58,12 +57,6 @@ class StoreYarnPriceRequest extends FormRequest
                 ->where('material_id', $materialId)
                 ->where('ym', $ym)
                 ->exists()) {
-                $validator->errors()->add('ym', 'この糸・年月の単価はすでに登録されています。');
-
-                return;
-            }
-
-            if (DemoData::hasYarnPrice($materialId, $ym)) {
                 $validator->errors()->add('ym', 'この糸・年月の単価はすでに登録されています。');
             }
         });

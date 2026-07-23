@@ -3,7 +3,6 @@
 namespace Tests\Unit;
 
 use App\Services\Inventory\ShipmentRollAllocator;
-use App\Support\DemoOverlay;
 use App\Support\FabricTanRoll;
 use App\Support\ProductRoll;
 use Tests\TestCase;
@@ -13,7 +12,6 @@ class ShipmentRollAllocatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        DemoOverlay::clear();
         $this->clearRollStorage();
         FabricTanRoll::resetBootstrap();
         FabricTanRoll::ensureBootstrapped();

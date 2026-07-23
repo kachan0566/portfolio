@@ -7,7 +7,6 @@ use App\Models\SalesForecastLine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
-use App\Support\DemoOverlay;
 use App\Support\SalesForecastSourceType;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -27,7 +26,6 @@ class SalesForecastTest extends TestCase
         $this->seed(MasterCatalogSeeder::class);
         $this->seed(OrderSeeder::class);
         $this->seed(ShipmentPlanSeeder::class);
-        DemoOverlay::clear();
     }
 
     public function test_sales_screen_has_actual_and_forecast_tabs(): void

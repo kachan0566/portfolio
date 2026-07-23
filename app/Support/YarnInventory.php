@@ -108,7 +108,7 @@ class YarnInventory
                 continue;
             }
             $ordered = (float) ($po->qty_kg ?? 0);
-            $received = (float) ($po->received_kg ?? 0) + DemoState::receivedOverlayQty($id);
+            $received = (float) ($po->received_kg ?? 0);
             $total += max(0.0, $ordered - $received);
         }
 
@@ -278,18 +278,6 @@ class YarnInventory
                 'note' => '入荷 '.$r->code,
             ];
         }
-        foreach (DemoState::extraReceivings() as $r) {
-            if (($r['po_type'] ?? '') !== PurchaseOrderType::YARN) {
-                continue;
-            }
-            $movements[] = [
-                'date' => $r['date'],
-                'material_id' => (int) $r['material_id'],
-                'qty_kg' => (float) ($r['qty_kg'] ?? $r['qty'] ?? 0),
-                'note' => '入荷 '.($r['code'] ?? ''),
-            ];
-        }
-
         usort($movements, fn ($a, $b) => strcmp($b['date'], $a['date']));
 
         return $movements;

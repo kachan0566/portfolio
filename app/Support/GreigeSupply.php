@@ -42,7 +42,7 @@ class GreigeSupply
                 continue;
             }
             $ordered = (int) ($po->qty_meters ?? 0);
-            $received = (int) ($po->received ?? 0) + (int) DemoState::receivedOverlayQty($id);
+            $received = (int) ($po->received ?? 0);
             $total += max(0, $ordered - $received);
         }
 

@@ -2,18 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Models\GreigeRecipe;
 use App\Support\DemoData;
-use App\Support\DemoOverlay;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
+use Database\Seeders\CostFoundationSeeder;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class GreigeRecipeTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
-        DemoOverlay::clear();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(CostFoundationSeeder::class);
     }
 
     public function test_index_shows_greige_recipe_tab(): void
@@ -39,7 +45,7 @@ class GreigeRecipeTest extends TestCase
         $response->assertDontSee('KB-A');
     }
 
-    public function test_store_greige_recipe_overlay(): void
+    public function test_store_greige_recipe_persists_to_database(): void
     {
         $response = $this->post(route('recipes.greige.store'), [
             'greige_sku' => 'KB-C',
@@ -52,6 +58,7 @@ class GreigeRecipeTest extends TestCase
 
         $response->assertRedirect(route('recipes.index', ['tab' => 'greige']));
         $this->assertTrue(DemoData::hasGreigeRecipe('KB-C'));
+        $this->assertDatabaseHas('greige_recipes', ['weaving_cost' => 110]);
 
         $requirements = DemoData::greigeYarnRequirements('KB-C', 100);
         $this->assertCount(1, $requirements);
