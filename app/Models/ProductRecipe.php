@@ -22,4 +22,9 @@ class ProductRecipe extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public static function existsForProduct(int $productId): bool
+    {
+        return self::query()->where('product_id', $productId)->exists();
+    }
 }
