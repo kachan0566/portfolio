@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +25,7 @@ class UpdateGreigeRecipeRequest extends FormRequest
             'lines.*.material_id' => [
                 'required',
                 'integer',
-                Rule::in(DemoData::yarnMaterials()->pluck('id')->all()),
+                Rule::in(MasterCatalog::yarnMaterials()->pluck('id')->all()),
             ],
             'lines.*.qty' => ['required', 'numeric', 'gt:0', 'max:999.99'],
         ];

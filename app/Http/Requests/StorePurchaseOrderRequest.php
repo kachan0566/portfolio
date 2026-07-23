@@ -2,7 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\GreigeRecipe;
+use App\Models\ShipTo;
+use App\Models\Supplier;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use Illuminate\Foundation\Http\FormRequest;
@@ -62,7 +66,7 @@ class StorePurchaseOrderRequest extends FormRequest
             return $base + [
                 'lines.*.material_id' => [
                     'required', 'integer',
-                    Rule::in(DemoData::yarnMaterials()->pluck('id')->all()),
+                    Rule::in(MasterCatalog::yarnMaterials()->pluck('id')->all()),
                 ],
                 'lines.*.qty_kg' => ['required', 'numeric', 'gt:0', 'max:999999'],
             ];
@@ -72,7 +76,7 @@ class StorePurchaseOrderRequest extends FormRequest
             return $base + [
                 'lines.*.greige_sku' => [
                     'required', 'string',
-                    Rule::in(DemoData::greiges()->pluck('sku')->all()),
+                    Rule::in(MasterCatalog::greiges()->pluck('sku')->all()),
                 ],
                 'lines.*.qty_tan' => ['required', 'numeric', 'gt:0', 'max:99999'],
             ];
@@ -81,7 +85,7 @@ class StorePurchaseOrderRequest extends FormRequest
         return $base + [
             'lines.*.product_id' => [
                 'required', 'integer',
-                Rule::in(DemoData::products()->pluck('id')->all()),
+                Rule::in(MasterCatalog::products()->pluck('id')->all()),
             ],
             'lines.*.qty_meters' => ['required', 'integer', 'min:1', 'max:9999999'],
             'order_id' => ['nullable', 'integer'],
@@ -117,18 +121,18 @@ class StorePurchaseOrderRequest extends FormRequest
             $supplierId = (int) $this->input('supplier_id');
             $shipToId = (int) $this->input('ship_to_id');
 
-            if ($supplierId > 0 && ! DemoData::suppliersForPurchaseType($type)->contains('id', $supplierId)) {
+            if ($supplierId > 0 && ! Supplier::forPurchaseType($type)->contains('id', $supplierId)) {
                 $validator->errors()->add('supplier_id', 'この発注種別では選べない依頼先です。');
             }
 
-            if ($shipToId > 0 && ! DemoData::shipTosForPurchaseType($type)->contains('id', $shipToId)) {
+            if ($shipToId > 0 && ! ShipTo::forPurchaseType($type)->contains('id', $shipToId)) {
                 $validator->errors()->add('ship_to_id', 'この発注種別では選べない出荷先です。');
             }
 
             if ($type === PurchaseOrderType::GREIGE) {
                 foreach ((array) $this->input('lines', []) as $index => $line) {
                     $sku = (string) ($line['greige_sku'] ?? '');
-                    if ($sku !== '' && ! DemoData::hasGreigeRecipe($sku)) {
+                    if ($sku !== '' && ! GreigeRecipe::existsForSku($sku)) {
                         $validator->errors()->add("lines.{$index}.greige_sku", 'この生機品番のレシピが未登録のため発注できません。');
                     }
 
@@ -162,7 +166,7 @@ class StorePurchaseOrderRequest extends FormRequest
                 ];
             } elseif ($type === PurchaseOrderType::GREIGE) {
                 $sku = (string) ($line['greige_sku'] ?? '');
-                $greige = DemoData::findGreige($sku);
+                $greige = MasterCatalog::findGreige($sku);
                 $perTan = (int) ($greige?->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
                 $tan = (float) ($line['qty_tan'] ?? 0);
                 $lines[] = [

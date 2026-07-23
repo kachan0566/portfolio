@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Support\DemoData;
+use App\Models\GreigeRecipe;
+use App\Support\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +23,7 @@ class StoreGreigeRecipeRequest extends FormRequest
             'greige_sku' => [
                 'required',
                 'string',
-                Rule::in(DemoData::greiges()->pluck('sku')->all()),
+                Rule::in(MasterCatalog::greiges()->pluck('sku')->all()),
             ],
             'loss_rate_percent' => ['required', 'numeric', 'min:0', 'max:99'],
             'weaving_cost' => ['required', 'integer', 'min:0'],
@@ -30,7 +31,7 @@ class StoreGreigeRecipeRequest extends FormRequest
             'lines.*.material_id' => [
                 'required',
                 'integer',
-                Rule::in(DemoData::yarnMaterials()->pluck('id')->all()),
+                Rule::in(MasterCatalog::yarnMaterials()->pluck('id')->all()),
             ],
             'lines.*.qty' => ['required', 'numeric', 'gt:0', 'max:999.99'],
         ];
@@ -60,7 +61,7 @@ class StoreGreigeRecipeRequest extends FormRequest
             }
 
             $sku = (string) $this->input('greige_sku');
-            if ($sku !== '' && DemoData::hasGreigeRecipe($sku)) {
+            if ($sku !== '' && GreigeRecipe::existsForSku($sku)) {
                 $validator->errors()->add('greige_sku', 'この生機品番のレシピはすでに登録されています。');
             }
 

@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\MaterialPrice;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class StoreYarnPriceRequest extends FormRequest
@@ -22,7 +25,7 @@ class StoreYarnPriceRequest extends FormRequest
             'material_id' => [
                 'required',
                 'integer',
-                Rule::in(DemoData::yarnMaterials()->pluck('id')->all()),
+                Rule::in(MasterCatalog::yarnMaterials()->pluck('id')->all()),
             ],
             'ym' => ['required', 'date_format:Y-m'],
             'price' => ['required', 'integer', 'min:1'],
@@ -47,7 +50,20 @@ class StoreYarnPriceRequest extends FormRequest
             $materialId = (int) $this->input('material_id');
             $ym = (string) $this->input('ym');
 
-            if ($materialId && $ym && DemoData::hasYarnPrice($materialId, $ym)) {
+            if (! $materialId || ! $ym) {
+                return;
+            }
+
+            if (Schema::hasTable('material_prices') && MaterialPrice::query()
+                ->where('material_id', $materialId)
+                ->where('ym', $ym)
+                ->exists()) {
+                $validator->errors()->add('ym', 'この糸・年月の単価はすでに登録されています。');
+
+                return;
+            }
+
+            if (DemoData::hasYarnPrice($materialId, $ym)) {
                 $validator->errors()->add('ym', 'この糸・年月の単価はすでに登録されています。');
             }
         });
