@@ -6,9 +6,10 @@ use App\Http\Requests\StoreOrderRequest;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
 use App\Support\AllocationConversion;
 use App\Support\DemoData;
-use App\Support\DemoState;
+use App\Support\ProductStock;
 use App\Support\FabricQuantity;
 use App\Support\ListSearch;
 use App\Support\QtyHelper;
@@ -52,17 +53,17 @@ class OrderController extends Controller
         $target = $this->enrichWithAllocation($target);
 
         $product = Product::query()->find($target->product_id)?->toDisplayObject() ?? abort(404);
-        $effectiveStock = DemoState::effectiveStock($target->product_id);
+        $effectiveStock = ProductStock::effectiveStock($target->product_id);
 
         $shipRate = $target->qty > 0
-            ? (int) round(DemoState::effectiveShipped($target->id) / $target->qty * 100)
+            ? (int) round(Order::shippedMetersFor($target->id) / $target->qty * 100)
             : 0;
 
         $allocationRate = $target->remaining > 0
             ? (int) round($target->allocated / $target->remaining * 100)
             : 0;
 
-        $confirmedQty = DemoState::effectiveShipped($target->id) + $target->allocated;
+        $confirmedQty = Order::shippedMetersFor($target->id) + $target->allocated;
         $confirmedRate = $target->qty > 0
             ? (int) round($confirmedQty / $target->qty * 100)
             : 0;
@@ -240,17 +241,17 @@ class OrderController extends Controller
 
         PurchaseOrderLink::link($purchase, $order);
 
-        $remaining = DemoState::orderRemaining($order);
+        $remaining = Order::remainingFor($order);
         $message = "発注 {$po->code} を受注 {$target->code} に紐づけました。";
 
         if ($remaining > 0) {
-            $effectiveStock = DemoState::effectiveStock($target->product_id);
+            $effectiveStock = ProductStock::effectiveStock($target->product_id);
             $stockAlloc = StockAllocation::stockAllocatedForOrder($order);
             $poAlloc = StockAllocation::poAllocatedForOrder($order);
             $need = max(0, $remaining - $stockAlloc - $poAlloc);
 
-            if ($need > 0 && DemoState::poHasReceived($purchase)) {
-                $received = DemoState::effectiveReceived($purchase);
+            if ($need > 0 && PurchaseOrder::hasReceivedFor($purchase)) {
+                $received = PurchaseOrder::receivedQtyFor($purchase);
                 $usage = StockAllocation::usageByPoAndType($target->product_id);
                 $stockUsedFromPo = $usage['stock'][$purchase] ?? 0;
                 $availableFromPo = max(0, $received - $stockUsedFromPo);
@@ -269,8 +270,8 @@ class OrderController extends Controller
                 }
             }
 
-            if ($need > 0 && DemoState::poHasRemaining($purchase)) {
-                $poRemaining = DemoState::poRemaining($purchase);
+            if ($need > 0 && PurchaseOrder::hasRemainingFor($purchase)) {
+                $poRemaining = PurchaseOrder::remainingQtyFor($purchase);
                 $usage = StockAllocation::usageByPoAndType($target->product_id);
                 $poUsed = $usage['po'][$purchase] ?? 0;
                 $availablePo = max(0, $poRemaining - $poUsed);

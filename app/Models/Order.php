@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Support\DemoData;
-use App\Support\DemoState;
 use App\Support\FabricQuantity;
 use App\Support\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -11,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 #[Fillable([
     'code',
@@ -94,6 +94,99 @@ class Order extends Model
         return $this->qty_meters !== $nominal;
     }
 
+    public function shippedMeters(): int
+    {
+        return max(0, (int) ($this->shipped_qty_m ?? 0));
+    }
+
+    public function shippedTan(): float
+    {
+        return max(0.0, QtyHelper::roundReceivingTan((float) ($this->shipped_qty_tan ?? 0)));
+    }
+
+    public function remainingMeters(): int
+    {
+        $mode = $this->order_qty_mode ?? 'tan';
+
+        if ($mode === 'meters') {
+            $qtyM = (int) ($this->qty_meters ?? $this->qty ?? 0);
+
+            return max(0, $qtyM - $this->shippedMeters());
+        }
+
+        return QtyHelper::metersFromTan($this->remainingTan(), (int) $this->product_id);
+    }
+
+    public function remainingTan(): float
+    {
+        $mode = $this->order_qty_mode ?? 'tan';
+
+        if ($mode === 'meters') {
+            $remainingM = $this->remainingMeters();
+            if ($remainingM <= 0) {
+                return 0.0;
+            }
+
+            return QtyHelper::tanCountCeilForShipment($remainingM, (int) $this->product_id);
+        }
+
+        $qtyTan = (float) ($this->qty_tan ?? QtyHelper::roundIntegerTan(
+            QtyHelper::tanCount((int) $this->qty, (int) $this->product_id)
+        ));
+
+        return max(0.0, QtyHelper::roundReceivingTan($qtyTan - $this->shippedTan()));
+    }
+
+    public function remaining(): int
+    {
+        return $this->remainingMeters();
+    }
+
+    public static function shippedMetersFor(int $orderId): int
+    {
+        if (! Schema::hasTable('orders')) {
+            return 0;
+        }
+
+        return self::query()->find($orderId)?->shippedMeters() ?? 0;
+    }
+
+    public static function shippedTanFor(int $orderId): float
+    {
+        if (! Schema::hasTable('orders')) {
+            return 0.0;
+        }
+
+        return self::query()->find($orderId)?->shippedTan() ?? 0.0;
+    }
+
+    public static function remainingMetersFor(int $orderId): int
+    {
+        if (! Schema::hasTable('orders')) {
+            return 0;
+        }
+
+        return self::query()->find($orderId)?->remainingMeters() ?? 0;
+    }
+
+    public static function remainingTanFor(int $orderId): float
+    {
+        if (! Schema::hasTable('orders')) {
+            return 0.0;
+        }
+
+        return self::query()->find($orderId)?->remainingTan() ?? 0.0;
+    }
+
+    public static function remainingFor(int $orderId): int
+    {
+        if (! Schema::hasTable('orders')) {
+            return 0;
+        }
+
+        return self::remainingMetersFor($orderId);
+    }
+
     public function toDisplayObject(): object
     {
         $product = $this->product;
@@ -118,16 +211,12 @@ class Order extends Model
                 (int) $this->product_id,
             );
 
-        $shippedMeters = DemoData::usesShipmentDatabase()
-            ? (int) $this->shipped_qty_m
-            : DemoState::effectiveShippedM((int) $this->id);
+        $shippedMeters = $this->shippedMeters();
 
-        $shippedTanDisplay = DemoData::usesShipmentDatabase()
-            ? FabricQuantity::tanFromRecord(
-                ['qty_tan' => $this->shipped_qty_tan, 'qty' => $this->shipped_qty_m],
-                (int) $this->product_id,
-            )
-            : $shippedTan;
+        $shippedTanDisplay = FabricQuantity::tanFromRecord(
+            ['qty_tan' => $this->shipped_qty_tan, 'qty' => $this->shipped_qty_m],
+            (int) $this->product_id,
+        );
 
         $statusInput = [
             'id' => $this->id,

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Support\DemoData;
-use App\Support\DemoState;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -188,7 +187,7 @@ class PurchaseOrderLine extends Model
     public function toReceivingMeta(): array
     {
         $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
-        $remaining = DemoState::poLineRemaining((int) $this->id);
+        $remaining = $this->remainingQty();
 
         return [
             'id' => $this->id,

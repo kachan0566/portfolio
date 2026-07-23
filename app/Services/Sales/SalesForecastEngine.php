@@ -4,11 +4,13 @@ namespace App\Services\Sales;
 
 use App\Support\MasterCatalog;
 
+use App\Models\Order;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
 use App\Models\SalesForecast;
 use App\Models\SalesForecastLine;
 use App\Support\DemoData;
-use App\Support\DemoState;
+use App\Support\ProductStock;
 use App\Support\ForecastManualAdjustment;
 use App\Support\FreightCalculator;
 use App\Support\PurchaseOrderStatus;
@@ -294,7 +296,7 @@ class SalesForecastEngine
         $totalFreight = $actualFreight + $forecastRemainingFreight;
 
         $inboundForecast = self::totalInboundQty($productId, $targetYm);
-        $currentStock = (float) DemoState::effectiveStock($productId);
+        $currentStock = (float) ProductStock::effectiveStock($productId);
         $isShortage = $forecastRemainingQty > ($currentStock + $inboundForecast);
         $isAdjusted = SalesForecastLine::productHasSavedDraft($productId, $targetYm);
 
@@ -429,7 +431,7 @@ class SalesForecastEngine
             'total_sales' => (int) ($actualRow->sales ?? 0) + (int) round($forecastRemainingQty * $price),
             'forecast_remaining_freight' => FreightCalculator::forQty($forecastRemainingQty, $productId),
             'inbound_forecast_qty' => $inboundForecastQty,
-            'current_stock_qty' => (float) DemoState::effectiveStock($productId),
+            'current_stock_qty' => (float) ProductStock::effectiveStock($productId),
         ];
     }
 
@@ -440,7 +442,7 @@ class SalesForecastEngine
             return 0.0;
         }
 
-        $remaining = (float) DemoState::orderRemaining($orderId);
+        $remaining = (float) Order::remainingFor($orderId);
         if ($remaining <= 0) {
             return 0.0;
         }
@@ -471,7 +473,7 @@ class SalesForecastEngine
             return 0.0;
         }
 
-        return max(0.0, (float) DemoState::poRemaining($poId));
+        return max(0.0, (float) PurchaseOrder::remainingQtyFor($poId));
     }
 
     public static function effectiveOutboundQty(int $productId, int $orderId, string $targetYm): float
@@ -520,7 +522,7 @@ class SalesForecastEngine
         return DemoData::orders()
             ->where('product_id', $productId)
             ->map(function ($order) {
-                $order->remaining = DemoState::orderRemaining((int) $order->id);
+                $order->remaining = Order::remainingFor((int) $order->id);
 
                 return $order;
             })
@@ -545,8 +547,8 @@ class SalesForecastEngine
                     'po_code' => $po->code,
                     'finish_date' => DemoData::expectedArrivalDate($po),
                     'qty_meters' => (float) ($po->qty_meters ?? 0),
-                    'received_qty' => (float) DemoState::effectiveReceivedQty($poId),
-                    'remaining_qty' => (float) DemoState::poRemaining($poId),
+                    'received_qty' => (float) PurchaseOrder::receivedQtyFor($poId),
+                    'remaining_qty' => (float) PurchaseOrder::remainingQtyFor($poId),
                     'forecast_qty' => $forecastQty,
                 ];
             })
@@ -581,7 +583,7 @@ class SalesForecastEngine
         $inbound = self::totalInboundQty($productId, $targetYm);
         $outbound = self::totalOutboundQty($productId, $targetYm);
         $manual = ForecastManualAdjustment::totalFor($productId, $targetYm);
-        $currentStock = (float) DemoState::effectiveStock($productId);
+        $currentStock = (float) ProductStock::effectiveStock($productId);
         $autoForecast = round($currentStock + $inbound - $outbound, 2);
 
         return (object) [
@@ -662,7 +664,7 @@ class SalesForecastEngine
             : null;
 
         if ($order !== null) {
-            $order->remaining = DemoState::orderRemaining((int) $order->id);
+            $order->remaining = Order::remainingFor((int) $order->id);
         }
 
         $defaultInbound = $poId !== null ? self::defaultInboundQty($poId, $targetYm) : 0.0;
@@ -695,7 +697,7 @@ class SalesForecastEngine
             'order_code' => $order?->code,
             'arrival_date' => $po ? DemoData::expectedArrivalDate($po) : null,
             'planned_ship_date' => $order?->planned_ship_date,
-            'po_remaining_qty' => $poId !== null ? (float) DemoState::poRemaining($poId) : null,
+            'po_remaining_qty' => $poId !== null ? (float) PurchaseOrder::remainingQtyFor($poId, $po) : null,
             'order_remaining_qty' => $order?->remaining,
             'default_inbound_qty' => $defaultInbound,
             'default_outbound_qty' => $defaultOutbound,
@@ -718,7 +720,7 @@ class SalesForecastEngine
             ->filter(fn ($po) => (int) $po->product_id === $productId)
             ->filter(fn ($po) => ($po->status ?? '') !== PurchaseOrderStatus::CANCELLED)
             ->filter(fn ($po) => SalesRecognition::countsPoForInboundMonth($po, $targetYm))
-            ->filter(fn ($po) => DemoState::poRemaining((int) $po->id) > 0)
+            ->filter(fn ($po) => PurchaseOrder::remainingQtyFor((int) $po->id, $po) > 0)
             ->sortBy(fn ($po) => DemoData::expectedArrivalDate($po))
             ->values();
     }
@@ -731,7 +733,7 @@ class SalesForecastEngine
         return DemoData::orders()
             ->where('product_id', $productId)
             ->map(function ($order) {
-                $order->remaining = DemoState::orderRemaining((int) $order->id);
+                $order->remaining = Order::remainingFor((int) $order->id);
 
                 return $order;
             })
@@ -751,7 +753,7 @@ class SalesForecastEngine
             ->filter(fn ($po) => (int) $po->product_id === $productId)
             ->filter(fn ($po) => ($po->status ?? '') !== PurchaseOrderStatus::CANCELLED)
             ->reject(fn ($po) => SalesRecognition::countsPoForInboundMonth($po, $targetYm))
-            ->filter(fn ($po) => DemoState::poRemaining((int) $po->id) > 0)
+            ->filter(fn ($po) => PurchaseOrder::remainingQtyFor((int) $po->id, $po) > 0)
             ->sortBy(fn ($po) => DemoData::expectedArrivalDate($po))
             ->values();
     }

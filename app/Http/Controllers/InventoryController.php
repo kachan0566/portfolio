@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Support\MasterCatalog;
+use App\Models\Order;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\AllocationConversion;
 use App\Support\DemoData;
-use App\Support\DemoState;
+use App\Support\ProductStock;
 use App\Support\GreigeInventory;
 use App\Support\ListSearch;
 use App\Support\PurchaseOrderDisplay;
@@ -31,12 +32,12 @@ class InventoryController extends Controller
         $search = ListSearch::params($request);
 
         $products = MasterCatalog::products()->map(function ($p) use ($ym) {
-            $p->stock = DemoState::effectiveStock($p->id);
+            $p->stock = ProductStock::effectiveStock($p->id);
             $unitCost = DemoData::unitCost($p->id, $ym);
             $p->unit_cost = $unitCost !== null ? (int) round($unitCost) : null;
             $p->cost_calculable = $unitCost !== null;
             $p->stock_value = $p->unit_cost !== null
-                ? $p->unit_cost * DemoState::effectiveStock($p->id)
+                ? $p->unit_cost * ProductStock::effectiveStock($p->id)
                 : null;
 
             return $p;
@@ -49,7 +50,7 @@ class InventoryController extends Controller
                 if (! in_array($status, ['在庫不足', '残少なめ', '十分'], true)) {
                     return false;
                 }
-                $stock = DemoState::effectiveStock($product->id);
+                $stock = ProductStock::effectiveStock($product->id);
                 if ($status === '在庫不足') {
                     return $stock < $product->stock_min;
                 }
@@ -176,8 +177,8 @@ class InventoryController extends Controller
             'yarnMovements' => $yarnMovements,
             'yarnTotalKg' => $yarnRows->sum('stock_kg'),
             'tab' => $tab,
-            'lowStockCount' => $products->filter(fn ($p) => DemoState::effectiveStock($p->id) < $p->stock_min)->count(),
-            'totalStock' => $products->sum(fn ($p) => DemoState::effectiveStock($p->id)),
+            'lowStockCount' => $products->filter(fn ($p) => ProductStock::effectiveStock($p->id) < $p->stock_min)->count(),
+            'totalStock' => $products->sum(fn ($p) => ProductStock::effectiveStock($p->id)),
             'stockValue' => $products->sum(fn ($p) => $p->stock_value ?? 0),
             'hasUncalculableCost' => $products->contains(fn ($p) => ! $p->cost_calculable),
             'costWarnings' => DemoData::collectCostWarnings(
@@ -209,12 +210,12 @@ class InventoryController extends Controller
     {
         $ym = DemoData::CURRENT_YM;
         $target = MasterCatalog::findProductOrFail($product);
-        $effectiveStock = DemoState::effectiveStock($product);
+        $effectiveStock = ProductStock::effectiveStock($product);
 
         $orders = DemoData::orders()
             ->where('product_id', $product)
             ->map(function ($o) {
-                $o->remaining = DemoState::orderRemaining($o->id);
+                $o->remaining = Order::remainingFor($o->id);
 
                 return $o;
             })

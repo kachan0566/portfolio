@@ -14,7 +14,6 @@ use App\Models\Supplier;
 use App\Services\Inventory\GreigeDyeInput;
 use App\Services\Purchase\PurchaseOrderShowData;
 use App\Support\DemoData;
-use App\Support\DemoState;
 use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
 use App\Support\ListSearch;
@@ -371,7 +370,7 @@ class PurchaseOrderController extends Controller
         ]);
 
         if ($type === PurchaseOrderType::GREIGE) {
-            $received = DemoState::effectiveReceivedQty($purchase, $target);
+            $received = PurchaseOrder::receivedQtyFor($purchase, $target);
             if ($received <= 0 && $request->filled('stage')) {
                 $newStage = (string) $request->input('stage');
                 if ($newStage === PurchaseOrderStages::GREIGE_WEAVING) {
@@ -387,7 +386,7 @@ class PurchaseOrderController extends Controller
         }
 
         if ($type === PurchaseOrderType::PRODUCT) {
-            $received = DemoState::effectiveReceivedQty($purchase, $target);
+            $received = PurchaseOrder::receivedQtyFor($purchase, $target);
             if ($received <= 0 && $request->has('stage')) {
                 $line = $model->primaryLine();
                 if ($line !== null) {

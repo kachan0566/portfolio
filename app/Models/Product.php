@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\DemoState;
+use App\Support\ProductStock;
 use App\Support\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -75,7 +75,7 @@ class Product extends Model
     public function toDisplayObject(): object
     {
         $perTan = $this->meters_per_tan;
-        $stockTan = QtyHelper::roundTan((float) DemoState::effectiveStock($this->id));
+        $stockTan = QtyHelper::roundTan((float) ProductStock::effectiveStockTan($this->id));
         $stock = $perTan > 0
             ? (int) round($stockTan * $perTan)
             : 0;

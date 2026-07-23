@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\PurchaseOrder;
+use Illuminate\Support\Facades\Schema;
+
 /**
  * 発注の画面表示用ラベル（status と工程を1つにまとめる）。
  */
@@ -51,7 +54,7 @@ class PurchaseOrderDisplay
 
         $poId = (int) ($po->id ?? 0);
         $ordered = DemoData::purchaseOrderOrderedQty($po);
-        $received = DemoState::effectiveReceivedQty($poId, $po);
+        $received = PurchaseOrder::receivedQtyFor($poId, $po);
 
         return $ordered > 0 && $received > 0 && $received + 0.001 < $ordered;
     }
@@ -103,21 +106,23 @@ class PurchaseOrderDisplay
 
         if (self::isPartial($po) || (string) ($po->status ?? '') === PurchaseOrderStatus::RECEIVED) {
             return $type === PurchaseOrderType::PRODUCT
-                ? DemoState::effectiveReceivedQty((int) $po->id, $po) <= 0
+                ? PurchaseOrder::receivedQtyFor((int) $po->id, $po) <= 0
                 : false;
         }
 
         if ($type === PurchaseOrderType::GREIGE) {
-            return DemoState::effectiveReceivedQty((int) $po->id, $po) <= 0;
+            return PurchaseOrder::receivedQtyFor((int) $po->id, $po) <= 0;
         }
 
-        return DemoState::effectiveReceivedQty((int) $po->id, $po) <= 0;
+        return PurchaseOrder::receivedQtyFor((int) $po->id, $po) <= 0;
     }
 
     public static function effectiveManualStage(object $po): ?string
     {
         $poId = (int) ($po->id ?? 0);
-        $overlay = DemoState::effectivePoStage($poId);
+        $overlay = Schema::hasTable('purchase_orders')
+            ? (PurchaseOrder::query()->find($poId)?->manualStageValue() ?? '')
+            : '';
         $type = (string) ($po->type ?? '');
 
         if ($type === PurchaseOrderType::PRODUCT) {
@@ -148,7 +153,7 @@ class PurchaseOrderDisplay
     private static function resolveYarnStage(object $po): string
     {
         $poId = (int) ($po->id ?? 0);
-        $received = DemoState::effectiveReceivedQty($poId, $po);
+        $received = PurchaseOrder::receivedQtyFor($poId, $po);
 
         if ($received > 0) {
             return PurchaseOrderStages::YARN_RECEIVED_AT_WEAVING;
@@ -164,7 +169,7 @@ class PurchaseOrderDisplay
     private static function resolveGreigeStage(object $po): string
     {
         $poId = (int) ($po->id ?? 0);
-        $received = DemoState::effectiveReceivedQty($poId, $po);
+        $received = PurchaseOrder::receivedQtyFor($poId, $po);
 
         if ($received > 0) {
             return PurchaseOrderStages::GREIGE_SHIPPED;
@@ -185,7 +190,7 @@ class PurchaseOrderDisplay
     private static function resolveProductStage(object $po): string
     {
         $poId = (int) ($po->id ?? 0);
-        $received = DemoState::effectiveReceivedQty($poId, $po);
+        $received = PurchaseOrder::receivedQtyFor($poId, $po);
 
         if ($received > 0) {
             return PurchaseOrderStages::PRODUCT_IN_STOCK;

@@ -9,7 +9,8 @@ use App\Models\ReceivingLine;
 use App\Services\Inventory\ShipmentRollAllocator;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\DemoData;
-use App\Support\DemoState;
+use App\Support\ProductStock;
+use App\Models\PurchaseOrder;
 use App\Support\ProductRoll as ProductRollSupport;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
@@ -46,8 +47,8 @@ class ReceivingRegistrarTest extends TestCase
     {
         $this->seedBase();
 
-        $beforeStock = DemoState::effectiveStock(6);
-        $remaining = (int) floor(DemoState::poRemaining(7));
+        $beforeStock = ProductStock::effectiveStock(6);
+        $remaining = (int) floor(PurchaseOrder::remainingQtyFor(7));
         $qty = min(20, max(1, $remaining));
 
         $result = ReceivingRegistrar::register(
@@ -60,7 +61,7 @@ class ReceivingRegistrarTest extends TestCase
         );
 
         $this->assertNotEmpty($result['code']);
-        $this->assertSame($beforeStock + $qty, DemoState::effectiveStock(6));
+        $this->assertSame($beforeStock + $qty, ProductStock::effectiveStock(6));
 
         $receiving = Receiving::query()->where('code', $result['code'])->first();
         $this->assertNotNull($receiving);

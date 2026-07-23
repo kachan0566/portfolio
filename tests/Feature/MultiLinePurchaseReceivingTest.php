@@ -7,7 +7,6 @@ use App\Models\PurchaseOrderLine;
 use App\Models\Receiving;
 use App\Models\ReceivingLine;
 use App\Services\Receiving\ReceivingRegistrar;
-use App\Support\DemoState;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use Database\Seeders\MasterCatalogSeeder;
@@ -124,11 +123,11 @@ class MultiLinePurchaseReceivingTest extends TestCase
         $line = PurchaseOrderLine::query()
             ->with('purchaseOrder')
             ->get()
-            ->first(fn (PurchaseOrderLine $row) => DemoState::poLineRemaining((int) $row->id) > 0);
+            ->first(fn (PurchaseOrderLine $row) => $row->remainingQty() > 0);
 
         $this->assertNotNull($line, '入荷残のある明細行が必要です');
 
-        $remaining = DemoState::poLineRemaining((int) $line->id);
+        $remaining = $line->remainingQty();
         $this->assertGreaterThan(0, $remaining);
         $this->assertLessThanOrEqual($line->orderedQty(), $remaining + $line->receivedQty());
     }

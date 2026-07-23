@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\Order;
 use App\Models\OrderAllocation;
+use App\Models\PurchaseOrder;
 use Illuminate\Support\Collection;
 
 /**
@@ -173,8 +175,8 @@ class StockAllocation
             return self::TYPE_STOCK;
         }
 
-        $received = DemoState::effectiveReceived($poId);
-        $remaining = DemoState::poRemaining($poId);
+        $received = (int) floor(PurchaseOrder::receivedQtyFor($poId));
+        $remaining = PurchaseOrder::remainingQtyFor($poId);
 
         if ($received > 0 && $remaining === 0) {
             return self::TYPE_STOCK;
@@ -287,7 +289,7 @@ class StockAllocation
 
     private static function alreadyShippedFromStock(int $orderId): int
     {
-        $shipped = DemoState::effectiveShipped($orderId);
+        $shipped = Order::shippedMetersFor($orderId);
         $stockAlloc = self::stockAllocatedForOrder($orderId);
 
         return min($shipped, $stockAlloc);
@@ -567,7 +569,7 @@ class StockAllocation
         $stockUsageByPo = [];
         $poUsageByPo = [];
         $totalStockAlloc = 0;
-        $effectiveStock = DemoState::effectiveStock($productId);
+        $effectiveStock = ProductStock::effectiveStock($productId);
 
         foreach ($input as $orderId => $typeMaps) {
             $orderId = (int) $orderId;
@@ -580,7 +582,7 @@ class StockAllocation
                 continue;
             }
 
-            $remaining = DemoState::orderRemaining($orderId);
+            $remaining = Order::remainingFor($orderId);
             $orderStockTotal = 0;
             $orderPoTotal = 0;
 
@@ -613,11 +615,11 @@ class StockAllocation
                     }
 
                     if ($type === self::TYPE_STOCK) {
-                        if (! DemoState::poHasReceived($poId)) {
+                        if (! PurchaseOrder::hasReceivedFor($poId)) {
                             return "発注 {$po->code} は未入荷のため、現在庫引当の対象にできません。";
                         }
 
-                        $received = DemoState::effectiveReceived($poId);
+                        $received = (int) floor(PurchaseOrder::receivedQtyFor($poId));
                         $usedFromPo = ($stockUsageByPo[$poId] ?? 0) + $qty;
                         if ($usedFromPo > $received) {
                             return "発注 {$po->code} の入荷済み数量（".QtyHelper::format($received, $productId).'）を超える現在庫引当（'.QtyHelper::format($usedFromPo, $productId).'）はできません。';
@@ -627,7 +629,7 @@ class StockAllocation
                         $orderStockTotal += $qty;
                         $totalStockAlloc += $qty;
                     } else {
-                        $poRemaining = DemoState::poRemaining($poId);
+                        $poRemaining = PurchaseOrder::remainingQtyFor($poId);
                         if ($poRemaining <= 0) {
                             return "発注 {$po->code} に発注残がないため、発注引当の対象にできません。";
                         }
@@ -855,7 +857,7 @@ class StockAllocation
 
         $isRecorded = self::hasForProduct($product->id);
         $savedLines = self::forProduct($product->id);
-        $effectiveStock = DemoState::effectiveStock($product->id);
+        $effectiveStock = ProductStock::effectiveStock($product->id);
 
         $allocations = $pending->map(function ($order) use ($isRecorded, $savedLines) {
             if ($isRecorded) {
@@ -923,7 +925,7 @@ class StockAllocation
      */
     public static function statusForOrder(object $order): array
     {
-        $remaining = DemoState::orderRemaining((int) $order->id);
+        $remaining = Order::remainingFor((int) $order->id);
         $stockAllocated = self::stockAllocatedForOrder((int) $order->id);
         $poAllocated = self::poAllocatedForOrder((int) $order->id);
         $allocated = $stockAllocated + $poAllocated;
@@ -1009,12 +1011,12 @@ class StockAllocation
      */
     public static function unallocatedStockFromPo(int $productId, int $poId): int
     {
-        if (! DemoState::poHasReceived($poId)) {
+        if (! PurchaseOrder::hasReceivedFor($poId)) {
             return 0;
         }
 
         $stockUsed = self::usageByPoAndType($productId)['stock'][$poId] ?? 0;
-        $perPo = max(0, DemoState::effectiveReceived($poId) - $stockUsed);
+        $perPo = max(0, (int) floor(PurchaseOrder::receivedQtyFor($poId)) - $stockUsed);
         $globalRoom = self::unallocatedStockForProduct($productId);
 
         return min($perPo, $globalRoom);
@@ -1025,13 +1027,13 @@ class StockAllocation
      */
     public static function unallocatedPoFromPo(int $productId, int $poId): int
     {
-        if (! DemoState::poHasRemaining($poId)) {
+        if (! PurchaseOrder::hasRemainingFor($poId)) {
             return 0;
         }
 
         $poUsed = self::usageByPoAndType($productId)['po'][$poId] ?? 0;
 
-        return max(0, DemoState::poRemaining($poId) - $poUsed);
+        return max(0, PurchaseOrder::remainingQtyFor($poId) - $poUsed);
     }
 
     /**
@@ -1053,7 +1055,7 @@ class StockAllocation
     public static function poOptionsFromPurchases(Collection $purchases, int $productId): array
     {
         $stockOptions = $purchases
-            ->filter(fn ($po) => DemoState::poHasReceived($po->id))
+            ->filter(fn ($po) => PurchaseOrder::hasReceivedFor((int) $po->id, $po))
             ->map(function ($po) use ($productId) {
                 $unallocated = self::unallocatedStockFromPo($productId, $po->id);
 
@@ -1068,7 +1070,7 @@ class StockAllocation
             ->values();
 
         $poOptions = $purchases
-            ->filter(fn ($po) => DemoState::poHasRemaining($po->id))
+            ->filter(fn ($po) => PurchaseOrder::hasRemainingFor((int) $po->id, $po))
             ->map(function ($po) use ($productId) {
                 $unallocated = self::unallocatedPoFromPo($productId, $po->id);
 
@@ -1088,7 +1090,7 @@ class StockAllocation
     /** 品番の未割当在庫（現在庫 − 現在庫引当合計） */
     public static function unallocatedStockForProduct(int $productId): int
     {
-        return max(0, DemoState::effectiveStock($productId) - self::stockUsageForProduct($productId));
+        return max(0, ProductStock::effectiveStock($productId) - self::stockUsageForProduct($productId));
     }
 
     /** 品番の未引当の発注残（各発注の発注残 − 発注引当合計の合計） */
@@ -1098,7 +1100,7 @@ class StockAllocation
         $total = 0;
 
         foreach (DemoData::purchaseOrders()->where('product_id', $productId) as $po) {
-            $remaining = DemoState::poRemaining($po->id);
+            $remaining = PurchaseOrder::remainingQtyFor((int) $po->id, $po);
             $allocated = $poUsage[$po->id] ?? 0;
             $total += max(0, $remaining - $allocated);
         }
@@ -1117,7 +1119,7 @@ class StockAllocation
             return 0;
         }
 
-        $remaining = DemoState::orderRemaining($orderId);
+        $remaining = Order::remainingFor($orderId);
         if ($remaining <= 0) {
             return 0;
         }

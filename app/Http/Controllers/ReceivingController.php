@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Support\MasterCatalog;
 
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\DemoData;
-use App\Support\DemoState;
 use App\Support\FabricQuantity;
 use App\Support\ListSearch;
 use App\Support\PurchaseOrderStatus;
@@ -43,7 +43,7 @@ class ReceivingController extends Controller
         $pending = DemoData::purchaseOrders()
             ->filter(fn ($po) => ($po->type ?? '') === $type)
             ->filter(fn ($po) => PurchaseOrderStatus::isActive($po->status ?? ''))
-            ->filter(fn ($po) => DemoState::poRemaining($po->id) > 0)
+            ->filter(fn ($po) => PurchaseOrder::remainingQtyFor((int) $po->id, $po) > 0)
             ->values();
 
         $poLinesJson = $this->pendingPoLinesJson($type, $pending);
@@ -121,7 +121,7 @@ class ReceivingController extends Controller
                 continue;
             }
 
-            $remaining = DemoState::poLineRemaining($poLineId);
+            $remaining = PurchaseOrderLine::query()->find($poLineId)?->remainingQty() ?? 0.0;
             if ($remaining <= 0 && DemoData::usesPurchaseOrderDatabase()) {
                 continue;
             }
@@ -157,7 +157,7 @@ class ReceivingController extends Controller
                     continue;
                 }
 
-                $lineRemaining = $remaining > 0 ? $remaining : DemoState::poRemaining($poId);
+                $lineRemaining = $remaining > 0 ? $remaining : PurchaseOrder::remainingQtyFor($poId);
                 if ($qty > (int) floor($lineRemaining) + 1) {
                     continue;
                 }
@@ -184,7 +184,8 @@ class ReceivingController extends Controller
      */
     private function normalizeLegacySingleEntry(Request $request, string $poType, int $poId): array
     {
-        $remaining = DemoState::poRemaining($poId);
+        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
+        $remaining = PurchaseOrder::remainingQtyFor($poId, $po);
         $poLineId = $this->resolveLegacyPoLineId($poId);
 
         if ($poType === PurchaseOrderType::YARN) {
@@ -199,7 +200,6 @@ class ReceivingController extends Controller
             ]];
         }
 
-        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
         $productId = $poType === PurchaseOrderType::PRODUCT ? (int) $po->product_id : null;
         $greigeSku = $poType === PurchaseOrderType::GREIGE
             ? (string) ($po->greige_sku ?? $po->sku)
