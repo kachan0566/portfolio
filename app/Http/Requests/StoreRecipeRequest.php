@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Support\DemoData;
+use App\Models\ProductRecipe;
+use App\Support\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +23,7 @@ class StoreRecipeRequest extends FormRequest
             'product_id' => [
                 'required',
                 'integer',
-                Rule::in(DemoData::products()->pluck('id')->all()),
+                Rule::in(MasterCatalog::products()->pluck('id')->all()),
             ],
             'processing_cost' => ['required', 'integer', 'min:0'],
             'price' => ['required', 'integer', 'min:0'],
@@ -45,7 +46,7 @@ class StoreRecipeRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $productId = (int) $this->input('product_id');
-            if ($productId && DemoData::hasRecipe($productId)) {
+            if ($productId && ProductRecipe::existsForProduct($productId)) {
                 $validator->errors()->add('product_id', 'この品番のレシピはすでに登録されています。');
             }
         });

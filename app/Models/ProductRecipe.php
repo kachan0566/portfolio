@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 #[Fillable(['product_id', 'processing_cost'])]
 class ProductRecipe extends Model
@@ -25,6 +26,20 @@ class ProductRecipe extends Model
 
     public static function existsForProduct(int $productId): bool
     {
-        return self::query()->where('product_id', $productId)->exists();
+        if (self::usesDatabase()) {
+            return self::query()->where('product_id', $productId)->exists();
+        }
+
+        return \App\Support\DemoData::hasRecipe($productId);
+    }
+
+    private static function usesDatabase(): bool
+    {
+        try {
+            return Schema::hasTable('product_recipes')
+                && self::query()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }
