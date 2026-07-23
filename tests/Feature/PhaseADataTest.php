@@ -1,16 +1,30 @@
 <?php
 
-namespace Tests\Unit;
+namespace Tests\Feature;
 
 use App\Support\DemoData;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\ShipToType;
 use App\Support\SupplierType;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Database\Seeders\PurchaseOrderSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PhaseADataTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+        $this->seed(PurchaseOrderSeeder::class);
+    }
+
     public function test_purchase_orders_have_three_types(): void
     {
         $orders = DemoData::purchaseOrders();

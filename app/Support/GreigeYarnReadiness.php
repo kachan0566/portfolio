@@ -50,29 +50,22 @@ class GreigeYarnReadiness
      */
     private static function rawYarnPurchaseOrders(): \Illuminate\Support\Collection
     {
-        if (DemoData::usesPurchaseOrderDatabase()) {
-            return PurchaseOrder::query()
-                ->where('type', PurchaseOrderType::YARN)
-                ->with('lines')
-                ->get()
-                ->map(function (PurchaseOrder $po) {
-                    $line = $po->lines->sortBy('line_no')->first();
+        return PurchaseOrder::query()
+            ->where('type', PurchaseOrderType::YARN)
+            ->with('lines')
+            ->get()
+            ->map(function (PurchaseOrder $po) {
+                $line = $po->lines->sortBy('line_no')->first();
 
-                    return (object) [
-                        'id' => $po->id,
-                        'type' => $po->type,
-                        'status' => $po->status,
-                        'material_id' => $line?->material_id,
-                        'qty_kg' => $line?->qty_kg,
-                        'received_kg' => $line?->received_qty_kg,
-                    ];
-                });
-        }
-
-        return DemoData::basePurchaseOrderRows()
-            ->map(fn ($row) => (object) (is_array($row) ? $row : (array) $row))
-            ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::YARN)
-            ->values();
+                return (object) [
+                    'id' => $po->id,
+                    'type' => $po->type,
+                    'status' => $po->status,
+                    'material_id' => $line?->material_id,
+                    'qty_kg' => $line?->qty_kg,
+                    'received_kg' => $line?->received_qty_kg,
+                ];
+            });
     }
 
     public static function isYarnPoFullyReceived(object $yarnPo): bool

@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Order;
 use App\Models\OrderAllocation;
-use App\Support\DemoData;
 use App\Support\StockAllocation;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -38,12 +37,11 @@ class StockAllocationWriteTest extends TestCase
         $this->seed(OrderAllocationSeeder::class);
     }
 
-    public function test_uses_order_allocation_database_when_orders_are_in_database(): void
+    public function test_order_tables_ready_after_seed(): void
     {
         $this->seedOrdersOnly();
 
-        $this->assertTrue(DemoData::usesOrderDatabase());
-        $this->assertTrue(DemoData::usesOrderAllocationDatabase());
+        $this->assertGreaterThan(0, Order::query()->count());
         $this->assertSame(0, OrderAllocation::query()->count());
     }
 

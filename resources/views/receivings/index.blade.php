@@ -57,7 +57,6 @@
                                 $lineCount = $r->line_count ?? 1;
                                 $receivingLineId = $r->receiving_line_id ?? null;
                                 $canAmendRolls = $receivingLineId
-                                    && \App\Support\DemoData::usesReceivingDatabase()
                                     && in_array($poType, [PurchaseOrderType::GREIGE, PurchaseOrderType::PRODUCT], true);
                             @endphp
                             <tr>

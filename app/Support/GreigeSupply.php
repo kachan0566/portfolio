@@ -6,6 +6,7 @@ use App\Support\MasterCatalog;
 
 use App\Models\Greige;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
 
 /**
  * 製品発注向け：生機の供給量（染工場仕掛 + 生機発注残）の判定。
@@ -27,22 +28,23 @@ class GreigeSupply
     public static function greigePoRemainingMeters(string $greigeSku, ?int $excludeProductPoId = null): int
     {
         $total = 0;
-        foreach (DemoData::basePurchaseOrderRows() as $row) {
-            $row = is_array($row) ? $row : (array) $row;
-            $po = (object) $row;
-            if (($po->type ?? '') !== PurchaseOrderType::GREIGE) {
-                continue;
-            }
-            if (($po->greige_sku ?? '') !== $greigeSku) {
-                continue;
-            }
-            if (! PurchaseOrderStatus::isActive($po->status ?? '')) {
-                continue;
-            }
-            $ordered = (int) ($po->qty_meters ?? 0);
-            $received = (int) ($po->received ?? 0);
-            $total += max(0, $ordered - $received);
-        }
+        PurchaseOrder::query()
+            ->where('type', PurchaseOrderType::GREIGE)
+            ->whereIn('status', [
+                PurchaseOrderStatus::ORDERED,
+                PurchaseOrderStatus::PARTIAL,
+            ])
+            ->with(['lines.greige'])
+            ->each(function (PurchaseOrder $po) use ($greigeSku, &$total) {
+                foreach ($po->lines as $line) {
+                    if (($line->greige?->sku ?? '') !== $greigeSku) {
+                        continue;
+                    }
+                    $ordered = (int) ($line->qty_meters ?? 0);
+                    $received = (int) ($line->received_qty_m ?? 0);
+                    $total += max(0, $ordered - $received);
+                }
+            });
 
         return $total;
     }

@@ -45,72 +45,35 @@ class YarnInventory
     /** デモデータ上ですでに入荷済みの糸発注分 */
     private static function historicalPoReceivedKg(int $materialId): float
     {
-        if (DemoData::usesPurchaseOrderDatabase()) {
-            return (float) PurchaseOrderLine::query()
-                ->whereHas('purchaseOrder', fn ($q) => $q->where('type', PurchaseOrderType::YARN))
-                ->where('material_id', $materialId)
-                ->sum('received_qty_kg');
-        }
-
-        $total = 0.0;
-        foreach (DemoData::basePurchaseOrderRows() as $row) {
-            if (($row['type'] ?? '') !== PurchaseOrderType::YARN) {
-                continue;
-            }
-            if ((int) ($row['material_id'] ?? 0) !== $materialId) {
-                continue;
-            }
-            $total += (float) ($row['received_kg'] ?? $row['received'] ?? 0);
-        }
-
-        return $total;
+        return (float) PurchaseOrderLine::query()
+            ->whereHas('purchaseOrder', fn ($q) => $q->where('type', PurchaseOrderType::YARN))
+            ->where('material_id', $materialId)
+            ->sum('received_qty_kg');
     }
 
     /** 糸発注の未入荷残（kg） */
     public static function onOrderRemainingKg(int $materialId): float
     {
-        if (DemoData::usesPurchaseOrderDatabase()) {
-            $total = 0.0;
-            PurchaseOrder::query()
-                ->where('type', PurchaseOrderType::YARN)
-                ->whereIn('status', [
-                    PurchaseOrderStatus::ORDERED,
-                    PurchaseOrderStatus::PARTIAL,
-                ])
-                ->with('lines')
-                ->each(function (PurchaseOrder $po) use ($materialId, &$total) {
-                    foreach ($po->lines as $line) {
-                        if ((int) ($line->material_id ?? 0) !== $materialId) {
-                            continue;
-                        }
-                        $ordered = (float) ($line->qty_kg ?? 0);
-                        $received = (float) ($line->received_qty_kg ?? 0);
-                        $total += max(0.0, $ordered - $received);
-                    }
-                });
-
-            return round($total, 3);
-        }
-
         $total = 0.0;
-        foreach (DemoData::basePurchaseOrderRows() as $row) {
-            $row = is_array($row) ? $row : (array) $row;
-            $po = (object) $row;
-            if (($po->type ?? '') !== PurchaseOrderType::YARN) {
-                continue;
-            }
-            if ((int) ($po->material_id ?? 0) !== $materialId) {
-                continue;
-            }
-            if (! PurchaseOrderStatus::isActive($po->status ?? '')) {
-                continue;
-            }
-            $ordered = (float) ($po->qty_kg ?? 0);
-            $received = (float) ($po->received_kg ?? 0);
-            $total += max(0.0, $ordered - $received);
-        }
+        PurchaseOrder::query()
+            ->where('type', PurchaseOrderType::YARN)
+            ->whereIn('status', [
+                PurchaseOrderStatus::ORDERED,
+                PurchaseOrderStatus::PARTIAL,
+            ])
+            ->with('lines')
+            ->each(function (PurchaseOrder $po) use ($materialId, &$total) {
+                foreach ($po->lines as $line) {
+                    if ((int) ($line->material_id ?? 0) !== $materialId) {
+                        continue;
+                    }
+                    $ordered = (float) ($line->qty_kg ?? 0);
+                    $received = (float) ($line->received_qty_kg ?? 0);
+                    $total += max(0.0, $ordered - $received);
+                }
+            });
 
-        return $total;
+        return round($total, 3);
     }
 
     /** @param list<array{material_id: int, qty_kg: float}> $requirements */

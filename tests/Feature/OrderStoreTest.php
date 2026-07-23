@@ -97,11 +97,10 @@ class OrderStoreTest extends TestCase
         $this->assertSame('更新テスト', $order->ship_memo);
     }
 
-    public function test_demo_data_orders_uses_database_after_seed(): void
+    public function test_demo_data_orders_reads_from_database_after_seed(): void
     {
         $this->seedOrders();
 
-        $this->assertTrue(DemoData::usesOrderDatabase());
         $this->assertSame(Order::query()->count(), DemoData::orders()->count());
     }
 }

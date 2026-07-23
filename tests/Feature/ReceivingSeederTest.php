@@ -77,10 +77,6 @@ class ReceivingSeederTest extends TestCase
     {
         $this->seedReceivings();
 
-        $this->assertTrue(DemoData::usesReceivingDatabase());
-        $this->assertTrue(DemoData::usesGreigeRollDatabase());
-        $this->assertTrue(DemoData::usesProductRollDatabase());
-
         $receivings = DemoData::receivings();
         $this->assertSame(5, $receivings->count());
         $this->assertSame('RC-2606-005', $receivings->firstWhere('code', 'RC-2606-005')?->code);

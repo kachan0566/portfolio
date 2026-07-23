@@ -798,38 +798,7 @@ class DemoData
     /** 受注一覧 */
     public static function orders(): Collection
     {
-        if (self::usesOrderDatabase()) {
-            return Order::displayList();
-        }
-
-        return self::baseOrderRows()->map(function ($r) {
-            $product = self::findProduct($r['product_id']);
-            $r['product'] = $product->sku;
-            $r['sku'] = $product->sku;
-            $r['color'] = $product->color;
-            $r['unit'] = $product->unit;
-            $r['order_qty_mode'] = $r['order_qty_mode'] ?? 'tan';
-            $r['qty_tan'] = ($r['order_qty_mode'] ?? 'tan') === 'tan'
-                ? QtyHelper::roundIntegerTan((float) ($r['qty_tan'] ?? FabricQuantity::tanFromRecord($r, (int) $r['product_id'])))
-                : FabricQuantity::tanFromRecord($r, (int) $r['product_id']);
-            $r['shipped_tan'] = FabricQuantity::tanFromRecord(
-                ['qty_tan' => $r['shipped_tan'] ?? null, 'qty' => $r['shipped'] ?? 0],
-                (int) $r['product_id'],
-            );
-            $r['qty_meters'] = ($r['order_qty_mode'] ?? 'tan') === 'meters'
-                ? (int) ($r['qty_meters'] ?? $r['qty'] ?? 0)
-                : FabricQuantity::metersFromRecord(
-                    ['qty_tan' => $r['qty_tan'], 'qty_meters' => $r['qty_meters'] ?? null],
-                    (int) $r['product_id'],
-                );
-            $r['shipped_meters'] = (int) ($r['shipped_meters'] ?? $r['shipped'] ?? 0);
-            $r['qty'] = $r['qty_meters'];
-            $r['shipped'] = $r['shipped_meters'];
-            $r['status'] = self::orderProgressStatus($r);
-            $r['is_new_today'] = $r['order_date'] === self::today();
-
-            return (object) $r;
-        });
+        return Order::displayList();
     }
 
     /**
@@ -1037,12 +1006,7 @@ class DemoData
     /** 発注一覧（糸・生機・製品の3種別） */
     public static function purchaseOrders(): Collection
     {
-        if (self::usesPurchaseOrderDatabase()) {
-            return PurchaseOrder::displayList();
-        }
-
-        return self::basePurchaseOrderRows()
-            ->map(fn ($r) => self::enrichPurchaseOrder($r));
+        return PurchaseOrder::displayList();
     }
 
     public static function usesPurchaseOrderDatabase(): bool
@@ -1072,22 +1036,7 @@ class DemoData
     /** 発注一覧用（明細行単位） */
     public static function purchaseOrderIndexRows(): Collection
     {
-        if (self::usesPurchaseOrderDatabase()) {
-            return PurchaseOrder::displayLineList();
-        }
-
-        return self::purchaseOrders()->flatMap(function ($po) {
-            $lineCount = max(1, (int) ($po->line_count ?? 1));
-            $lineStage = (string) ($po->stage ?? PurchaseOrderDisplay::label($po));
-
-            return [(object) array_merge((array) $po, [
-                'line_no' => 1,
-                'line_count' => $lineCount,
-                'purchase_order_line_id' => null,
-                'line_stage' => $lineStage,
-                'stage' => $lineStage,
-            ])];
-        })->values();
+        return PurchaseOrder::displayLineList();
     }
 
     /** @param  array<string, mixed>  $row */
@@ -1227,28 +1176,7 @@ class DemoData
     /** 出荷一覧 */
     public static function shipments(): Collection
     {
-        if (self::usesShipmentDatabase()) {
-            return \App\Models\Shipment::displayList();
-        }
-
-        $rows = [
-            ['id' => 1, 'code' => 'SH-2606-001', 'order_code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'date' => '2026-06-11', 'due_date' => '2026-06-12', 'ship_to' => '東レ商事 滋賀倉庫',     'note' => '時間指定 午前中'],
-            ['id' => 2, 'code' => 'SH-2606-002', 'order_code' => 'SO-2606-004', 'customer' => 'ユニフォーム製作所', 'product_id' => 2, 'qty' => 60,  'date' => '2026-06-12', 'due_date' => '2026-06-15', 'ship_to' => 'ユニフォーム製作所 本社', 'note' => ''],
-            ['id' => 3, 'code' => 'SH-2606-003', 'order_code' => 'SO-2606-002', 'customer' => 'アパレル東京',    'product_id' => 3, 'qty' => 80,  'date' => '2026-06-14', 'due_date' => '2026-06-18', 'ship_to' => 'アパレル東京 物流センター', 'note' => '分納の1回目'],
-            ['id' => 4, 'code' => 'SH-2606-004', 'order_code' => 'SO-2606-006', 'customer' => 'アパレル東京',    'product_id' => 1, 'qty' => 40,  'date' => '2026-06-15', 'due_date' => '2026-06-28', 'ship_to' => 'アパレル東京 物流センター', 'note' => ''],
-        ];
-
-        return collect($rows)->map(function ($r) {
-            $product = self::findProduct($r['product_id']);
-            $r['product'] = $product->sku;
-            $r['sku'] = $product->sku;
-            $r['color'] = $product->color;
-            $r['unit'] = $product->unit;
-            $r['price'] = $product->price;
-            $r['amount'] = $product->price * $r['qty'];
-
-            return (object) $r;
-        });
+        return \App\Models\Shipment::displayList();
     }
 
     /** 入荷の生データ（DemoState 参照なし） */
@@ -1266,31 +1194,7 @@ class DemoData
     /** 入荷一覧 */
     public static function receivings(): Collection
     {
-        if (self::usesReceivingDatabase()) {
-            return Receiving::displayList();
-        }
-
-        return self::baseReceivingRows()->map(function ($r) {
-            $r['po_type'] = $r['po_type'] ?? PurchaseOrderType::PRODUCT;
-
-            if ($r['po_type'] === PurchaseOrderType::YARN) {
-                $material = self::findMaterial((int) $r['material_id']);
-                $r['sku'] = $material->sku;
-                $r['unit'] = 'kg';
-                $r['qty'] = $r['qty_kg'];
-            } elseif ($r['po_type'] === PurchaseOrderType::GREIGE) {
-                $r['sku'] = $r['greige_sku'];
-                $r['unit'] = '反';
-                $r['qty'] = $r['qty_meters'];
-            } else {
-                $product = self::findProduct((int) $r['product_id']);
-                $r['product'] = $product->sku;
-                $r['sku'] = $product->sku;
-                $r['unit'] = $product->unit;
-            }
-
-            return (object) $r;
-        });
+        return Receiving::displayList();
     }
 
     public static function usesReceivingDatabase(): bool

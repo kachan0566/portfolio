@@ -6,10 +6,9 @@
 @section('content')
     @php
         use App\Support\PurchaseOrderType;
-        use App\Support\DemoData;
         $typeLabel = PurchaseOrderType::label($type);
         $qtyUnit = $type === PurchaseOrderType::YARN ? 'kg' : 'm';
-        $useMultiLine = DemoData::usesPurchaseOrderDatabase() && $poLinesJson !== '{}';
+        $useMultiLine = $poLinesJson !== '{}';
     @endphp
     <div class="page-header">
         <div>
