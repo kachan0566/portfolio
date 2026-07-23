@@ -2,6 +2,7 @@
 
 namespace App\Services\Fabric;
 
+use App\Support\MasterCatalog;
 use App\Support\DemoData;
 use App\Support\GreigeRoll;
 use App\Support\ProductRoll;
@@ -34,12 +35,12 @@ class TanRollBootstrap
             }
 
             $greigeSku = (string) ($receiving->greige_sku ?? $receiving->sku ?? '');
-            $greige = DemoData::findGreige($greigeSku);
+            $greige = MasterCatalog::findGreige($greigeSku);
             if ($greige === null) {
                 continue;
             }
 
-            $nominal = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
+            $nominal = (int) ($greige->meters_per_tan ?? QtyHelper::METERS_PER_TAN_GREIGE);
             $rollCount = max(1, (int) round($meters / $nominal));
             $perRoll = TanRollRecorder::distributeMeters($meters, $rollCount);
 

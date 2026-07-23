@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Material;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\YarnAllocation;
@@ -167,7 +170,7 @@ class YarnInventory
             $needed = (float) $req->required_kg;
             $available = self::availableKg($materialId, $excludeGreigePoId);
             if ($needed > 0 && $available + 0.001 < $needed) {
-                $material = DemoData::findMaterial($materialId);
+                $material = MasterCatalog::findMaterial($materialId);
                 $short = round($needed - $available, 2);
                 $messages[] = ($material?->name ?? '糸').'（'.($material?->sku ?? '').'）が '.$short.'kg 不足しています（必要 '.round($needed, 2).'kg / 利用可能 '.round($available, 2).'kg）。';
             }

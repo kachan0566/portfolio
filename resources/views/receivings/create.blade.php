@@ -113,7 +113,7 @@
                                             $firstPo = $pending->first();
                                             $metersPerTan = $type === PurchaseOrderType::GREIGE
                                                 ? ($firstPo->meters_per_tan ?? 100)
-                                                : (\App\Support\DemoData::findProduct((int) ($firstPo->product_id ?? 0))?->meters_per_tan ?? 50);
+                                                : \App\Support\QtyHelper::metersPerTan((int) ($firstPo->product_id ?? 0));
                                         @endphp
                                         @include('partials.qty-input', [
                                             'tanName' => 'qty_tan',

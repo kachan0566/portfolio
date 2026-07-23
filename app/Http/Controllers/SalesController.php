@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Product;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
 use App\Support\ListSearch;
@@ -59,7 +62,7 @@ class SalesController extends Controller
         $forecastCalculable = $forecastKpiRows->where('cost_calculable', true);
 
         $selectedProduct = $selectedProductId !== null
-            ? DemoData::findProduct($selectedProductId)
+            ? MasterCatalog::findProduct($selectedProductId)
             : null;
 
         $forecastLineMap = $forecast->lines->keyBy('product_id');

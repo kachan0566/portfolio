@@ -2,6 +2,11 @@
 
 namespace App\Support;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Greige;
+use App\Models\Product;
+
 /**
  * 製品発注向け：生機の供給量（染工場仕掛 + 生機発注残）の判定。
  */
@@ -9,7 +14,7 @@ class GreigeSupply
 {
     public static function greigeSkuForProduct(int $productId): ?string
     {
-        return DemoData::findProduct($productId)?->greige_sku;
+        return MasterCatalog::findProduct($productId)?->greige_sku;
     }
 
     /** 染工場仕掛の生機（m）— 生機発注入荷実績 */
@@ -72,7 +77,7 @@ class GreigeSupply
         }
 
         $short = $requiredMeters - $available;
-        $greige = DemoData::findGreige($sku);
+        $greige = MasterCatalog::findGreige($sku);
 
         return ($greige?->name ?? $sku).'（'.$sku.'）が '.number_format($short).'m 不足しています（必要 '.number_format($requiredMeters).'m / 利用可能 '.number_format($available).'m）。';
     }

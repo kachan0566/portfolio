@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use Illuminate\Support\Facades\Schema;
@@ -272,7 +273,14 @@ class DemoState
             return $rollTan;
         }
 
-        $product = DemoData::findProduct($productId);
+        $productModel = Schema::hasTable('products') ? Product::query()->find($productId) : null;
+        if ($productModel !== null) {
+            $overlay = self::readStockTanOverlay();
+
+            return max(0.0, QtyHelper::roundReceivingTan($overlay[$productId] ?? 0.0));
+        }
+
+        $product = DemoData::products()->firstWhere('id', $productId);
         if (! $product) {
             return 0.0;
         }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
@@ -22,7 +23,7 @@ class InventoryForecastController extends Controller
 {
     public function showProduct(Request $request, int $product): View
     {
-        $target = DemoData::findProduct($product) ?? abort(404);
+        $target = MasterCatalog::findProductOrFail($product);
         $ym = $this->resolveYm($request);
         $line = MonthEndForecastEngine::buildLine(
             $product,
@@ -53,7 +54,7 @@ class InventoryForecastController extends Controller
         ]);
 
         $productId = (int) $request->input('product_id');
-        if (! DemoData::findProduct($productId)) {
+        if (MasterCatalog::findProduct($productId) === null) {
             abort(404);
         }
 
@@ -125,7 +126,7 @@ class InventoryForecastController extends Controller
         ]);
 
         $greigeSku = (string) $request->input('greige_sku');
-        if (DemoData::findGreige($greigeSku) === null) {
+        if (MasterCatalog::findGreige($greigeSku) === null) {
             abort(404);
         }
 
@@ -334,7 +335,7 @@ class InventoryForecastController extends Controller
 
     public function longTermDetail(int $product): View
     {
-        $target = DemoData::findProduct($product) ?? abort(404);
+        $target = MasterCatalog::findProductOrFail($product);
         $line = LongTermInventoryEngine::buildLine(
             $product,
             $target,

@@ -60,7 +60,7 @@
             <div class="card__body">
                 @php
                     $selectedOrder = $pending->firstWhere('id', $selectedOrderId) ?? $pending->first();
-                    $selectedMetersPerTan = \App\Support\DemoData::findProduct($selectedOrder?->product_id)?->meters_per_tan ?? 50;
+                    $selectedMetersPerTan = \App\Support\QtyHelper::metersPerTan($selectedOrder?->product_id);
                     $selectedShippable = $selectedOrder?->shippable_qty ?? 0;
                 @endphp
                 <form action="{{ route('shipments.store') }}" method="POST" id="shipment-form">
@@ -69,7 +69,7 @@
                         <label class="label" for="order">受注元（対象受注）<span class="req">*</span></label>
                         <select class="select" id="order" name="order_id">
                             @foreach ($pending as $o)
-                                @php $perTan = \App\Support\DemoData::findProduct($o->product_id)?->meters_per_tan ?? 50; @endphp
+                                @php $perTan = \App\Support\QtyHelper::metersPerTan($o->product_id); @endphp
                                 <option value="{{ $o->id }}"
                                         data-shippable="{{ $o->shippable_qty }}"
                                         data-meters-per-tan="{{ $perTan }}"

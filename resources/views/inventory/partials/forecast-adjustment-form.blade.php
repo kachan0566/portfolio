@@ -8,21 +8,21 @@
         <input type="hidden" name="product_id" value="{{ $productId }}">
         @php
             $adjProductId = $productId;
-            $adjMetersPerTan = \App\Support\DemoData::findProduct($productId)?->meters_per_tan ?? 50;
+            $adjMetersPerTan = \App\Support\QtyHelper::metersPerTan($productId);
         @endphp
     @else
         <div class="field" style="min-width:140px;">
             <label class="label" for="adj-product-{{ $formId ?? 'list' }}">品番</label>
             <select class="select" id="adj-product-{{ $formId ?? 'list' }}" name="product_id" required data-adj-product-select>
                 @foreach ($productOptions as $line)
-                    <option value="{{ $line->product_id }}" data-meters-per-tan="{{ \App\Support\DemoData::findProduct($line->product_id)?->meters_per_tan ?? 50 }}">{{ $line->sku }}</option>
+                    <option value="{{ $line->product_id }}" data-meters-per-tan="{{ \App\Support\QtyHelper::metersPerTan($line->product_id) }}">{{ $line->sku }}</option>
                 @endforeach
             </select>
         </div>
         @php
             $firstLine = $productOptions->first();
             $adjProductId = $firstLine?->product_id;
-            $adjMetersPerTan = \App\Support\DemoData::findProduct($adjProductId)?->meters_per_tan ?? 50;
+            $adjMetersPerTan = \App\Support\QtyHelper::metersPerTan($adjProductId);
         @endphp
     @endif
     <div class="field" style="min-width:100px;">

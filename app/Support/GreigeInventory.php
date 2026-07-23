@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Greige;
 use Illuminate\Support\Collection;
 
 /**
@@ -31,7 +34,7 @@ class GreigeInventory
             ->map(function ($po) {
                 $poId = (int) $po->id;
                 $greigeSku = (string) ($po->greige_sku ?? $po->sku ?? '');
-                $greige = DemoData::findGreige($greigeSku);
+                $greige = MasterCatalog::findGreige($greigeSku);
                 if ($greige === null) {
                     return null;
                 }
@@ -56,7 +59,7 @@ class GreigeInventory
                     $rollCount = 0;
                 }
 
-                $shipTo = DemoData::findShipTo((int) ($po->ship_to_id ?? 0));
+                $shipTo = MasterCatalog::findShipTo((int) ($po->ship_to_id ?? 0));
 
                 return (object) [
                     'po_id' => $poId,
@@ -96,7 +99,7 @@ class GreigeInventory
             return null;
         }
 
-        $greige = DemoData::findGreigeByProductId((int) $po->product_id);
+        $greige = MasterCatalog::findGreigeByProductId((int) $po->product_id);
         if ($greige === null) {
             return null;
         }

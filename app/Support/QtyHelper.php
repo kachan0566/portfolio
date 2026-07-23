@@ -2,6 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\Greige;
+use App\Models\Product;
+use Illuminate\Support\Facades\Schema;
+
 /**
  * 数量の表示・換算ヘルパー。
  *
@@ -32,20 +36,33 @@ class QtyHelper
     public static function metersPerTan(?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): int
     {
         if ($isGreige) {
-            if ($greigeSku !== null) {
-                $greige = DemoData::findGreige($greigeSku);
-                if ($greige !== null && isset($greige->meters_per_tan)) {
+            if ($greigeSku !== null && Schema::hasTable('greiges')) {
+                $greige = Greige::findBySku($greigeSku);
+                if ($greige !== null) {
                     return (int) $greige->meters_per_tan;
+                }
+            }
+            if ($greigeSku !== null) {
+                $legacyGreige = DemoData::greiges()->firstWhere('sku', $greigeSku);
+                if ($legacyGreige !== null) {
+                    return (int) $legacyGreige->meters_per_tan;
                 }
             }
 
             return self::METERS_PER_TAN_GREIGE;
         }
 
-        if ($productId !== null) {
-            $product = DemoData::findProduct($productId);
-            if ($product !== null && isset($product->meters_per_tan)) {
+        if ($productId !== null && Schema::hasTable('products')) {
+            $product = Product::query()->find($productId);
+            if ($product !== null) {
                 return (int) $product->meters_per_tan;
+            }
+        }
+
+        if ($productId !== null) {
+            $legacyProduct = DemoData::products()->firstWhere('id', $productId);
+            if ($legacyProduct !== null) {
+                return (int) $legacyProduct->meters_per_tan;
             }
         }
 
@@ -285,7 +302,13 @@ class QtyHelper
     /** 生機反数 → 同長さの製品反数（反数ベース換算） */
     public static function productTanFromGreigeTan(float|int $greigeTan, int $productId): float
     {
-        $greigeSku = DemoData::findProduct($productId)?->greige_sku;
+        $greigeSku = null;
+        if (Schema::hasTable('products')) {
+            $greigeSku = Product::query()->with('greige')->find($productId)?->greige?->sku;
+        }
+        if ($greigeSku === null) {
+            $greigeSku = DemoData::products()->firstWhere('id', $productId)?->greige_sku;
+        }
         $meters = self::metersFromTan($greigeTan, null, true, $greigeSku);
 
         return self::tanCount($meters, $productId, false);

@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Greige;
 use App\Models\GreigeRoll as GreigeRollModel;
 use App\Models\PurchaseOrderLine;
 use App\Models\ReceivingLine;
@@ -178,7 +179,7 @@ class GreigeRoll
     {
         if (DemoData::usesGreigeRollDatabase()) {
             $greigeSku = (string) ($attributes['greige_sku'] ?? '');
-            $greige = DemoData::findGreige($greigeSku);
+            $greige = Greige::findBySku($greigeSku);
             $receivingLineId = (int) ($attributes['receiving_line_id'] ?? 0);
             if ($receivingLineId <= 0) {
                 $receivingLineId = self::resolveReceivingLineId(
@@ -196,7 +197,7 @@ class GreigeRoll
                     'dyeing_purchase_order_line_id' => $attributes['dyeing_purchase_order_line_id'] ?? null,
                 'tan_qty' => QtyHelper::roundReceivingTan((float) ($attributes['tan_qty'] ?? 1.0)),
                 'actual_qty_m' => round((float) ($attributes['actual_qty_m'] ?? 0), 2),
-                'nominal_meters' => (int) ($attributes['nominal_meters'] ?? DemoData::METERS_PER_TAN_GREIGE),
+                'nominal_meters' => (int) ($attributes['nominal_meters'] ?? QtyHelper::METERS_PER_TAN_GREIGE),
                 'status' => (string) ($attributes['status'] ?? self::STATUS_IN_STOCK),
                 'received_date' => (string) ($attributes['received_date'] ?? date('Y-m-d')),
                 ]);
@@ -218,7 +219,7 @@ class GreigeRoll
             'receiving_id' => null,
             'tan_qty' => 1.0,
             'actual_qty_m' => 0.0,
-            'nominal_meters' => DemoData::METERS_PER_TAN_GREIGE,
+            'nominal_meters' => QtyHelper::METERS_PER_TAN_GREIGE,
             'status' => self::STATUS_IN_STOCK,
             'received_date' => date('Y-m-d'),
         ], $attributes));
@@ -245,7 +246,7 @@ class GreigeRoll
             }
 
             if (isset($attributes['greige_sku'])) {
-                $greige = DemoData::findGreige((string) $attributes['greige_sku']);
+                $greige = Greige::findBySku((string) $attributes['greige_sku']);
                 if ($greige !== null) {
                     $payload['greige_id'] = $greige->id;
                 }
@@ -362,7 +363,7 @@ class GreigeRoll
                 : null,
             'tan_qty' => QtyHelper::roundReceivingTan((float) ($roll['tan_qty'] ?? 1.0)),
             'actual_qty_m' => round((float) ($roll['actual_qty_m'] ?? 0), 2),
-            'nominal_meters' => (int) ($roll['nominal_meters'] ?? DemoData::METERS_PER_TAN_GREIGE),
+            'nominal_meters' => (int) ($roll['nominal_meters'] ?? QtyHelper::METERS_PER_TAN_GREIGE),
             'status' => (string) ($roll['status'] ?? self::STATUS_IN_STOCK),
             'received_date' => (string) ($roll['received_date'] ?? date('Y-m-d')),
         ];

@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Support\MasterCatalog;
+use App\Support\PurchaseOrderDisplay;
+
 use Illuminate\Support\Collection;
 
 /**
@@ -23,7 +26,7 @@ class OrderProductionStatus
      */
     public static function rowsForOrder(object $order): Collection
     {
-        $product = DemoData::findProduct((int) ($order->product_id ?? 0));
+        $product = MasterCatalog::findProduct((int) ($order->product_id ?? 0));
         if ($product === null) {
             return collect();
         }
