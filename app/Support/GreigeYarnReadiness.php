@@ -69,23 +69,8 @@ class GreigeYarnReadiness
                 });
         }
 
-        $rows = DemoData::basePurchaseOrderRows()->all();
-
-        foreach (PurchaseOrderOverlay::additions() as $addition) {
-            $rows[] = $addition;
-        }
-
-        return collect($rows)
-            ->map(function ($row) {
-                $row = is_array($row) ? $row : (array) $row;
-                $id = (int) ($row['id'] ?? 0);
-                $overrides = PurchaseOrderOverlay::overrides($id);
-                if ($overrides !== []) {
-                    $row = array_merge($row, $overrides);
-                }
-
-                return (object) $row;
-            })
+        return DemoData::basePurchaseOrderRows()
+            ->map(fn ($row) => (object) (is_array($row) ? $row : (array) $row))
             ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::YARN)
             ->values();
     }

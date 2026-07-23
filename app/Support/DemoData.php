@@ -1041,20 +1041,8 @@ class DemoData
             return PurchaseOrder::displayList();
         }
 
-        $rows = self::basePurchaseOrderRows()->all();
-
-        foreach (PurchaseOrderOverlay::additions() as $addition) {
-            $rows[] = $addition;
-        }
-
-        return collect($rows)->map(function ($r) {
-            $overrides = PurchaseOrderOverlay::overrides((int) $r['id']);
-            if (! empty($overrides)) {
-                $r = array_merge($r, $overrides);
-            }
-
-            return self::enrichPurchaseOrder($r);
-        });
+        return self::basePurchaseOrderRows()
+            ->map(fn ($r) => self::enrichPurchaseOrder($r));
     }
 
     public static function usesPurchaseOrderDatabase(): bool

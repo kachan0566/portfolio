@@ -27,10 +27,8 @@ class GreigeSupply
     public static function greigePoRemainingMeters(string $greigeSku, ?int $excludeProductPoId = null): int
     {
         $total = 0;
-        foreach (DemoData::basePurchaseOrderRows()->merge(collect(PurchaseOrderOverlay::additions())) as $row) {
+        foreach (DemoData::basePurchaseOrderRows() as $row) {
             $row = is_array($row) ? $row : (array) $row;
-            $id = (int) ($row['id'] ?? 0);
-            $row = array_merge($row, PurchaseOrderOverlay::overrides($id));
             $po = (object) $row;
             if (($po->type ?? '') !== PurchaseOrderType::GREIGE) {
                 continue;

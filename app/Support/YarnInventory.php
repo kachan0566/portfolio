@@ -93,10 +93,8 @@ class YarnInventory
         }
 
         $total = 0.0;
-        foreach (DemoData::basePurchaseOrderRows()->merge(collect(PurchaseOrderOverlay::additions())) as $row) {
+        foreach (DemoData::basePurchaseOrderRows() as $row) {
             $row = is_array($row) ? $row : (array) $row;
-            $id = (int) ($row['id'] ?? 0);
-            $row = array_merge($row, PurchaseOrderOverlay::overrides($id));
             $po = (object) $row;
             if (($po->type ?? '') !== PurchaseOrderType::YARN) {
                 continue;
