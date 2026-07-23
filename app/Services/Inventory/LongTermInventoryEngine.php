@@ -2,6 +2,9 @@
 
 namespace App\Services\Inventory;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Product;
 use App\Support\DemoData;
 use App\Support\DemoState;
 use App\Support\FabricTanRoll;
@@ -24,7 +27,7 @@ class LongTermInventoryEngine
         $asOfDate ??= DemoData::today();
         $ym = DemoData::CURRENT_YM;
 
-        $lines = DemoData::products()->map(function ($product) use ($asOfDate, $ym) {
+        $lines = MasterCatalog::products()->map(function ($product) use ($asOfDate, $ym) {
             return self::buildLine((int) $product->id, $product, $asOfDate, $ym);
         })->filter(fn ($line) => $line->long_term_qty > 0 || $line->current_stock_qty > 0)
             ->values();

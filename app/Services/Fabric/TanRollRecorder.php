@@ -2,6 +2,7 @@
 
 namespace App\Services\Fabric;
 
+use App\Support\MasterCatalog;
 use App\Support\DemoData;
 use App\Support\FabricTanRoll;
 use App\Support\GreigeRoll;
@@ -31,8 +32,8 @@ class TanRollRecorder
             return [];
         }
 
-        $greige = DemoData::findGreige($greigeSku);
-        $nominal = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
+        $greige = MasterCatalog::findGreige($greigeSku);
+        $nominal = (int) ($greige?->meters_per_tan ?? QtyHelper::METERS_PER_TAN_GREIGE);
         $measuredAt ??= date('Y-m-d');
         $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
         $poCode = $po?->code ?? 'PO-'.$poId;
@@ -96,15 +97,15 @@ class TanRollRecorder
             return ['product_rolls' => [], 'total_meters' => 0.0];
         }
 
-        $product = DemoData::findProduct($productId);
-        $greige = DemoData::findGreigeByProductId($productId);
+        $product = MasterCatalog::findProduct($productId);
+        $greige = MasterCatalog::findGreigeByProductId($productId);
         if ($product === null || $greige === null) {
             return ['product_rolls' => [], 'total_meters' => 0.0];
         }
 
         $measuredAt ??= $po->finish_date ?? date('Y-m-d');
-        $greigeNominal = (int) ($greige->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
-        $productNominal = (int) ($product->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
+        $greigeNominal = (int) ($greige->meters_per_tan ?? QtyHelper::METERS_PER_TAN_GREIGE);
+        $productNominal = (int) ($product->meters_per_tan ?? QtyHelper::METERS_PER_TAN_PRODUCT);
 
         $targetTan = (float) ($po->qty_tan ?? QtyHelper::roundIntegerTan(
             QtyHelper::tanCount((int) $po->qty_meters, $productId)
@@ -175,12 +176,12 @@ class TanRollRecorder
             return [];
         }
 
-        $product = DemoData::findProduct($productId);
+        $product = MasterCatalog::findProduct($productId);
         if ($product === null) {
             return [];
         }
 
-        $productNominal = (int) ($product->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
+        $productNominal = (int) ($product->meters_per_tan ?? QtyHelper::METERS_PER_TAN_PRODUCT);
         $measuredAt ??= date('Y-m-d');
         $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
         $poCode = $po?->code ?? 'PO-'.$poId;

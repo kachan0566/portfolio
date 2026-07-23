@@ -2,6 +2,9 @@
 
 namespace App\Services\Inventory;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Product;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
 use App\Support\DemoState;
@@ -14,7 +17,7 @@ class MonthEndForecastEngine
     public static function build(string $targetYm): object
     {
         $monthEnd = self::monthEndDate($targetYm);
-        $lines = DemoData::products()->map(function ($product) use ($targetYm, $monthEnd) {
+        $lines = MasterCatalog::products()->map(function ($product) use ($targetYm, $monthEnd) {
             return self::buildLine((int) $product->id, $product, $targetYm, $monthEnd);
         })->values();
 
@@ -206,7 +209,7 @@ class MonthEndForecastEngine
             }
         }
 
-        $product = DemoData::findProduct($productId);
+        $product = MasterCatalog::findProduct($productId);
         if (! $product) {
             return 0;
         }
@@ -246,7 +249,7 @@ class MonthEndForecastEngine
         }
 
         $monthEnd = self::monthEndDate($prevYm);
-        $prevTotal = (int) DemoData::products()->sum(function ($product) use ($prevYm, $monthEnd) {
+        $prevTotal = (int) MasterCatalog::products()->sum(function ($product) use ($prevYm, $monthEnd) {
             $line = self::buildLine((int) $product->id, $product, $prevYm, $monthEnd);
 
             return $line->cost_calculable ? $line->forecast_value : 0;

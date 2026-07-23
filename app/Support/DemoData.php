@@ -2,13 +2,18 @@
 
 namespace App\Support;
 
+use App\Models\Greige;
+use App\Models\Material;
 use App\Models\GreigeRecipe;
 use App\Models\MaterialPrice;
 use App\Models\Order;
 use App\Models\OrderAllocation;
+use App\Models\Product;
 use App\Models\ProductRecipe;
 use App\Models\PurchaseOrder;
 use App\Models\Receiving;
+use App\Models\ShipTo;
+use App\Models\Supplier;
 use App\Models\YarnStockMovement;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -130,9 +135,12 @@ class DemoData
 
     public static function findGreigeByProductId(int $productId): ?object
     {
-        $product = self::findProduct($productId);
+        $product = self::products()->firstWhere('id', $productId);
+        if ($product === null) {
+            return null;
+        }
 
-        return $product !== null ? self::findGreige($product->greige_sku) : null;
+        return self::greiges()->firstWhere('sku', $product->greige_sku);
     }
 
     /** 原材料一覧 */

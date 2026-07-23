@@ -2,6 +2,10 @@
 
 namespace App\Services\Inventory;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Greige;
+use App\Models\Product;
 use App\Support\CombinedForecastSnapshot;
 use App\Support\DemoData;
 use App\Support\ForecastSnapshot;
@@ -82,14 +86,14 @@ class CombinedMonthEndForecastEngine
         }
 
         $productMonthEnd = MonthEndForecastEngine::monthEndDate($prevYm);
-        $productTotal = (int) DemoData::products()->sum(function ($product) use ($prevYm, $productMonthEnd) {
+        $productTotal = (int) MasterCatalog::products()->sum(function ($product) use ($prevYm, $productMonthEnd) {
             $line = MonthEndForecastEngine::buildLine((int) $product->id, $product, $prevYm, $productMonthEnd);
 
             return $line->cost_calculable ? $line->forecast_value : 0;
         });
 
         $greigeMonthEnd = GreigeMonthEndForecastEngine::monthEndDate($prevYm);
-        $greigeTotal = (int) DemoData::greiges()->sum(function ($greige) use ($prevYm, $greigeMonthEnd) {
+        $greigeTotal = (int) MasterCatalog::greiges()->sum(function ($greige) use ($prevYm, $greigeMonthEnd) {
             $line = GreigeMonthEndForecastEngine::buildLine((string) $greige->sku, $greige, $prevYm, $greigeMonthEnd);
 
             return $line->cost_calculable ? $line->forecast_value : 0;

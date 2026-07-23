@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Product;
+use App\Models\SalesForecastLine;
 use App\Services\Sales\SalesForecastEngine;
 use App\Services\Sales\SalesRecognition;
 use App\Support\DemoData;
 use App\Support\QtyHelper;
-use App\Models\SalesForecastLine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,7 +19,7 @@ class SalesForecastController extends Controller
 {
     public function showProduct(Request $request, int $product): View
     {
-        $target = DemoData::findProduct($product) ?? abort(404);
+        $target = MasterCatalog::findProductOrFail($product);
         $ym = $this->resolveYm($request);
         $line = SalesForecastEngine::buildProductLine($product, $target, $ym);
         $detail = SalesForecastEngine::buildDetail($product, $target, $ym);
@@ -33,7 +36,7 @@ class SalesForecastController extends Controller
 
     public function storeLines(Request $request, int $product): RedirectResponse
     {
-        $target = DemoData::findProduct($product) ?? abort(404);
+        $target = MasterCatalog::findProductOrFail($product);
 
         $request->validate([
             'target_ym' => ['required', 'string'],
@@ -53,7 +56,7 @@ class SalesForecastController extends Controller
 
     public function resetLines(Request $request, int $product): RedirectResponse
     {
-        $target = DemoData::findProduct($product) ?? abort(404);
+        $target = MasterCatalog::findProductOrFail($product);
         $ym = $this->resolveYm($request);
 
         SalesForecastLine::clearDraftForProduct($product, $ym);

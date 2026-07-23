@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Material;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Services\Fabric\TanRollRecorder;
 use App\Services\Receiving\ReceivingRegistrar;
@@ -32,7 +36,7 @@ class ReceivingController extends Controller
                 $r = (array) $r;
                 $type = $r['po_type'] ?? PurchaseOrderType::PRODUCT;
                 if ($type === PurchaseOrderType::YARN) {
-                    $material = DemoData::findMaterial((int) ($r['material_id'] ?? 0));
+                    $material = MasterCatalog::findMaterial((int) ($r['material_id'] ?? 0));
                     $r['sku'] = $material?->sku ?? '—';
                     $r['unit'] = 'kg';
                     $r['qty'] = $r['qty_kg'] ?? $r['qty'] ?? 0;
@@ -41,7 +45,7 @@ class ReceivingController extends Controller
                     $r['unit'] = 'm';
                     $r['qty'] = $r['qty_meters'] ?? $r['qty'] ?? 0;
                 } else {
-                    $product = DemoData::findProduct((int) ($r['product_id'] ?? 0));
+                    $product = MasterCatalog::findProduct((int) ($r['product_id'] ?? 0));
                     $r['sku'] = $product?->sku ?? '—';
                     $r['unit'] = 'm';
                 }
@@ -326,7 +330,7 @@ class ReceivingController extends Controller
         ];
 
         if ($poType === PurchaseOrderType::YARN) {
-            $material = DemoData::findMaterial((int) $po->material_id);
+            $material = MasterCatalog::findMaterial((int) $po->material_id);
             $receiving['material_id'] = (int) $po->material_id;
             $receiving['qty_kg'] = $totalQty;
             $receiving['sku'] = $material?->sku ?? '—';

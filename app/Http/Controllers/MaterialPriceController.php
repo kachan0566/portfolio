@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
+
 use App\Http\Requests\StoreYarnPriceRequest;
 use App\Http\Requests\UpdateYarnPriceRequest;
+use App\Models\Material;
 use App\Models\MaterialPrice;
 use App\Support\DemoData;
 use App\Support\DemoOverlay;
@@ -43,7 +46,7 @@ class MaterialPriceController extends Controller
     public function create(): View
     {
         return view('prices.create', [
-            'materials' => DemoData::yarnMaterials(),
+            'materials' => MasterCatalog::yarnMaterials(),
         ]);
     }
 

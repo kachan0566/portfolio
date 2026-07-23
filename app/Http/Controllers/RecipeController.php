@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
+
 use App\Http\Requests\StoreGreigeRecipeRequest;
 use App\Http\Requests\StoreRecipeRequest;
 use App\Http\Requests\UpdateGreigeRecipeRequest;
@@ -9,6 +11,7 @@ use App\Http\Requests\UpdateRecipeRequest;
 use App\Models\Greige;
 use App\Models\GreigeRecipe;
 use App\Models\GreigeRecipeLine;
+use App\Models\Material;
 use App\Models\Product;
 use App\Models\ProductRecipe;
 use App\Support\DemoData;
@@ -29,8 +32,8 @@ class RecipeController extends Controller
             $tab = 'product';
         }
 
-        $recipes = DemoData::products()
-            ->filter(fn ($p) => DemoData::hasRecipe($p->id))
+        $recipes = MasterCatalog::products()
+            ->filter(fn ($p) => ProductRecipe::existsForProduct((int) $p->id))
             ->mapWithKeys(function ($product) use ($ym) {
                 $breakdown = DemoData::unitCostBreakdown($product->id, $ym);
                 $profit = DemoData::unitProfitSummary($product->id, $ym);
@@ -94,7 +97,7 @@ class RecipeController extends Controller
         $ym = DemoData::CURRENT_YM;
         $existingProductIds = collect(array_keys(DemoData::recipeData()));
 
-        $products = DemoData::products()
+        $products = MasterCatalog::products()
             ->whereNotIn('id', $existingProductIds)
             ->map(function ($product) use ($ym) {
                 $breakdown = DemoData::unitCostBreakdown($product->id, $ym);
@@ -138,13 +141,13 @@ class RecipeController extends Controller
     public function edit(int $product): View
     {
         $ym = DemoData::CURRENT_YM;
-        $productData = DemoData::findProduct($product) ?? abort(404);
-        if (! DemoData::hasRecipe($product)) {
+        $productData = MasterCatalog::findProductOrFail($product);
+        if (! ProductRecipe::existsForProduct($product)) {
             abort(404);
         }
 
         $recipe = DemoData::recipeData()[$product];
-        $greige = DemoData::findGreige($productData->greige_sku);
+        $greige = MasterCatalog::findGreige($productData->greige_sku);
         $breakdown = DemoData::unitCostBreakdown($product, $ym);
         $profit = DemoData::unitProfitSummary($product, $ym);
 
@@ -153,7 +156,7 @@ class RecipeController extends Controller
             'processingCost' => $recipe['processing_cost'],
             'price' => $productData->price,
             'greigeSku' => $productData->greige_sku,
-            'greigeName' => $greige->name ?? null,
+            'greigeName' => $greige?->name,
             'breakdown' => $breakdown,
             'profit' => $profit,
             'ym' => $ym,
@@ -163,8 +166,8 @@ class RecipeController extends Controller
 
     public function update(UpdateRecipeRequest $request, int $product): RedirectResponse
     {
-        DemoData::findProduct($product) ?? abort(404);
-        if (! DemoData::hasRecipe($product)) {
+        MasterCatalog::findProductOrFail($product);
+        if (! ProductRecipe::existsForProduct($product)) {
             abort(404);
         }
 
@@ -192,8 +195,8 @@ class RecipeController extends Controller
         $existingSkus = collect(array_keys(DemoData::greigeRecipeData()));
 
         return view('recipes.greige-create', [
-            'greiges' => DemoData::greiges()->whereNotIn('sku', $existingSkus)->values(),
-            'materials' => DemoData::yarnMaterials(),
+            'greiges' => MasterCatalog::greiges()->whereNotIn('sku', $existingSkus)->values(),
+            'materials' => MasterCatalog::yarnMaterials(),
         ]);
     }
 
@@ -222,21 +225,21 @@ class RecipeController extends Controller
 
     public function editGreige(string $greigeSku): View
     {
-        if (! DemoData::hasGreigeRecipe($greigeSku)) {
+        if (! GreigeRecipe::existsForSku($greigeSku)) {
             abort(404);
         }
 
-        $greige = DemoData::findGreige($greigeSku) ?? abort(404);
+        $greige = MasterCatalog::findGreige($greigeSku) ?? abort(404);
         $recipe = DemoData::greigeRecipeData()[$greigeSku];
         $lines = collect($recipe['lines'])->map(function ($line) {
             [$materialId, $qty] = $line;
-            $material = DemoData::findMaterial($materialId);
+            $material = MasterCatalog::findMaterial($materialId);
 
             return (object) [
                 'material_id' => $materialId,
                 'qty' => $qty,
-                'material_sku' => $material->sku,
-                'material' => $material->name,
+                'material_sku' => $material?->sku ?? '',
+                'material' => $material?->name ?? '',
             ];
         });
 
@@ -245,13 +248,13 @@ class RecipeController extends Controller
             'lines' => $lines,
             'lossRate' => $recipe['loss_rate'],
             'weavingCost' => (int) ($recipe['weaving_cost'] ?? 0),
-            'materials' => DemoData::yarnMaterials(),
+            'materials' => MasterCatalog::yarnMaterials(),
         ]);
     }
 
     public function updateGreige(UpdateGreigeRecipeRequest $request, string $greigeSku): RedirectResponse
     {
-        if (! DemoData::hasGreigeRecipe($greigeSku)) {
+        if (! GreigeRecipe::existsForSku($greigeSku)) {
             abort(404);
         }
 

@@ -2,6 +2,9 @@
 
 namespace App\Services\Sales;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Product;
 use App\Models\SalesForecast;
 use App\Models\SalesForecastLine;
 use App\Support\DemoData;
@@ -36,7 +39,7 @@ class SalesForecastEngine
         SalesForecastLine::preloadDraftForMonth($targetYm);
         $salesByProduct = DemoData::monthlySalesByProduct($targetYm)->keyBy('product_id');
 
-        return DemoData::products()
+        return MasterCatalog::products()
             ->map(fn ($product) => self::buildProductLine(
                 (int) $product->id,
                 $product,
@@ -54,7 +57,7 @@ class SalesForecastEngine
         SalesForecastLine::preloadDraftForMonth($targetYm);
         $salesByProduct = DemoData::monthlySalesByProduct($targetYm)->keyBy('product_id');
 
-        return DemoData::products()
+        return MasterCatalog::products()
             ->map(fn ($product) => self::buildProgressLine(
                 (int) $product->id,
                 $product,
@@ -758,7 +761,7 @@ class SalesForecastEngine
      */
     public static function parseAndSaveProduct(int $productId, string $targetYm, array $requestData): void
     {
-        $detail = self::buildDetail($productId, DemoData::findProduct($productId) ?? (object) [], $targetYm);
+        $detail = self::buildDetail($productId, MasterCatalog::findProduct($productId) ?? (object) [], $targetYm);
         $inputs = [];
 
         foreach ($detail->pairs as $pair) {

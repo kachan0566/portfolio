@@ -5,18 +5,20 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Http\Requests\UpdatePurchaseOrderRequest;
 use App\Models\Greige;
+use App\Models\GreigeRecipe;
 use App\Models\Order;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\ShipTo;
 use App\Models\Supplier;
 use App\Services\Inventory\GreigeDyeInput;
+use App\Services\Purchase\PurchaseOrderShowData;
 use App\Support\DemoData;
 use App\Support\DemoState;
-use App\Services\Purchase\PurchaseOrderShowData;
 use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
 use App\Support\ListSearch;
+use App\Support\MasterCatalog;
 use App\Support\PurchaseOrderDisplay;
 use App\Support\PurchaseOrderLineDisplay;
 use App\Support\PurchaseOrderStages;
@@ -101,11 +103,11 @@ class PurchaseOrderController extends Controller
             'receivingBySku' => $receivingBySku,
             'receivedDetailRows' => $receivedDetailRows,
             'product' => $purchase->type === PurchaseOrderType::PRODUCT
-                ? DemoData::findProduct((int) $purchase->product_id)
+                ? MasterCatalog::findProduct((int) $purchase->product_id)
                 : null,
             'greige' => match ($purchase->type) {
-                PurchaseOrderType::GREIGE => DemoData::findGreige($purchase->greige_sku ?? $purchase->sku),
-                PurchaseOrderType::PRODUCT => DemoData::findGreigeByProductId((int) $purchase->product_id),
+                PurchaseOrderType::GREIGE => MasterCatalog::findGreige((string) ($purchase->greige_sku ?? $purchase->sku)),
+                PurchaseOrderType::PRODUCT => MasterCatalog::findGreigeByProductId((int) $purchase->product_id),
                 default => null,
             },
             'greigeStock' => $purchase->type === PurchaseOrderType::PRODUCT
@@ -132,8 +134,8 @@ class PurchaseOrderController extends Controller
         }
 
         $greigeRecipes = DemoData::greigeRecipeData();
-        $greigeMeta = DemoData::greiges()
-            ->filter(fn ($g) => DemoData::hasGreigeRecipe($g->sku))
+        $greigeMeta = MasterCatalog::greiges()
+            ->filter(fn ($g) => GreigeRecipe::existsForSku($g->sku))
             ->mapWithKeys(fn ($g) => [
                 $g->sku => [
                     'meters_per_tan' => $g->meters_per_tan,
@@ -143,7 +145,7 @@ class PurchaseOrderController extends Controller
                 ],
             ]);
 
-        $productMeta = DemoData::products()->mapWithKeys(fn ($p) => [
+        $productMeta = MasterCatalog::products()->mapWithKeys(fn ($p) => [
             $p->id => [
                 'sku' => $p->sku,
                 'meters_per_tan' => $p->meters_per_tan,
@@ -155,9 +157,9 @@ class PurchaseOrderController extends Controller
             'type' => $type,
             'suppliers' => Supplier::forPurchaseType($type),
             'shipTos' => ShipTo::forPurchaseType($type),
-            'yarnMaterials' => DemoData::yarnMaterials(),
-            'greiges' => DemoData::greiges()->filter(fn ($g) => DemoData::hasGreigeRecipe($g->sku))->values(),
-            'products' => DemoData::products(),
+            'yarnMaterials' => MasterCatalog::yarnMaterials(),
+            'greiges' => MasterCatalog::greiges()->filter(fn ($g) => GreigeRecipe::existsForSku($g->sku))->values(),
+            'products' => MasterCatalog::products(),
             'sourceOrder' => $sourceOrder,
             'suggestedMeters' => $request->filled('qty') ? (int) $request->query('qty') : null,
             'greigeMetaJson' => $greigeMeta->toJson(JSON_UNESCAPED_UNICODE),

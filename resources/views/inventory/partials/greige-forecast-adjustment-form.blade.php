@@ -8,7 +8,7 @@
         <input type="hidden" name="greige_sku" value="{{ $greigeSku }}">
         @php
             $adjGreigeSku = $greigeSku;
-            $adjMetersPerTan = \App\Support\DemoData::findGreige($greigeSku)?->meters_per_tan ?? \App\Support\DemoData::METERS_PER_TAN_GREIGE;
+            $adjMetersPerTan = \App\Support\QtyHelper::metersPerTan(null, true, $greigeSku);
         @endphp
     @else
         <div class="field" style="min-width:140px;">
@@ -16,14 +16,14 @@
             <select class="select" id="adj-greige-{{ $formId ?? 'list' }}" name="greige_sku" required data-adj-greige-select>
                 @foreach ($greigeOptions as $line)
                     @php $sku = (string) ($line->greige_sku ?? $line->sku); @endphp
-                    <option value="{{ $sku }}" data-meters-per-tan="{{ \App\Support\DemoData::findGreige($sku)?->meters_per_tan ?? \App\Support\DemoData::METERS_PER_TAN_GREIGE }}">{{ $sku }}</option>
+                    <option value="{{ $sku }}" data-meters-per-tan="{{ \App\Support\QtyHelper::metersPerTan(null, true, $sku) }}">{{ $sku }}</option>
                 @endforeach
             </select>
         </div>
         @php
             $firstLine = $greigeOptions->first();
             $adjGreigeSku = (string) ($firstLine->greige_sku ?? $firstLine->sku ?? '');
-            $adjMetersPerTan = \App\Support\DemoData::findGreige($adjGreigeSku)?->meters_per_tan ?? \App\Support\DemoData::METERS_PER_TAN_GREIGE;
+            $adjMetersPerTan = \App\Support\QtyHelper::metersPerTan(null, true, $adjGreigeSku);
         @endphp
     @endif
     <div class="field" style="min-width:100px;">
@@ -63,7 +63,7 @@
             const api = QtyUnit.initPage(pageKey);
             const field = document.querySelector('[data-qty-unit-field][data-page-key="' + pageKey + '"]');
             select?.addEventListener('change', function () {
-                const perTan = parseInt(select.selectedOptions[0]?.dataset.metersPerTan || '{{ \App\Support\DemoData::METERS_PER_TAN_GREIGE }}', 10);
+                const perTan = parseInt(select.selectedOptions[0]?.dataset.metersPerTan || '{{ \App\Support\QtyHelper::METERS_PER_TAN_GREIGE }}', 10);
                 if (field) field.dataset.metersPerTan = String(perTan);
                 api.setMetersPerTan(perTan);
             });

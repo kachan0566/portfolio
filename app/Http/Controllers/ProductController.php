@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
+
 use App\Models\Greige;
 use App\Models\Product;
-use App\Support\DemoData;
 use App\Support\ListSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class ProductController extends Controller
 
         return view('products.index', [
             'products' => $products,
-            'categories' => DemoData::categories(),
+            'categories' => MasterCatalog::categoryOptions(),
             'greiges' => Greige::query()->orderBy('id')->get(),
             'search' => $search,
         ]);
@@ -31,7 +32,7 @@ class ProductController extends Controller
     public function create(): View
     {
         return view('products.create', [
-            'categories' => DemoData::categories(),
+            'categories' => MasterCatalog::categoryOptions(),
             'greiges' => Greige::query()->orderBy('id')->get(),
         ]);
     }
@@ -48,7 +49,7 @@ class ProductController extends Controller
 
         return view('products.edit', [
             'product' => $target->toDisplayObject(),
-            'categories' => DemoData::categories(),
+            'categories' => MasterCatalog::categoryOptions(),
             'greiges' => Greige::query()->orderBy('id')->get(),
         ]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MasterCatalog;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;
@@ -29,7 +30,7 @@ class InventoryController extends Controller
         $ym = DemoData::CURRENT_YM;
         $search = ListSearch::params($request);
 
-        $products = DemoData::products()->map(function ($p) use ($ym) {
+        $products = MasterCatalog::products()->map(function ($p) use ($ym) {
             $p->stock = DemoState::effectiveStock($p->id);
             $unitCost = DemoData::unitCost($p->id, $ym);
             $p->unit_cost = $unitCost !== null ? (int) round($unitCost) : null;
@@ -140,7 +141,7 @@ class InventoryController extends Controller
 
         $greigeEntries = GreigeInventory::entries();
 
-        $yarnRows = DemoData::yarnMaterials()->map(function ($m) {
+        $yarnRows = MasterCatalog::yarnMaterials()->map(function ($m) {
             return (object) [
                 'material_id' => $m->id,
                 'sku' => $m->sku,
@@ -153,7 +154,7 @@ class InventoryController extends Controller
         });
 
         $yarnMovements = collect(YarnInventory::stockMovements())->map(function ($m) {
-            $material = DemoData::findMaterial($m['material_id']);
+            $material = MasterCatalog::findMaterial($m['material_id']);
 
             return (object) [
                 'date' => $m['date'],
@@ -207,7 +208,7 @@ class InventoryController extends Controller
     public function show(int $product): View
     {
         $ym = DemoData::CURRENT_YM;
-        $target = DemoData::findProduct($product) ?? abort(404);
+        $target = MasterCatalog::findProductOrFail($product);
         $effectiveStock = DemoState::effectiveStock($product);
 
         $orders = DemoData::orders()
@@ -277,7 +278,7 @@ class InventoryController extends Controller
 
     public function allocate(Request $request, int $product): RedirectResponse
     {
-        $target = DemoData::findProduct($product) ?? abort(404);
+        $target = MasterCatalog::findProductOrFail($product);
         $input = $request->input('allocations', []);
 
         $error = StockAllocation::validateSubmission($product, $input);

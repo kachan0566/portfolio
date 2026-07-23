@@ -2,6 +2,9 @@
 
 namespace App\Services\Inventory;
 
+use App\Support\MasterCatalog;
+
+use App\Models\Greige;
 use App\Services\Sales\SalesRecognition;
 use App\Support\DemoData;
 use App\Support\DemoState;
@@ -25,7 +28,7 @@ class GreigeMonthEndForecastEngine
     public static function build(string $targetYm): object
     {
         $monthEnd = self::monthEndDate($targetYm);
-        $lines = DemoData::greiges()->map(function ($greige) use ($targetYm, $monthEnd) {
+        $lines = MasterCatalog::greiges()->map(function ($greige) use ($targetYm, $monthEnd) {
             return self::buildLine((string) $greige->sku, $greige, $targetYm, $monthEnd);
         })->values();
 
@@ -256,7 +259,7 @@ class GreigeMonthEndForecastEngine
             return 0;
         }
 
-        $greige = DemoData::findGreige($greigeSku);
+        $greige = MasterCatalog::findGreige($greigeSku);
         if ($greige === null) {
             return 0;
         }
@@ -274,7 +277,7 @@ class GreigeMonthEndForecastEngine
         }
 
         $monthEnd = self::monthEndDate($prevYm);
-        $prevTotal = (int) DemoData::greiges()->sum(function ($greige) use ($prevYm, $monthEnd) {
+        $prevTotal = (int) MasterCatalog::greiges()->sum(function ($greige) use ($prevYm, $monthEnd) {
             $line = self::buildLine((string) $greige->sku, $greige, $prevYm, $monthEnd);
 
             return $line->cost_calculable ? $line->forecast_value : 0;
