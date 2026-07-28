@@ -4,22 +4,24 @@
     $productId = $productId ?? null;
     $isGreige = $isGreige ?? false;
     $greigeSku = $greigeSku ?? null;
+    $metersPerTan = isset($metersPerTan)
+        ? (int) $metersPerTan
+        : \App\Support\QtyHelper::metersPerTan($productId, $isGreige, $greigeSku);
     $valueMeters = isset($valueMeters) ? (int) $valueMeters : null;
     $valueTan = isset($valueTan)
         ? (float) $valueTan
         : ($valueMeters !== null && $valueMeters > 0
-            ? \App\Support\QtyHelper::tanCount($valueMeters, $productId, $isGreige, $greigeSku)
+            ? \App\Support\QtyHelper::roundTan($valueMeters / max(1, $metersPerTan))
             : 0.0);
     if ($valueMeters === null && $valueTan > 0) {
-        $valueMeters = \App\Support\QtyHelper::metersFromTan($valueTan, $productId, $isGreige, $greigeSku);
+        $valueMeters = (int) round(\App\Support\QtyHelper::roundTan($valueTan) * $metersPerTan);
     }
     $valueMeters = (int) ($valueMeters ?? 0);
-    $metersPerTan = (int) ($metersPerTan ?? \App\Support\QtyHelper::metersPerTan($productId, $isGreige, $greigeSku));
     $pageKey = $pageKey ?? 'default';
     $id = $id ?? null;
     $maxTan = isset($maxTan)
         ? (float) $maxTan
-        : (isset($maxMeters) ? \App\Support\QtyHelper::tanCount((int) $maxMeters, $productId, $isGreige, $greigeSku) : null);
+        : (isset($maxMeters) ? \App\Support\QtyHelper::roundTan((int) $maxMeters / max(1, $metersPerTan)) : null);
     $placeholder = $placeholder ?? '0';
     $compact = $compact ?? false;
     $fieldClass = $fieldClass ?? '';

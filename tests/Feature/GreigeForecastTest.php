@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Services\Inventory\GreigeDyeInput;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use App\Support\GreigeRoll;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
@@ -53,7 +54,7 @@ class GreigeForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $line = GreigeMonthEndForecastEngine::buildLine(
             'KB-A',
-            DemoData::findGreige('KB-A'),
+            MasterCatalog::findGreige('KB-A'),
             $ym,
             GreigeMonthEndForecastEngine::monthEndDate($ym)
         );
@@ -66,7 +67,7 @@ class GreigeForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $line = GreigeMonthEndForecastEngine::buildLine(
             'KB-T',
-            DemoData::findGreige('KB-T'),
+            MasterCatalog::findGreige('KB-T'),
             $ym,
             GreigeMonthEndForecastEngine::monthEndDate($ym)
         );
@@ -88,7 +89,7 @@ class GreigeForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $line = GreigeMonthEndForecastEngine::buildLine(
             'KB-T',
-            DemoData::findGreige('KB-T'),
+            MasterCatalog::findGreige('KB-T'),
             $ym,
             GreigeMonthEndForecastEngine::monthEndDate($ym)
         );
@@ -102,7 +103,7 @@ class GreigeForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $line = GreigeMonthEndForecastEngine::buildLine(
             'KB-A',
-            DemoData::findGreige('KB-A'),
+            MasterCatalog::findGreige('KB-A'),
             $ym,
             GreigeMonthEndForecastEngine::monthEndDate($ym)
         );

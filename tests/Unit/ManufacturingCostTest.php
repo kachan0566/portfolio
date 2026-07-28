@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Models\MaterialPrice;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
+use App\Support\ProductStock;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -115,7 +117,7 @@ class ManufacturingCostTest extends TestCase
     {
         $dashboard = DemoData::dashboard();
         $warnings = DemoData::collectCostWarnings(
-            DemoData::products()->pluck('id'),
+            MasterCatalog::products()->pluck('id'),
             DemoData::CURRENT_YM
         );
 
@@ -124,5 +126,36 @@ class ManufacturingCostTest extends TestCase
         $this->assertArrayHasKey('profit', $dashboard);
         $this->assertArrayHasKey('cost', $dashboard);
         $this->assertIsInt($dashboard['profit']);
+    }
+
+    public function test_dashboard_low_stock_uses_effective_stock_from_rolls(): void
+    {
+        $expected = MasterCatalog::products()
+            ->filter(fn ($p) => ProductStock::effectiveStock($p->id) < $p->stock_min)
+            ->pluck('id')
+            ->all();
+
+        $dashboard = DemoData::dashboard();
+
+        $this->assertSame(
+            $expected,
+            $dashboard['lowStock']->pluck('id')->all(),
+        );
+
+        foreach ($dashboard['lowStock'] as $product) {
+            $this->assertSame(
+                ProductStock::effectiveStock($product->id),
+                $product->stock,
+            );
+        }
+    }
+
+    public function test_unit_cost_breakdown_returns_uncalculable_for_unknown_product(): void
+    {
+        $breakdown = DemoData::unitCostBreakdown(99999, '2026-06');
+
+        $this->assertFalse($breakdown->calculable);
+        $this->assertNull($breakdown->total);
+        $this->assertTrue($breakdown->missing_greige_recipe);
     }
 }

@@ -6,6 +6,8 @@ use App\Models\Greige;
 use App\Models\Material;
 use App\Models\Product;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
+use App\Support\ProductStock;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,6 +79,20 @@ class MasterCatalogTest extends TestCase
         $this->assertSame('FAB-T-WH', $display->sku);
         $this->assertSame('KB-T', $display->greige_sku);
         $this->assertSame(50, $display->meters_per_tan);
+        $this->assertSame(ProductStock::effectiveStock(3), $display->stock);
+    }
+
+    public function test_product_display_object_stock_matches_effective_stock(): void
+    {
+        $this->seedCatalog();
+
+        foreach (Product::displayList() as $display) {
+            $this->assertSame(
+                ProductStock::effectiveStock($display->id),
+                $display->stock,
+                "Product {$display->sku} stock should match effective stock",
+            );
+        }
     }
 
     public function test_product_display_list_matches_database_count(): void
@@ -128,5 +144,85 @@ class MasterCatalogTest extends TestCase
             $categories->pluck('name')->unique()->count(),
             $categories->count(),
         );
+    }
+
+    public function test_master_catalog_category_options_match_products_table(): void
+    {
+        $this->seedCatalog();
+
+        $expected = Product::query()
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->values()
+            ->all();
+
+        $this->assertSame(
+            $expected,
+            MasterCatalog::categoryOptions()->pluck('name')->values()->all(),
+        );
+    }
+
+    public function test_master_catalog_returns_empty_without_seed(): void
+    {
+        $this->assertTrue(MasterCatalog::products()->isEmpty());
+        $this->assertTrue(MasterCatalog::greiges()->isEmpty());
+        $this->assertTrue(MasterCatalog::yarnMaterials()->isEmpty());
+        $this->assertTrue(MasterCatalog::categoryOptions()->isEmpty());
+        $this->assertNull(MasterCatalog::findProduct(1));
+        $this->assertNull(MasterCatalog::findGreige('KB-A'));
+        $this->assertNull(MasterCatalog::findMaterial(1));
+        $this->assertNull(MasterCatalog::findSupplier(1));
+        $this->assertNull(MasterCatalog::findShipTo(1));
+    }
+
+    public function test_master_catalog_reads_from_database_after_seed(): void
+    {
+        $this->seedCatalog();
+
+        $product = MasterCatalog::findProduct(1);
+        $this->assertNotNull($product);
+        $this->assertSame('FAB-A-BK', $product->sku);
+
+        $this->assertSame(Product::query()->count(), MasterCatalog::products()->count());
+    }
+
+    public function test_stock_movements_returns_empty_without_seed(): void
+    {
+        $movements = DemoData::stockMovements();
+
+        $this->assertTrue($movements->isEmpty());
+        $this->assertFalse($movements->contains(fn ($m) => ($m->sku ?? '') === 'FAB-A-BK'));
+    }
+
+    public function test_stock_movements_resolves_sku_after_seed(): void
+    {
+        $this->seedCatalog();
+
+        $movements = DemoData::stockMovements();
+
+        $this->assertSame(7, $movements->count());
+        $this->assertTrue($movements->every(fn ($m) => $m->sku !== ''));
+        $this->assertTrue($movements->contains(fn ($m) => $m->sku === 'FAB-A-BK'));
+    }
+
+    public function test_master_catalog_screens_render_without_seed(): void
+    {
+        $screens = [
+            route('dashboard'),
+            route('inventory.index'),
+            route('products.index'),
+            route('recipes.index'),
+            route('recipes.index', ['tab' => 'greige']),
+            route('orders.create'),
+            route('purchases.create'),
+        ];
+
+        foreach ($screens as $url) {
+            $response = $this->get($url);
+            $response->assertOk();
+            $response->assertDontSee('FAB-A-BK');
+            $response->assertDontSee('KB-A');
+        }
     }
 }

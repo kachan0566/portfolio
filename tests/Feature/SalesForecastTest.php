@@ -7,6 +7,7 @@ use App\Models\SalesForecastLine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use App\Support\SalesForecastSourceType;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
@@ -90,7 +91,7 @@ class SalesForecastTest extends TestCase
 
     public function test_forecast_detail_renders_pairs_and_future_section(): void
     {
-        $product = DemoData::products()->firstWhere('sku', 'FAB-T-WH');
+        $product = MasterCatalog::products()->firstWhere('sku', 'FAB-T-WH');
         $this->assertNotNull($product);
 
         $response = $this->get(route('sales.forecast.show', [
@@ -114,7 +115,7 @@ class SalesForecastTest extends TestCase
 
         $detail = SalesForecastEngine::buildDetail(
             $line->product_id,
-            DemoData::findProduct($line->product_id),
+            MasterCatalog::findProduct($line->product_id),
             DemoData::CURRENT_YM
         );
         $pair = $detail->pairs->first(fn ($p) => $p->order_id !== null);
@@ -182,7 +183,7 @@ class SalesForecastTest extends TestCase
             ->first(fn ($l) => $l->forecast_remaining_qty > 0);
         $this->assertNotNull($line, '見通し対象の品番が必要です。');
 
-        $product = DemoData::findProduct($line->product_id);
+        $product = MasterCatalog::findProduct($line->product_id);
         $before = MonthEndForecastEngine::buildLine(
             $line->product_id,
             $product,
@@ -212,7 +213,7 @@ class SalesForecastTest extends TestCase
 
     public function test_sales_forecast_detail_shows_inventory_impact(): void
     {
-        $product = DemoData::products()->firstWhere('sku', 'FAB-T-WH');
+        $product = MasterCatalog::products()->firstWhere('sku', 'FAB-T-WH');
         $response = $this->get(route('sales.forecast.show', [
             'product' => $product->id,
             'ym' => DemoData::CURRENT_YM,

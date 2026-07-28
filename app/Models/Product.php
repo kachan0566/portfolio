@@ -58,7 +58,11 @@ class Product extends Model
         return $product->toDisplayObject();
     }
 
-    /** @return Collection<int, object{id: int, name: string}> */
+    /**
+     * 登録済み製品の category 列から選択肢を生成する（専用 categories テーブルはない）。
+     *
+     * @return Collection<int, object{id: int, name: string}>
+     */
     public static function categoryOptions(): Collection
     {
         return self::query()
@@ -76,9 +80,7 @@ class Product extends Model
     {
         $perTan = $this->meters_per_tan;
         $stockTan = QtyHelper::roundTan((float) ProductStock::effectiveStockTan($this->id));
-        $stock = $perTan > 0
-            ? (int) round($stockTan * $perTan)
-            : 0;
+        $stock = ProductStock::effectiveStock($this->id);
 
         return (object) [
             'id' => $this->id,

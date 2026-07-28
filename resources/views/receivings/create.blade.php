@@ -110,9 +110,16 @@
                                         <label class="label" for="receiving-qty">入荷数量<span class="req">*</span></label>
                                         @php
                                             $firstPo = $pending->first();
-                                            $metersPerTan = $type === PurchaseOrderType::GREIGE
-                                                ? ($firstPo->meters_per_tan ?? 100)
-                                                : \App\Support\QtyHelper::metersPerTan((int) ($firstPo->product_id ?? 0));
+                                            $metersPerTan = null;
+                                            if ($firstPo !== null) {
+                                                $metersPerTan = $type === PurchaseOrderType::GREIGE
+                                                    ? \App\Support\QtyHelper::metersPerTan(
+                                                        null,
+                                                        true,
+                                                        (string) ($firstPo->greige_sku ?? $firstPo->sku ?? '')
+                                                    )
+                                                    : \App\Support\QtyHelper::metersPerTan((int) $firstPo->product_id);
+                                            }
                                         @endphp
                                         @include('partials.qty-input', [
                                             'tanName' => 'qty_tan',

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -60,6 +61,6 @@ class SalesTrendTest extends TestCase
         $row = DemoData::monthlySalesByProduct(DemoData::CURRENT_YM)->firstWhere('product_id', 1);
 
         $this->assertNotNull($row);
-        $this->assertSame(DemoData::findProduct(1)->price, $row->price);
+        $this->assertSame(MasterCatalog::findProduct(1)?->price, $row->price);
     }
 }

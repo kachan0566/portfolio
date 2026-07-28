@@ -112,7 +112,8 @@
                                     @include('partials.qty-input', [
                                         'name' => 'inbound_'.$pair->po_id,
                                         'valueMeters' => $pair->effective_inbound_qty,
-                                        'metersPerTan' => $product->meters_per_tan ?? 50,
+                                        'productId' => $product->id,
+                                        'metersPerTan' => $product->meters_per_tan,
                                         'pageKey' => 'sales-forecast-detail',
                                         'compact' => true,
                                     ])
@@ -149,7 +150,8 @@
                                     @include('partials.qty-input', [
                                         'name' => 'outbound_'.$pair->order_id,
                                         'valueMeters' => $pair->effective_outbound_qty,
-                                        'metersPerTan' => $product->meters_per_tan ?? 50,
+                                        'productId' => $product->id,
+                                        'metersPerTan' => $product->meters_per_tan,
                                         'pageKey' => 'sales-forecast-detail',
                                         'compact' => true,
                                     ])

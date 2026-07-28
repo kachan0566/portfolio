@@ -3,10 +3,22 @@
 namespace Tests\Unit;
 
 use App\Models\Order;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class OrderMetersOverriddenTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+    }
+
     public function test_meters_mode_is_always_overridden(): void
     {
         $order = new Order([
