@@ -6,6 +6,7 @@ use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\DemoData;
 use App\Support\ForecastManualAdjustment;
 use App\Support\ForecastSnapshot;
+use App\Support\MasterCatalog;
 use App\Support\ShipmentPlan;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -58,7 +59,7 @@ class InventoryForecastTest extends TestCase
 
     public function test_forecast_search_filters_by_sku(): void
     {
-        $product = DemoData::products()->firstWhere('sku', 'FAB-A-BK');
+        $product = MasterCatalog::products()->firstWhere('sku', 'FAB-A-BK');
 
         $response = $this->get(route('inventory.index', [
             'tab' => 'forecast',
@@ -90,7 +91,7 @@ class InventoryForecastTest extends TestCase
     public function test_forecast_kpi_reflects_search(): void
     {
         $ym = DemoData::CURRENT_YM;
-        $product = DemoData::products()->firstWhere('sku', 'FAB-A-BK');
+        $product = MasterCatalog::products()->firstWhere('sku', 'FAB-A-BK');
         $line = MonthEndForecastEngine::buildLine(
             (int) $product->id,
             $product,
@@ -111,7 +112,7 @@ class InventoryForecastTest extends TestCase
     public function test_forecast_prev_month_diff_for_filtered_lines(): void
     {
         $ym = DemoData::CURRENT_YM;
-        $product = DemoData::products()->first();
+        $product = MasterCatalog::products()->first();
         $line = MonthEndForecastEngine::buildLine(
             (int) $product->id,
             $product,
@@ -127,7 +128,7 @@ class InventoryForecastTest extends TestCase
 
     public function test_forecast_detail_shows_unshipped_orders(): void
     {
-        $product = DemoData::products()->firstWhere('sku', 'FAB-T-WH');
+        $product = MasterCatalog::products()->firstWhere('sku', 'FAB-T-WH');
         $orders = MonthEndForecastEngine::unshippedOrdersForProduct((int) $product->id);
         $this->assertNotEmpty($orders);
 
@@ -144,7 +145,7 @@ class InventoryForecastTest extends TestCase
 
     public function test_forecast_adjustment_from_detail_redirects_back(): void
     {
-        $product = DemoData::products()->first();
+        $product = MasterCatalog::products()->first();
         $ym = DemoData::CURRENT_YM;
 
         $response = $this->post(route('inventory.forecast.adjustments'), [
@@ -173,12 +174,12 @@ class InventoryForecastTest extends TestCase
         $result = MonthEndForecastEngine::build(DemoData::CURRENT_YM);
 
         $this->assertSame(DemoData::CURRENT_YM, $result->target_ym);
-        $this->assertSame(DemoData::products()->count(), $result->lines->count());
+        $this->assertSame(MasterCatalog::products()->count(), $result->lines->count());
     }
 
     public function test_manual_adjustment_affects_forecast(): void
     {
-        $product = DemoData::products()->first();
+        $product = MasterCatalog::products()->first();
         $ym = DemoData::CURRENT_YM;
 
         $before = MonthEndForecastEngine::buildLine(
@@ -245,7 +246,7 @@ class InventoryForecastTest extends TestCase
 
     public function test_forecast_detail_page(): void
     {
-        $product = DemoData::products()->firstWhere('sku', 'FAB-A-BK');
+        $product = MasterCatalog::products()->firstWhere('sku', 'FAB-A-BK');
         $line = MonthEndForecastEngine::buildLine(
             (int) $product->id,
             $product,
@@ -275,7 +276,7 @@ class InventoryForecastTest extends TestCase
 
     public function test_forecast_detail_shows_submitted_badge_when_snapshot_exists(): void
     {
-        $product = DemoData::products()->first();
+        $product = MasterCatalog::products()->first();
         $ym = DemoData::CURRENT_YM;
         $result = MonthEndForecastEngine::build($ym);
 

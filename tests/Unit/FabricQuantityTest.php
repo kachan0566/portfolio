@@ -3,11 +3,24 @@
 namespace Tests\Unit;
 
 use App\Support\FabricQuantity;
+use App\Support\MasterCatalog;
 use App\Support\QtyHelper;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class FabricQuantityTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+    }
+
     public function test_resolve_order_context_requires_integer_tan(): void
     {
         $resolved = FabricQuantity::resolve(2, null, 1, false, null, FabricQuantity::CONTEXT_ORDER);
@@ -55,12 +68,12 @@ class FabricQuantityTest extends TestCase
         $this->assertSame(115, $meters);
     }
 
-    public function test_demo_product_stock_tan_is_canonical(): void
+    public function test_meters_from_tan_uses_database_meters_per_tan(): void
     {
-        $product = \App\Support\DemoData::findProduct(1);
+        $product = MasterCatalog::findProduct(1);
 
-        $this->assertSame(0.8, $product->stock_tan);
-        $this->assertSame(40, $product->stock);
-        $this->assertSame(40, QtyHelper::metersFromTan($product->stock_tan, 1));
+        $this->assertNotNull($product);
+        $this->assertSame(50, $product->meters_per_tan);
+        $this->assertSame(100, QtyHelper::metersFromTan(2.0, 1));
     }
 }

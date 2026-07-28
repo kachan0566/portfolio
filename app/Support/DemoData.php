@@ -2,25 +2,26 @@
 
 namespace App\Support;
 
-use App\Models\Greige;
-use App\Models\Material;
 use App\Models\GreigeRecipe;
+use App\Models\Material;
 use App\Models\MaterialPrice;
 use App\Models\Order;
 use App\Models\OrderAllocation;
-use App\Models\Product;
 use App\Models\ProductRecipe;
 use App\Models\PurchaseOrder;
 use App\Models\Receiving;
 use App\Models\ShipTo;
+use App\Support\MasterCatalog;
 use Illuminate\Support\Collection;
 
 /**
- * フロント確認用のテストデータ置き場。
+ * デモ用の固定データと集計ロジック。
  *
- * データベースには接続せず、ここで定義した固定データ（テストデータ）を
- * 各画面に渡す。実データに差し替えるときは、各メソッドの中身を
- * Eloquent などの取得処理へ置き換えればよい。
+ * マスタ参照は MasterCatalog（DB正本）を使う。
+ * products() / greiges() などの固定配列はシーダー投入用として残す。
+ *
+ * カテゴリは専用テーブルを持たず、products.category 列に文字列で保持する。
+ * 実行時の選択肢は MasterCatalog::categoryOptions()（DB の DISTINCT）のみ。
  */
 class DemoData
 {
@@ -38,16 +39,6 @@ class DemoData
 
     /** 生機品番の標準：1反あたりのメートル数 */
     public const METERS_PER_TAN_GREIGE = 100;
-
-    /** カテゴリ一覧 */
-    public static function categories(): Collection
-    {
-        return collect([
-            (object) ['id' => 1, 'name' => '生地'],
-            (object) ['id' => 2, 'name' => '糸'],
-            (object) ['id' => 3, 'name' => '製品'],
-        ]);
-    }
 
     /** 生機品番（親品番）一覧 */
     public static function greiges(): Collection
@@ -136,9 +127,7 @@ class DemoData
 
     public static function isYarnMaterial(int $materialId): bool
     {
-        $material = self::findMaterial($materialId);
-
-        return $material?->type === 'yarn';
+        return Material::isYarn($materialId);
     }
 
     /** @return array<int, array{processing_cost: int}> */
@@ -253,7 +242,7 @@ class DemoData
         $result = [];
 
         foreach ($recipe['lines'] as [$materialId, $qtyPerM]) {
-            $material = self::findMaterial($materialId);
+            $material = MasterCatalog::findMaterial($materialId);
             if ($material === null) {
                 continue;
             }
@@ -274,13 +263,13 @@ class DemoData
     {
         $result = collect();
         foreach (self::greigeRecipeData() as $greigeSku => $recipe) {
-            $greige = self::findGreige($greigeSku);
+            $greige = MasterCatalog::findGreige($greigeSku);
             if ($greige === null) {
                 continue;
             }
             $yarnLines = [];
             foreach ($recipe['lines'] as [$materialId, $qty]) {
-                $material = self::findMaterial($materialId);
+                $material = MasterCatalog::findMaterial($materialId);
                 $yarnLines[] = (object) [
                     'material_id' => $materialId,
                     'material_sku' => $material->sku,
@@ -326,7 +315,7 @@ class DemoData
         $calculable = true;
 
         foreach ($recipe['lines'] as [$materialId, $qty]) {
-            $material = self::findMaterial($materialId);
+            $material = MasterCatalog::findMaterial($materialId);
             $price = self::yarnPrice($materialId, $ym);
             $missing = $price === null;
             $effectiveQty = (float) $qty * $lossMultiplier;
@@ -515,7 +504,7 @@ class DemoData
     {
         $result = collect();
         foreach (self::recipeData() as $productId => $recipe) {
-            $product = self::findProduct($productId);
+            $product = MasterCatalog::findProduct($productId);
             if ($product === null) {
                 continue;
             }
@@ -535,10 +524,23 @@ class DemoData
     public static function unitCostBreakdown(int $productId, string $ym): object
     {
         $recipe = self::recipeData()[$productId] ?? null;
-        $product = self::findProduct($productId);
+        $product = MasterCatalog::findProduct($productId);
+        if ($product === null) {
+            return (object) [
+                'calculable' => false,
+                'greige_sku' => null,
+                'greige_name' => null,
+                'greige_cost' => null,
+                'processing_cost' => (float) ($recipe['processing_cost'] ?? 0),
+                'total' => null,
+                'missing_greige_recipe' => true,
+                'missing_yarns' => [],
+            ];
+        }
+
         $processingCost = (float) ($recipe['processing_cost'] ?? 0);
         $greigeSku = $product->greige_sku ?? null;
-        $greige = $greigeSku !== null ? self::findGreige($greigeSku) : null;
+        $greige = $greigeSku !== null ? MasterCatalog::findGreige($greigeSku) : null;
         $missingGreigeRecipe = $greigeSku === null || ! self::hasGreigeRecipe($greigeSku);
 
         $greigeBreakdown = (! $missingGreigeRecipe && $greigeSku !== null)
@@ -598,8 +600,8 @@ class DemoData
             ? $breakdown->greige_cost + $processingCost
             : null;
 
-        $product = MasterCatalog::findProduct($productId) ?? self::findProduct($productId);
-        $price = $priceOverride ?? (int) ($product->price ?? 0);
+        $product = MasterCatalog::findProduct($productId);
+        $price = $priceOverride ?? (int) ($product?->price ?? 0);
         $profit = $unitCost !== null ? $price - $unitCost : null;
         $marginPercent = ($profit !== null && $price > 0)
             ? round($profit / $price * 100, 1)
@@ -973,14 +975,14 @@ class DemoData
         $row['customer'] = $linkedOrder['customer'] ?? null;
 
         if ($type === PurchaseOrderType::YARN) {
-            $material = self::findMaterial((int) ($row['material_id'] ?? 0));
+            $material = MasterCatalog::findMaterial((int) ($row['material_id'] ?? 0));
             $row['sku'] = $material?->sku ?? '—';
             $row['product'] = $material?->name ?? '—';
             $row['unit'] = 'kg';
             $row['qty'] = (float) ($row['qty_kg'] ?? 0);
             $row['received'] = (float) ($row['received_kg'] ?? 0);
         } elseif ($type === PurchaseOrderType::GREIGE) {
-            $greige = self::findGreige((string) ($row['greige_sku'] ?? ''));
+            $greige = MasterCatalog::findGreige((string) ($row['greige_sku'] ?? ''));
             $row['sku'] = $greige?->sku ?? ($row['greige_sku'] ?? '—');
             $row['product'] = $greige?->name ?? '—';
             $row['unit'] = '反';
@@ -993,7 +995,7 @@ class DemoData
             $row['manual_stage'] = PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null);
             $row['finish_date'] = $row['finish_date'] ?? $row['due_date'] ?? null;
         } else {
-            $product = self::findProduct((int) ($row['product_id'] ?? 0));
+            $product = MasterCatalog::findProduct((int) ($row['product_id'] ?? 0));
             $row['product_id'] = (int) ($row['product_id'] ?? 0);
             $row['product'] = $product?->sku ?? '—';
             $row['sku'] = $product?->sku ?? '—';
@@ -1118,14 +1120,22 @@ class DemoData
             ['date' => '2026-06-25', 'product_id' => 7, 'type' => '入庫', 'qty' => 120,  'note' => '入荷 RC-2606-004'],
         ];
 
-        return collect($rows)->map(function ($r) {
-            $product = self::findProduct($r['product_id']);
-            $r['product'] = $product->sku;
-            $r['sku'] = $product->sku;
-            $r['unit'] = $product->unit;
+        return collect($rows)
+            ->map(function ($r) {
+                $product = MasterCatalog::findProduct($r['product_id']);
+                if ($product === null) {
+                    return null;
+                }
 
-            return (object) $r;
-        })->sortByDesc('date')->values();
+                $r['product'] = $product->sku;
+                $r['sku'] = $product->sku;
+                $r['unit'] = $product->unit;
+
+                return (object) $r;
+            })
+            ->filter()
+            ->sortByDesc('date')
+            ->values();
     }
 
     /** 進捗からステータス文字列を返す */
@@ -1265,7 +1275,7 @@ class DemoData
             ->groupBy('product_id')
             ->map(function ($group) use ($ym) {
                 $first = $group->first();
-                $product = self::findProduct($first->product_id);
+                $product = MasterCatalog::findProduct($first->product_id);
                 $qty = $group->sum('qty');
                 $sales = $group->sum('amount');
                 $unitCost = self::unitCost($first->product_id, $ym);
@@ -1295,7 +1305,9 @@ class DemoData
 
         $orders = self::orders();
         $purchaseOrders = self::purchaseOrders();
-        $lowStock = self::products()->filter(fn ($p) => $p->stock < $p->stock_min)->values();
+        $lowStock = MasterCatalog::products()
+            ->filter(fn ($p) => ProductStock::effectiveStock($p->id) < $p->stock_min)
+            ->values();
         $hasUncalculableCost = $salesByProduct->contains(fn ($row) => ! $row->cost_calculable);
 
         return [

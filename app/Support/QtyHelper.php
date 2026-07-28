@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Models\Greige;
 use App\Models\Product;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * 数量の表示・換算ヘルパー。
@@ -36,37 +35,28 @@ class QtyHelper
     public static function metersPerTan(?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): int
     {
         if ($isGreige) {
-            if ($greigeSku !== null && Schema::hasTable('greiges')) {
-                $greige = Greige::findBySku($greigeSku);
-                if ($greige !== null) {
-                    return (int) $greige->meters_per_tan;
-                }
-            }
-            if ($greigeSku !== null) {
-                $legacyGreige = DemoData::greiges()->firstWhere('sku', $greigeSku);
-                if ($legacyGreige !== null) {
-                    return (int) $legacyGreige->meters_per_tan;
-                }
+            if ($greigeSku === null || $greigeSku === '') {
+                throw new \InvalidArgumentException('生機SKUが指定されていないため、1反あたりのメートル数を取得できません。');
             }
 
-            return self::METERS_PER_TAN_GREIGE;
+            $greige = Greige::findBySku($greigeSku);
+            if ($greige === null) {
+                throw new \InvalidArgumentException("生機SKU {$greigeSku} がマスタに存在しません。");
+            }
+
+            return (int) $greige->meters_per_tan;
         }
 
-        if ($productId !== null && Schema::hasTable('products')) {
-            $product = Product::query()->find($productId);
-            if ($product !== null) {
-                return (int) $product->meters_per_tan;
-            }
+        if ($productId === null || $productId <= 0) {
+            throw new \InvalidArgumentException('製品IDが指定されていないため、1反あたりのメートル数を取得できません。');
         }
 
-        if ($productId !== null) {
-            $legacyProduct = DemoData::products()->firstWhere('id', $productId);
-            if ($legacyProduct !== null) {
-                return (int) $legacyProduct->meters_per_tan;
-            }
+        $product = Product::query()->find($productId);
+        if ($product === null) {
+            throw new \InvalidArgumentException("製品ID {$productId} がマスタに存在しません。");
         }
 
-        return self::METERS_PER_TAN_PRODUCT;
+        return (int) $product->meters_per_tan;
     }
 
     public static function roundTan(float|int $tan): float
@@ -302,13 +292,16 @@ class QtyHelper
     /** 生機反数 → 同長さの製品反数（反数ベース換算） */
     public static function productTanFromGreigeTan(float|int $greigeTan, int $productId): float
     {
-        $greigeSku = null;
-        if (Schema::hasTable('products')) {
-            $greigeSku = Product::query()->with('greige')->find($productId)?->greige?->sku;
+        $product = Product::query()->with('greige')->find($productId);
+        if ($product === null) {
+            throw new \InvalidArgumentException("製品ID {$productId} がマスタに存在しません。");
         }
-        if ($greigeSku === null) {
-            $greigeSku = DemoData::products()->firstWhere('id', $productId)?->greige_sku;
+
+        $greigeSku = $product->greige?->sku;
+        if ($greigeSku === null || $greigeSku === '') {
+            throw new \InvalidArgumentException("製品ID {$productId} に生機SKUが設定されていません。");
         }
+
         $meters = self::metersFromTan($greigeTan, null, true, $greigeSku);
 
         return self::tanCount($meters, $productId, false);

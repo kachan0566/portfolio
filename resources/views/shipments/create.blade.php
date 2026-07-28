@@ -60,7 +60,9 @@
             <div class="card__body">
                 @php
                     $selectedOrder = $pending->firstWhere('id', $selectedOrderId) ?? $pending->first();
-                    $selectedMetersPerTan = \App\Support\QtyHelper::metersPerTan($selectedOrder?->product_id);
+                    $selectedMetersPerTan = $selectedOrder
+                        ? \App\Support\QtyHelper::metersPerTan((int) $selectedOrder->product_id)
+                        : null;
                     $selectedShippable = $selectedOrder?->shippable_qty ?? 0;
                 @endphp
                 <form action="{{ route('shipments.store') }}" method="POST" id="shipment-form">
@@ -92,7 +94,9 @@
                                 'productId' => null,
                                 'metersPerTan' => $selectedMetersPerTan,
                                 'tanStep' => \App\Support\QtyHelper::ORDER_PO_TAN_STEP,
-                                'maxTan' => $selectedShippable > 0 ? \App\Support\QtyHelper::tanCount($selectedShippable, $selectedOrder?->product_id) : null,
+                                'maxTan' => ($selectedOrder && $selectedShippable > 0)
+                                    ? \App\Support\QtyHelper::tanCount($selectedShippable, (int) $selectedOrder->product_id)
+                                    : null,
                                 'pageKey' => 'shipments-form',
                                 'showMeterSwitch' => false,
                             ])

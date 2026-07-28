@@ -8,6 +8,7 @@ use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\CombinedForecastSnapshot;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use App\Support\ForecastSnapshot;
 use App\Support\GreigeForecastManualAdjustment;
 use App\Support\GreigeForecastSnapshot;
@@ -83,7 +84,7 @@ class CombinedForecastTest extends TestCase
 
     public function test_greige_manual_adjustment_affects_forecast(): void
     {
-        $greige = DemoData::findGreige('KB-A');
+        $greige = MasterCatalog::findGreige('KB-A');
         $ym = DemoData::CURRENT_YM;
 
         $before = GreigeMonthEndForecastEngine::buildLine(

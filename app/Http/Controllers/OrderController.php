@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreOrderRequest;
 use App\Models\Customer;
 use App\Models\Order;
-use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Support\AllocationConversion;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use App\Support\ProductStock;
 use App\Support\FabricQuantity;
 use App\Support\ListSearch;
@@ -52,7 +52,7 @@ class OrderController extends Controller
         $target = $this->orderOrFail($order);
         $target = $this->enrichWithAllocation($target);
 
-        $product = Product::query()->find($target->product_id)?->toDisplayObject() ?? abort(404);
+        $product = MasterCatalog::findProductOrFail($target->product_id);
         $effectiveStock = ProductStock::effectiveStock($target->product_id);
 
         $shipRate = $target->qty > 0
@@ -180,7 +180,7 @@ class OrderController extends Controller
     {
         return view('orders.create', [
             'customers' => Customer::query()->orderBy('id')->get(),
-            'products' => Product::displayCatalog(),
+            'products' => MasterCatalog::products(),
         ]);
     }
 
@@ -206,7 +206,7 @@ class OrderController extends Controller
         return view('orders.edit', [
             'order' => $target,
             'customers' => Customer::query()->orderBy('id')->get(),
-            'products' => Product::displayCatalog(),
+            'products' => MasterCatalog::products(),
         ]);
     }
 
@@ -432,7 +432,7 @@ class OrderController extends Controller
         $order->shippable = $allocation['shippable'];
 
         if ($withPrice) {
-            $order->price = Product::query()->find($order->product_id)?->price ?? 0;
+            $order->price = (int) (MasterCatalog::findProduct($order->product_id)?->price ?? 0);
         }
 
         return $order;

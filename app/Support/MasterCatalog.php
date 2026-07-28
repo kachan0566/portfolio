@@ -8,28 +8,22 @@ use App\Models\Product;
 use App\Models\ShipTo;
 use App\Models\Supplier;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 /**
- * マスタ参照の統一窓口。DB にデータがあれば Eloquent、なければ DemoData の固定配列へフォールバックする。
+ * マスタ参照の統一窓口。実行時の正本は DB（Eloquent）のみ。
+ * シード用の固定配列は DemoData にあり、ここからは参照しない。
  */
 class MasterCatalog
 {
     /** @return Collection<int, object> */
     public static function products(): Collection
     {
-        return self::tableHasRows('products')
-            ? Product::displayList()
-            : DemoData::products();
+        return Product::displayList();
     }
 
     public static function findProduct(int $id): ?object
     {
-        if (self::tableHasRows('products')) {
-            return Product::findDisplay($id);
-        }
-
-        return DemoData::products()->firstWhere('id', $id);
+        return Product::findDisplay($id);
     }
 
     public static function findProductOrFail(int $id): object
@@ -45,79 +39,48 @@ class MasterCatalog
     /** @return Collection<int, object> */
     public static function greiges(): Collection
     {
-        return self::tableHasRows('greiges')
-            ? Greige::displayList()
-            : DemoData::greiges();
+        return Greige::displayList();
     }
 
     public static function findGreige(string $sku): ?object
     {
-        if (self::tableHasRows('greiges')) {
-            return Greige::findDisplayBySku($sku);
-        }
-
-        return DemoData::greiges()->firstWhere('sku', $sku);
+        return Greige::findDisplayBySku($sku);
     }
 
     public static function findGreigeByProductId(int $productId): ?object
     {
-        if (self::tableHasRows('greiges')) {
-            return Greige::findDisplayByProductId($productId);
-        }
-
-        return DemoData::findGreigeByProductId($productId);
+        return Greige::findDisplayByProductId($productId);
     }
 
     /** @return Collection<int, object> */
     public static function yarnMaterials(): Collection
     {
-        return self::tableHasRows('materials')
-            ? Material::yarnMaterials()
-            : DemoData::materials()->where('type', Material::TYPE_YARN)->values();
+        return Material::yarnMaterials();
     }
 
     public static function findMaterial(int $id): ?object
     {
-        if (self::tableHasRows('materials')) {
-            return Material::findDisplay($id);
-        }
-
-        return DemoData::materials()->firstWhere('id', $id);
+        return Material::findDisplay($id);
     }
 
-    /** @return Collection<int, object{id: int, name: string}> */
+    /**
+     * 製品カテゴリの選択肢（products.category の DISTINCT）。
+     * 専用マスタテーブルはなく、シード未投入時は空コレクション。
+     *
+     * @return Collection<int, object{id: int, name: string}>
+     */
     public static function categoryOptions(): Collection
     {
-        return self::tableHasRows('products')
-            ? Product::categoryOptions()
-            : DemoData::categories();
+        return Product::categoryOptions();
     }
 
     public static function findSupplier(int $id): ?object
     {
-        if (self::tableHasRows('suppliers')) {
-            return Supplier::query()->find($id);
-        }
-
-        return DemoData::suppliers()->firstWhere('id', $id);
+        return Supplier::query()->find($id);
     }
 
     public static function findShipTo(int $id): ?object
     {
-        if (self::tableHasRows('ship_tos')) {
-            return ShipTo::query()->find($id);
-        }
-
-        return DemoData::shipTos()->firstWhere('id', $id);
-    }
-
-    private static function tableHasRows(string $table): bool
-    {
-        try {
-            return Schema::hasTable($table)
-                && \Illuminate\Support\Facades\DB::table($table)->exists();
-        } catch (\Throwable) {
-            return false;
-        }
+        return ShipTo::query()->find($id);
     }
 }

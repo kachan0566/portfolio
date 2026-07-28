@@ -3,10 +3,22 @@
 namespace Tests\Unit;
 
 use App\Support\QtyHelper;
+use Database\Seeders\MasterCatalogSeeder;
+use Database\Seeders\MasterFoundationSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class QtyHelperTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(MasterFoundationSeeder::class);
+        $this->seed(MasterCatalogSeeder::class);
+    }
+
     public function test_format_displays_tan_and_meters_equally(): void
     {
         $this->assertSame('2.4反 / 120m', QtyHelper::format(120, 1));
@@ -87,5 +99,29 @@ class QtyHelperTest extends TestCase
         ];
 
         $this->assertSame('2.4反 / 120m', QtyHelper::formatAggregateFromLines($lines, 'qty', 1));
+    }
+
+    public function test_meters_per_tan_throws_when_product_missing(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('製品ID 999');
+
+        QtyHelper::metersPerTan(999);
+    }
+
+    public function test_meters_per_tan_throws_when_greige_missing(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('NO-SUCH-SKU');
+
+        QtyHelper::metersPerTan(null, true, 'NO-SUCH-SKU');
+    }
+
+    public function test_meters_per_tan_throws_when_product_id_not_given(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('製品IDが指定されていない');
+
+        QtyHelper::metersPerTan();
     }
 }
