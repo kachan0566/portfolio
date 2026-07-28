@@ -391,3 +391,393 @@ ordercontoroller
     }
 ```
 
+
+
+# 入荷予定日更新のルート
+
+
+
+## purchases.index
+
+```
+ <th style="min-width:140px;">入荷予定日</th>
+
+ <td>
+ @include('partials.purchase-arrival-date-inline-form', [
+    'purchase' => $po,
+     'search' => $search,
+  ])
+ </td>
+```
+
+## partials.purchase-arrival-date-inline-form
+
+```
+ <form method="POST" action="{{ route('purchases.patch-arrival', $purchase->id) }}" 
+```
+
+- ちなみに
+
+```
+    @csrf
+    @method('PATCH')
+    @foreach ($search ?? [] as $key => $value)
+        @if ($value !== '')
+            <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+        @endif
+    @endforeach
+    <input type="hidden" name="arrival_memo" value="{{ $purchase->arrival_memo ?? '' }}">
+```
+
+URLのパラメータ部分(/purchases?supplier=東京&status=orderedの?以下)である$searchを$keyに入れ、画面には表示しないinput type="hidden"の形でsupplier=東京&status=orderedという値を一緒にPOSTするときに入れる
+こうすることでPOST後もURLにsupplier=東京&status=orderedが残り、返ってくる画面がsupplier=東京&status=orderedに絞ったまんまになる
+
+## web.php
+
+```
+Route::patch('/purchases/{purchase}/arrival', [PurchaseOrderController::class, 'patchArrival'])
+    ->name('purchases.patch-arrival');
+```
+
+
+
+## Controllers.purchaseoordercontoroller
+
+```
+public function patchArrival(Request $request, int $purchase): RedirectResponse
+    {
+        $target = $this->findPurchase($purchase);
+        $model = PurchaseOrder::query()->findOrFail($purchase);
+        $type = $target->type ?? PurchaseOrderType::PRODUCT;
+
+        $validated = $request->validate([
+            'expected_arrival_date' => ['nullable', 'date'],
+            'arrival_memo' => ['nullable', 'string', 'max:500'],
+        ], [], [
+            'expected_arrival_date' => '入荷予定日',
+            'arrival_memo' => 'メモ',
+        ]);
+
+        $date = $validated['expected_arrival_date'] ?? null;
+        $model->update([
+            'arrival_memo' => (string) ($validated['arrival_memo'] ?? ''),
+            'due_date' => $date !== null && $type !== PurchaseOrderType::PRODUCT
+                ? $date
+                : $model->due_date,
+        ]);
+
+        if ($date !== null && $type === PurchaseOrderType::PRODUCT) {
+            $model->primaryLine()?->update(['finish_date' => $date]);
+        }
+
+        $redirectParams = array_filter(
+            $request->only(ListSearch::PARAMS),
+            fn ($value) => $value !== null && $value !== ''
+        );
+
+        return redirect()->route('purchases.index', $redirectParams)
+            ->with('success', "発注 {$target->code} の入荷予定を更新しました。");
+    }
+```
+
+
+
+### $target = $this->findPurchase($purchase);
+
+```
+private function findPurchase(int $id): object
+    {
+        return DemoData::purchaseOrders()->firstWhere('id', $id) ?? abort(404);
+    }
+```
+
+
+
+#### DemoData::purchaseOrders()
+
+```
+public static function purchaseOrders(): Collection
+    {
+        if (self::usesPurchaseOrderDatabase()) {
+            return PurchaseOrder::displayList();
+        }
+
+        $rows = self::basePurchaseOrderRows()->all();
+
+        foreach (PurchaseOrderOverlay::additions() as $addition) {
+            $rows[] = $addition;
+        }
+
+        return collect($rows)->map(function ($r) {
+            $overrides = PurchaseOrderOverlay::overrides((int) $r['id']);
+            if (! empty($overrides)) {
+                $r = array_merge($r, $overrides);
+            }
+
+            return self::enrichPurchaseOrder($r);
+        });
+    }
+```
+
+
+
+##### DemoData.usesPurchaseOrderDatabase()
+
+```
+public static function usesPurchaseOrderDatabase(): bool
+{
+    return self::cachedDatabaseUsage('purchase_orders', fn () => Schema::hasTable('purchase_orders')
+        && Schema::hasTable('purchase_order_lines')
+        && PurchaseOrder::query()->exists());
+}
+```
+
+- 何をしているか
+
+purchase_orders テーブルがあるか
+purchase_order_lines テーブルがあるか
+発注データが1件以上入っているか
+この3つを満たすとき「本物のDBを使うモード」と判断します。
+
+例えば
+デモ用の固定データではなく、実際にDBに発注を保存している環境では、こちらのルートに入ります。
+
+cachedDatabaseUsage は、同じリクエスト中に何度もDBを調べないための 結果のメモ（キャッシュ） 
+
+##### PurchaseOrder::displayList()
+
+```
+public static function displayList(): Collection
+{
+    return self::query()
+        ->with([
+            'supplier',
+            'shipTo',
+            'order.customer',
+            'lines.material',
+            'lines.greige',
+            'lines.product.greige',
+        ])
+        ->orderByDesc('due_date')
+        ->orderByDesc('id')
+        ->get()
+        ->map(fn (self $po) => $po->toDisplayObject());
+}
+```
+
+- 何をしているか
+
+DBから発注を取得する（query()->get()）
+関連データをまとめて読み込む（with(...)）
+仕入先、納品先、受注、明細行など
+納期の新しい順に並べる
+各行を toDisplayObject() で 画面用オブジェクト に変換する
+例えば
+DBの生データ（IDだけ、日付だけ）を、そのまま画面に出すのではなく、「仕入先名」「ステータス表示名」などが付いた形に整えて返します。
+
+##### self::basePurchaseOrderRows()
+
+```
+public static function basePurchaseOrderRows(): Collection
+{
+    return collect([
+        // --- 製品発注 ---
+        [
+            'id' => 1, 'code' => 'PO-2606-001', 'type' => PurchaseOrderType::PRODUCT,
+            'status' => PurchaseOrderStatus::RECEIVED, 'order_id' => 1,
+            'supplier_id' => 6, 'ship_to_id' => 4,
+            'product_id' => 1, 'qty_meters' => 200, 'received' => 200,
+            ...
+        ],
+```
+
+- 何をしているか
+PHPのコード内に書かれた 固定のデモ用発注データ を返す
+製品発注・生機発注・糸発注など、サンプルが複数入っている
+まだ「画面用」には整っていない 生の配列（連想配列） の状態
+- 例えば
+DBがなくてもアプリを動かせるように、最初からサンプル発注が入っているイメージです。
+
+.all() で Laravel の Collection を普通の PHP 配列に変換しています（次の [] で追加しやすくするため）。
+
+##### PurchaseOrderOverlay::additions()（app/Support/PurchaseOrderOverlay.php）
+
+```
+/** @return list<array<string, mixed>> */
+public static function additions(): array
+{
+    return session(self::ADDITIONS, []);
+}
+```
+
+- 何をしているか
+
+ユーザーが画面で 新しく作った発注 を、セッション（ブラウザごとの一時保存）から取り出す
+固定デモデータの後ろに、その発注を追加する
+
+- 例えば
+デモ中に「新規発注」を作ると、DBには保存されずセッションに溜まります。
+additions() はその「後から足された分」を返します。
+
+PurchaseOrderOverlay クラス全体の役割はコメントの通り：
+
+デモ用：発注の追加・更新をセッションに保持する。
+
+# バリデーションエラー時の処理の流れ
+
+結論から言うと、**このプロジェクトのコードのどこかに** `errors` **と** `old` **をセッションに入れる処理を自分で書いているわけではありません**。Laravel が **自動でやってくれる** 仕組みです。
+
+---
+
+
+
+## 流れの全体像
+
+```mermaid
+sequenceDiagram
+    participant B as ブラウザ
+    participant L as Laravel
+    participant R as StoreYarnPriceRequest
+    participant C as MaterialPriceController::store
+
+    B->>L: POST /prices
+    L->>R: 先にバリデーション実行
+    alt エラーあり
+        R-->>L: ValidationException
+        L->>B: 302 登録画面へ + errors + old
+    else OK
+        R->>C: store() を実行
+        C->>B: 302 一覧へ
+    end
+```
+
+
+
+**ポイント：** バリデーションに失敗すると、`store()` は **呼ばれません**。
+
+```50:50:app/Http/Controllers/MaterialPriceController.php
+    public function store(StoreYarnPriceRequest $request): RedirectResponse
+```
+
+`StoreYarnPriceRequest` と書いてある時点で、Laravel は `store()` の前にチェックを走らせます。
+
+---
+
+
+
+## このプロジェクトで「定義している」場所
+
+
+
+### 1. チェックのルール → `StoreYarnPriceRequest.php`
+
+「何をエラーにするか」はここで決まっています。
+
+```19:29:app/Http/Requests/StoreYarnPriceRequest.php
+    public function rules(): array
+    {
+        return [
+            'material_id' => [
+                'required',
+                'integer',
+                Rule::in(DemoData::yarnMaterials()->pluck('id')->all()),
+            ],
+            'ym' => ['required', 'date_format:Y-m'],
+            'price' => ['required', 'integer', 'min:1'],
+        ];
+    }
+```
+
+重複チェックも同じファイルです。
+
+```44:53:app/Http/Requests/StoreYarnPriceRequest.php
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $materialId = (int) $this->input('material_id');
+            $ym = (string) $this->input('ym');
+
+            if ($materialId && $ym && DemoData::hasYarnPrice($materialId, $ym)) {
+                $validator->errors()->add('ym', 'この糸・年月の単価はすでに登録されています。');
+            }
+        });
+    }
+```
+
+
+
+### 2. 画面での表示 → `prices/create.blade.php`
+
+セッションに入った値を **読む側** はここです。
+
+
+| 書き方            | 役割              |
+| -------------- | --------------- |
+| `old('ym')`    | 前回入力した値をフォームに戻す |
+| `@error('ym')` | エラーメッセージを表示する   |
+
+
+```25:41:resources/views/prices/create.blade.php
+                            <option value="{{ $m->id }}" @selected((string) $m->id === (string) old('material_id'))>
+...
+                        <input class="input" type="month" id="ym" name="ym" value="{{ old('ym') }}" style="max-width:200px;">
+                        @error('ym')<p class="field-error">{{ $message }}</p>@enderror
+...
+                        <input class="input" type="number" id="price" name="price" min="1" step="1" value="{{ old('price') }}" style="max-width:200px;">
+                        @error('price')<p class="field-error">{{ $message }}</p>@enderror
+```
+
+---
+
+
+
+## 「戻る」「errors」「old」を入れる処理はどこ？
+
+`MaterialPriceController` **にはありません。**  
+Laravel 本体（フレームワーク）の `FormRequest` が、バリデーション失敗時にだいたい次のことを自動でします。
+
+1. 直前のページ（登録画面）へリダイレクト（302）
+2. セッションに **errors**（エラー内容）を入れる
+3. セッションに **old**（入力値のコピー）を入れる
+
+イメージとしては、こんな処理です（実際は Laravel 内部）：
+
+```php
+// あなたのプロジェクトにはこのコードはない（Laravel が内部でやる）
+throw ValidationException::withMessages($errors);
+// → redirect()->back()->withErrors($errors)->withInput();
+```
+
+だから仕様書に「セッションに errors と old」と書いたのは、**Laravel の標準の動き**を説明している、という意味です。
+
+---
+
+
+
+## 成功時との違い
+
+
+| 状況         | 誰がリダイレクトするか                                                              | 行き先            |
+| ---------- | ------------------------------------------------------------------------ | -------------- |
+| 成功         | `MaterialPriceController::store()` の `redirect()->route('prices.index')` | 一覧             |
+| バリデーションエラー | Laravel（`FormRequest` の失敗処理）                                             | 登録画面（`back()`） |
+
+
+成功時の `with('success', ...)` は **自分で書いている** のに対し、  
+エラー時の `errors` / `old` は **Laravel が勝手にやる**、という違いです。
+
+---
+
+
+
+## まとめ
+
+
+| 内容                       | 場所                                                               |
+| ------------------------ | ---------------------------------------------------------------- |
+| 何をチェックするか                | `app/Http/Requests/StoreYarnPriceRequest.php`                    |
+| エラー・入力値を画面に出す            | `resources/views/prices/create.blade.php` の `old()` / `@error()` |
+| 戻る・errors・old をセッションに入れる | **Laravel 標準**（プロジェクト内に明示コードなし）                                  |
+
+
+「どこに書いてあるの？」と探すなら、`StoreYarnPriceRequest` と `create.blade.php` の2か所が該当で、**リダイレクト自体はフレームワーク任せ**、と覚えると整理しやすいです。
