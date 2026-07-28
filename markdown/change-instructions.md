@@ -217,7 +217,7 @@ public static function shipments(): \Illuminate\Support\Collection
 
 ### やること（登録・編集フォーム）
 `create.blade.php` と `edit.blade.php` の入力欄を「生機品番（選択）＋カラー（テキスト）＋販売価格」に変更します。
-- 生機品番は `DemoData::greiges()` を選択肢にする → そのため `ProductController@create` と `@edit` で `'greiges' => DemoData::greiges()` を view に渡すよう1行追加。
+- 生機品番・カテゴリは `MasterCatalog` 経由（DB正本）で選択肢を渡す。
 - カラー欄：`<input name="color">`
 - 販売価格欄：既存のまま（製品ごとの価格）
 
@@ -226,12 +226,12 @@ public static function shipments(): \Illuminate\Support\Collection
 public function create(): \Illuminate\View\View
 {
     return view('products.create', [
-        'categories' => DemoData::categories(),
-        'greiges' => DemoData::greiges(), // ← 追加
+        'categories' => MasterCatalog::categoryOptions(),
+        'greiges' => MasterCatalog::greiges(),
     ]);
 }
 ```
-（edit も同様に `'greiges' => DemoData::greiges()` を足す）
+（edit も同様に `MasterCatalog` を使う）
 
 フォームの選択肢の例：
 ```blade
