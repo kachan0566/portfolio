@@ -10,8 +10,7 @@ use App\Models\OrderAllocation;
 use App\Models\ProductRecipe;
 use App\Models\PurchaseOrder;
 use App\Models\Receiving;
-use App\Models\ShipTo;
-use App\Support\MasterCatalog;
+use App\Models\Shipment;
 use Illuminate\Support\Collection;
 
 /**
@@ -25,7 +24,7 @@ use Illuminate\Support\Collection;
  */
 class DemoData
 {
-    /** 「今月」として扱う年月（テスト用に固定） */
+    /** シードデータ・既存テストが使用する基準年月。実行時の現在月には使わない。 */
     public const CURRENT_YM = '2026-06';
 
     /** 受注登録デモの遷移先（本日受付・在庫十分で即引当可能なシナリオ） */
@@ -485,18 +484,16 @@ class DemoData
         return self::yarnPrice($materialId, $ym) !== null;
     }
 
-    /** 指定糸・年月の単価を取得（未登録時は null） */
+    /** 対象月以前で最も新しい糸単価を取得（過去にも未登録なら null） */
     public static function yarnPrice(int $materialId, string $ym): ?int
     {
         if (! self::isYarnMaterial($materialId)) {
             return null;
         }
 
-        $row = self::materialPrices()
-            ->where('material_id', $materialId)
-            ->firstWhere('ym', $ym);
+        $row = MaterialPrice::effectiveFor($materialId, $ym);
 
-        return $row?->price;
+        return $row !== null ? (int) $row->unit_price : null;
     }
 
     /** 商品レシピ一覧（染色加工料のみ） */
@@ -752,10 +749,10 @@ class DemoData
         return $shippedTan + 0.0001 >= $qtyTan ? '出荷済' : '一部出荷';
     }
 
-    /** デモ上の「今日」の日付（受注日の基準） */
+    /** アプリ上の今日の日付。 */
     public static function today(): string
     {
-        return self::CURRENT_YM.'-25';
+        return BusinessDate::today();
     }
 
     /** 受注日の新しい順に並べた一覧 */
@@ -1086,7 +1083,7 @@ class DemoData
     /** 出荷一覧 */
     public static function shipments(): Collection
     {
-        return \App\Models\Shipment::displayList();
+        return Shipment::displayList();
     }
 
     /** 入荷の生データ（DemoState 参照なし） */
@@ -1158,7 +1155,8 @@ class DemoData
         $fromShipments = self::shipments()->map(fn ($s) => substr($s->date, 0, 7));
         $fromPrices = self::materialPrices()->pluck('ym');
 
-        return collect($fromShipments->all())
+        return collect([BusinessDate::currentYm()])
+            ->merge($fromShipments)
             ->merge($fromPrices)
             ->unique()
             ->sortDesc()
@@ -1175,7 +1173,7 @@ class DemoData
     public static function forecastMonthOptions(): Collection
     {
         $base = self::salesMonthOptions();
-        $current = self::CURRENT_YM;
+        $current = BusinessDate::currentYm();
         if (! $base->contains($current)) {
             $base = $base->prepend($current);
         }
@@ -1198,7 +1196,8 @@ class DemoData
      */
     public static function salesTrendMonths(string $endYm, int $count = 6): array
     {
-        $end = \DateTimeImmutable::createFromFormat('Y-m', $endYm) ?: new \DateTimeImmutable(self::CURRENT_YM.'-01');
+        $end = \DateTimeImmutable::createFromFormat('Y-m', $endYm)
+            ?: new \DateTimeImmutable(BusinessDate::currentYm().'-01');
         $months = [];
         for ($i = $count - 1; $i >= 0; $i--) {
             $months[] = $end->modify("-{$i} months")->format('Y-m');
@@ -1268,7 +1267,7 @@ class DemoData
     /** 指定月の売上・製造コスト・粗利を商品別に集計 */
     public static function monthlySalesByProduct(?string $ym = null): Collection
     {
-        $ym = $ym ?? self::CURRENT_YM;
+        $ym = $ym ?? BusinessDate::currentYm();
 
         return self::shipments()
             ->filter(fn ($s) => str_starts_with($s->date, $ym))
@@ -1300,7 +1299,8 @@ class DemoData
     /** ダッシュボード用のKPIなどをまとめて返す */
     public static function dashboard(): array
     {
-        $salesByProduct = self::monthlySalesByProduct();
+        $currentYm = BusinessDate::currentYm();
+        $salesByProduct = self::monthlySalesByProduct($currentYm);
         $calculableRows = $salesByProduct->where('cost_calculable', true);
 
         $orders = self::orders();
@@ -1318,7 +1318,7 @@ class DemoData
             'hasUncalculableCost' => $hasUncalculableCost,
             'costWarnings' => self::collectCostWarnings(
                 $salesByProduct->where('cost_calculable', false)->pluck('product_id'),
-                self::CURRENT_YM
+                $currentYm
             ),
             'unshippedOrders' => $orders->whereIn('status', ['未出荷', '一部出荷'])->count(),
             'unreceivedPurchaseOrders' => $purchaseOrders

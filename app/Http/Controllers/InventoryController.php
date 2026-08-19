@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\MasterCatalog;
 use App\Models\Order;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\AllocationConversion;
+use App\Support\BusinessDate;
 use App\Support\DemoData;
-use App\Support\ProductStock;
 use App\Support\GreigeInventory;
 use App\Support\ListSearch;
-use App\Support\PurchaseOrderDisplay;
+use App\Support\MasterCatalog;
+use App\Support\ProductStock;
 use App\Support\PurchaseOrderStages;
-use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use App\Support\StockAllocation;
@@ -28,7 +27,7 @@ class InventoryController extends Controller
 {
     public function index(Request $request): View
     {
-        $ym = DemoData::CURRENT_YM;
+        $ym = BusinessDate::currentYm();
         $search = ListSearch::params($request);
 
         $products = MasterCatalog::products()->map(function ($p) use ($ym) {
@@ -201,14 +200,15 @@ class InventoryController extends Controller
 
     private function resolveForecastYm(Request $request): string
     {
-        $ym = (string) $request->query('ym', DemoData::CURRENT_YM);
+        $currentYm = BusinessDate::currentYm();
+        $ym = (string) $request->query('ym', $currentYm);
 
-        return DemoData::isValidForecastMonth($ym) ? $ym : DemoData::CURRENT_YM;
+        return DemoData::isValidForecastMonth($ym) ? $ym : $currentYm;
     }
 
     public function show(int $product): View
     {
-        $ym = DemoData::CURRENT_YM;
+        $ym = BusinessDate::currentYm();
         $target = MasterCatalog::findProductOrFail($product);
         $effectiveStock = ProductStock::effectiveStock($product);
 

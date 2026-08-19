@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Services\Inventory\ShipmentRollAllocator;
 use App\Services\Shipment\ShipmentRegistrar;
+use App\Support\BusinessDate;
 use App\Support\DemoData;
-use App\Support\ProductStock;
 use App\Support\FabricQuantity;
 use App\Support\ListSearch;
+use App\Support\ProductStock;
 use App\Support\QtyHelper;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
@@ -118,7 +119,7 @@ class ShipmentController extends Controller
                 $orderId,
                 $qtyTan,
                 $isMetersOrder ? $qty : null,
-                DemoData::today(),
+                BusinessDate::today(),
                 null,
                 null,
             );

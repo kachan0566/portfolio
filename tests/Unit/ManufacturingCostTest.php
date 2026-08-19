@@ -74,13 +74,13 @@ class ManufacturingCostTest extends TestCase
 
     public function test_missing_yarn_price_makes_cost_uncalculable_without_zero_fallback(): void
     {
-        $breakdown = DemoData::unitCostBreakdown(1, '2026-07');
+        $breakdown = DemoData::unitCostBreakdown(1, '2026-03');
 
         $this->assertFalse($breakdown->calculable);
         $this->assertNull($breakdown->greige_cost);
         $this->assertNull($breakdown->total);
         $this->assertCount(1, $breakdown->missing_yarns);
-        $this->assertNull(DemoData::unitCost(1, '2026-07'));
+        $this->assertNull(DemoData::unitCost(1, '2026-03'));
     }
 
     public function test_yarn_materials_returns_only_yarn_ids(): void

@@ -2,14 +2,10 @@
 
 namespace App\Services\Inventory;
 
-use App\Support\MasterCatalog;
-
-use App\Models\Greige;
-use App\Models\Product;
+use App\Models\MonthEndForecast;
 use App\Support\CombinedForecastSnapshot;
-use App\Support\DemoData;
-use App\Support\ForecastSnapshot;
 use App\Support\GreigeForecastSnapshot;
+use App\Support\MasterCatalog;
 
 /**
  * 製品月末予想と生機月末予想を合算した閲覧用サマリ。
@@ -30,7 +26,7 @@ class CombinedMonthEndForecastEngine
             + (int) $greigeCalculable->sum('forecast_value');
         $prevMonthDiff = self::prevMonthDiff($targetYm, $forecastValue);
 
-        $productSnapshot = ForecastSnapshot::latestForMonth($targetYm);
+        $productSnapshot = MonthEndForecast::latestForMonth($targetYm);
         $greigeSnapshot = GreigeForecastSnapshot::latestForMonth($targetYm);
         $combinedSnapshot = CombinedForecastSnapshot::latestForMonth($targetYm);
 

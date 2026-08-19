@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\BusinessDate;
 use App\Support\DemoData;
 use App\Support\FabricQuantity;
 use App\Support\QtyHelper;
@@ -249,7 +250,7 @@ class Order extends Model
             'planned_ship_date' => $this->planned_ship_date?->toDateString(),
             'ship_memo' => $this->ship_memo,
             'status' => DemoData::orderProgressStatus($statusInput),
-            'is_new_today' => $this->order_date?->toDateString() === DemoData::today(),
+            'is_new_today' => $this->order_date?->toDateString() === BusinessDate::today(),
         ];
     }
 }

@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\MasterCatalog;
-use App\Services\Inventory\CombinedMonthEndForecastEngine;
+use App\Models\ForecastManualAdjustment;
+use App\Models\MonthEndForecast;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
+use App\Support\BusinessDate;
 use App\Support\DemoData;
-use App\Support\ForecastManualAdjustment;
-use App\Support\ForecastSnapshot;
 use App\Support\GreigeForecastManualAdjustment;
 use App\Support\GreigeForecastSnapshot;
+use App\Support\MasterCatalog;
 use App\Support\QtyHelper;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,6 +48,7 @@ class InventoryForecastController extends Controller
             'product_id' => ['required', 'integer'],
             'target_ym' => ['required', 'string'],
             'qty' => ['required', 'numeric', 'min:0.01'],
+            'qty_meters' => ['nullable', 'numeric', 'min:0'],
             'direction' => ['required', 'in:increase,decrease'],
             'reason' => ['required', 'string', 'max:500'],
             'redirect' => ['nullable', 'in:detail'],
@@ -58,10 +59,16 @@ class InventoryForecastController extends Controller
             abort(404);
         }
 
+        $qtyTan = (float) $request->input('qty');
+        $qtyMeters = $request->input('qty_meters');
+        $qtyM = ($qtyMeters !== null && $qtyMeters !== '')
+            ? (float) $qtyMeters
+            : $qtyTan * QtyHelper::metersPerTan($productId);
+
         ForecastManualAdjustment::add(
             $productId,
             (string) $request->input('target_ym'),
-            (float) $request->input('qty'),
+            $qtyM,
             (string) $request->input('direction'),
             (string) $request->input('reason'),
             '木村 勝也'
@@ -102,7 +109,7 @@ class InventoryForecastController extends Controller
             'note' => $line->note,
         ])->all();
 
-        $snapshot = ForecastSnapshot::save([
+        $snapshot = MonthEndForecast::saveSnapshot([
             'target_ym' => $ym,
             'base_date' => date('Y-m-d'),
             'created_by' => '木村 勝也',
@@ -339,21 +346,22 @@ class InventoryForecastController extends Controller
         $line = LongTermInventoryEngine::buildLine(
             $product,
             $target,
-            DemoData::today(),
-            DemoData::CURRENT_YM
+            BusinessDate::today(),
+            BusinessDate::currentYm()
         );
 
         return view('inventory.long-term-detail', [
             'product' => $target,
             'line' => $line,
-            'asOfDate' => DemoData::today(),
+            'asOfDate' => BusinessDate::today(),
         ]);
     }
 
     private function resolveYm(Request $request): string
     {
-        $ym = (string) $request->query('ym', $request->input('ym', DemoData::CURRENT_YM));
+        $currentYm = BusinessDate::currentYm();
+        $ym = (string) $request->query('ym', $request->input('ym', $currentYm));
 
-        return DemoData::isValidForecastMonth($ym) ? $ym : DemoData::CURRENT_YM;
+        return DemoData::isValidForecastMonth($ym) ? $ym : $currentYm;
     }
 }

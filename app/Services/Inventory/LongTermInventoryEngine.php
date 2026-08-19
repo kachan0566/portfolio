@@ -2,13 +2,11 @@
 
 namespace App\Services\Inventory;
 
-use App\Support\MasterCatalog;
-
-use App\Models\Product;
+use App\Support\BusinessDate;
 use App\Support\DemoData;
-use App\Support\ProductStock;
+use App\Support\MasterCatalog;
 use App\Support\ProductRoll;
-use Illuminate\Support\Collection;
+use App\Support\ProductStock;
 
 class LongTermInventoryEngine
 {
@@ -22,8 +20,8 @@ class LongTermInventoryEngine
 
     public static function build(?string $asOfDate = null): object
     {
-        $asOfDate ??= DemoData::today();
-        $ym = DemoData::CURRENT_YM;
+        $asOfDate ??= BusinessDate::today();
+        $ym = BusinessDate::currentYm();
 
         $lines = MasterCatalog::products()->map(function ($product) use ($asOfDate, $ym) {
             return self::buildLine((int) $product->id, $product, $asOfDate, $ym);

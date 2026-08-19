@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\ForecastManualAdjustment;
+use App\Models\MonthEndForecast;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\DemoData;
-use App\Support\ForecastManualAdjustment;
-use App\Support\ForecastSnapshot;
 use App\Support\MasterCatalog;
 use App\Support\ShipmentPlan;
 use Database\Seeders\MasterCatalogSeeder;
@@ -32,18 +32,6 @@ class InventoryForecastTest extends TestCase
         $this->seed(ReceivingSeeder::class);
         $this->seed(ShipmentPlanSeeder::class);
         $this->seed(ShipmentSeeder::class);
-        $this->resetJsonState('forecast_manual_adjustments.json');
-        $this->resetJsonState('month_end_forecast_snapshots.json');
-        ForecastManualAdjustment::clearCache();
-        ForecastSnapshot::clearCache();
-    }
-
-    private function resetJsonState(string $file): void
-    {
-        $path = storage_path('app/'.$file);
-        if (is_file($path)) {
-            unlink($path);
-        }
     }
 
     public function test_forecast_tab_renders(): void
@@ -55,6 +43,29 @@ class InventoryForecastTest extends TestCase
         $response->assertSee('手動調整の登録', false);
         $response->assertSee('品番別明細', false);
         $response->assertSee('検索', false);
+    }
+
+    public function test_forecast_defaults_to_the_current_business_month(): void
+    {
+        config()->set('business.fixed_date', '2026-08-19');
+
+        $response = $this->get(route('inventory.index', ['tab' => 'forecast']));
+
+        $response->assertOk();
+        $response->assertViewHas('forecastYm', '2026-08');
+    }
+
+    public function test_forecast_keeps_an_explicitly_selected_past_month(): void
+    {
+        config()->set('business.fixed_date', '2026-08-19');
+
+        $response = $this->get(route('inventory.index', [
+            'tab' => 'forecast',
+            'ym' => '2026-06',
+        ]));
+
+        $response->assertOk();
+        $response->assertViewHas('forecastYm', '2026-06');
     }
 
     public function test_forecast_search_filters_by_sku(): void
@@ -213,7 +224,7 @@ class InventoryForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $result = MonthEndForecastEngine::build($ym);
 
-        $snapshot = ForecastSnapshot::save([
+        $snapshot = MonthEndForecast::saveSnapshot([
             'target_ym' => $ym,
             'base_date' => '2026-06-20',
             'created_by' => 'テスト担当',
@@ -226,7 +237,17 @@ class InventoryForecastTest extends TestCase
         ])->all());
 
         $this->assertSame(1, $snapshot->version);
-        $this->assertNotNull(ForecastSnapshot::latestForMonth($ym));
+        $this->assertNotNull(MonthEndForecast::latestForMonth($ym));
+        $this->assertDatabaseHas('month_end_forecasts', [
+            'target_ym' => $ym,
+            'version' => 1,
+            'created_by_name' => 'テスト担当',
+            'submission_status' => 'submitted',
+        ]);
+        $this->assertDatabaseHas('month_end_forecast_lines', [
+            'month_end_forecast_id' => $snapshot->id,
+            'product_id' => $result->lines->first()->product_id,
+        ]);
     }
 
     public function test_shipment_plan_seeded_for_demo(): void
@@ -280,7 +301,7 @@ class InventoryForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $result = MonthEndForecastEngine::build($ym);
 
-        ForecastSnapshot::save([
+        MonthEndForecast::saveSnapshot([
             'target_ym' => $ym,
             'base_date' => '2026-06-20',
             'created_by' => 'テスト担当',
