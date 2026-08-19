@@ -13,6 +13,7 @@ use App\Models\ShipTo;
 use App\Models\Supplier;
 use App\Services\Inventory\GreigeDyeInput;
 use App\Services\Purchase\PurchaseOrderShowData;
+use App\Support\BusinessDate;
 use App\Support\DemoData;
 use App\Support\GreigeInventory;
 use App\Support\GreigeSupply;
@@ -23,11 +24,11 @@ use App\Support\PurchaseOrderLineDisplay;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
 use App\Support\YarnInventory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PurchaseOrderController extends Controller
@@ -163,7 +164,7 @@ class PurchaseOrderController extends Controller
             'suggestedMeters' => $request->filled('qty') ? (int) $request->query('qty') : null,
             'greigeMetaJson' => $greigeMeta->toJson(JSON_UNESCAPED_UNICODE),
             'productMetaJson' => $productMeta->toJson(JSON_UNESCAPED_UNICODE),
-            'defaultDate' => DemoData::today(),
+            'defaultDate' => BusinessDate::today(),
         ]);
     }
 
@@ -477,7 +478,7 @@ class PurchaseOrderController extends Controller
             PurchaseOrderType::GREIGE => 'PO-G-',
             default => 'PO-P-',
         };
-        $ym = str_replace('-', '', DemoData::CURRENT_YM);
+        $ym = str_replace('-', '', BusinessDate::currentYm());
         $seq = PurchaseOrder::query()->where('type', $type)->count() + 1;
 
         return $prefix.$ym.'-'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
@@ -551,7 +552,7 @@ class PurchaseOrderController extends Controller
                         : null
                 );
                 if ($error !== null) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
+                    throw ValidationException::withMessages([
                         "line_stages.{$lineId}" => $error,
                     ]);
                 }

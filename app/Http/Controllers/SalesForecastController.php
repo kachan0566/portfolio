@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\MasterCatalog;
-
-use App\Models\Product;
 use App\Models\SalesForecastLine;
 use App\Services\Sales\SalesForecastEngine;
 use App\Services\Sales\SalesRecognition;
+use App\Support\BusinessDate;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use App\Support\QtyHelper;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -144,8 +143,9 @@ class SalesForecastController extends Controller
 
     private function resolveYm(Request $request): string
     {
-        $ym = (string) $request->query('ym', $request->input('ym', DemoData::CURRENT_YM));
+        $currentYm = BusinessDate::currentYm();
+        $ym = (string) $request->query('ym', $request->input('ym', $currentYm));
 
-        return DemoData::isValidSalesMonth($ym) ? $ym : DemoData::CURRENT_YM;
+        return DemoData::isValidSalesMonth($ym) ? $ym : $currentYm;
     }
 }

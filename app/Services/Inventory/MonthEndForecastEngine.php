@@ -2,15 +2,13 @@
 
 namespace App\Services\Inventory;
 
-use App\Support\MasterCatalog;
-
+use App\Models\ForecastManualAdjustment;
+use App\Models\MonthEndForecast;
 use App\Models\Order;
-use App\Models\Product;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\DemoData;
+use App\Support\MasterCatalog;
 use App\Support\ProductStock;
-use App\Support\ForecastManualAdjustment;
-use App\Support\ForecastSnapshot;
 use Illuminate\Support\Collection;
 
 class MonthEndForecastEngine
@@ -40,7 +38,7 @@ class MonthEndForecastEngine
             'uncosted_count' => $lines->where('cost_calculable', false)->count(),
             'shortage_count' => $lines->filter(fn ($l) => $l->is_shortage || $l->is_negative)->count(),
             'lines' => $lines,
-            'latest_snapshot' => ForecastSnapshot::latestForMonth($targetYm),
+            'latest_snapshot' => MonthEndForecast::latestForMonth($targetYm),
         ];
     }
 
@@ -174,7 +172,7 @@ class MonthEndForecastEngine
             'prev_month_diff' => self::prevMonthDiffForLines($lines, $targetYm),
             'uncosted_count' => $lines->where('cost_calculable', false)->count(),
             'shortage_count' => $lines->filter(fn ($l) => $l->is_shortage || $l->is_negative)->count(),
-            'latest_snapshot' => ForecastSnapshot::latestForMonth($targetYm),
+            'latest_snapshot' => MonthEndForecast::latestForMonth($targetYm),
         ];
     }
 
@@ -200,7 +198,7 @@ class MonthEndForecastEngine
             return 0;
         }
 
-        $snapshot = ForecastSnapshot::latestForMonth($prevYm);
+        $snapshot = MonthEndForecast::latestForMonth($prevYm);
         if ($snapshot !== null) {
             $snapshotLine = collect($snapshot->lines ?? [])
                 ->first(fn ($row) => (int) ($row['product_id'] ?? 0) === $productId);
@@ -239,7 +237,7 @@ class MonthEndForecastEngine
 
     private static function prevMonthDiff(string $targetYm, int $currentForecastValue): ?int
     {
-        $prev = ForecastSnapshot::previousMonthSubmittedTotal($targetYm);
+        $prev = MonthEndForecast::previousMonthSubmittedTotal($targetYm);
         if ($prev !== null) {
             return $currentForecastValue - $prev;
         }

@@ -1,5 +1,5 @@
 @php
-    $ym = $ym ?? \App\Support\DemoData::CURRENT_YM;
+    $ym = $ym ?? \App\Support\BusinessDate::currentYm();
     $breakdown = $breakdown ?? null;
     $profit = $profit ?? null;
     $priceValue = old('price', $price ?? 0);

@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\MasterCatalog;
-
 use App\Http\Requests\StoreGreigeRecipeRequest;
 use App\Http\Requests\StoreRecipeRequest;
 use App\Http\Requests\UpdateGreigeRecipeRequest;
@@ -11,11 +9,12 @@ use App\Http\Requests\UpdateRecipeRequest;
 use App\Models\Greige;
 use App\Models\GreigeRecipe;
 use App\Models\GreigeRecipeLine;
-use App\Models\Material;
 use App\Models\Product;
 use App\Models\ProductRecipe;
+use App\Support\BusinessDate;
 use App\Support\DemoData;
 use App\Support\ListSearch;
+use App\Support\MasterCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -24,7 +23,7 @@ class RecipeController extends Controller
 {
     public function index(Request $request): View
     {
-        $ym = DemoData::CURRENT_YM;
+        $ym = BusinessDate::currentYm();
         $search = ListSearch::params($request);
         $tab = $request->query('tab', 'product');
         if (! in_array($tab, ['product', 'greige'], true)) {
@@ -93,7 +92,7 @@ class RecipeController extends Controller
 
     public function create(): View
     {
-        $ym = DemoData::CURRENT_YM;
+        $ym = BusinessDate::currentYm();
         $existingProductIds = collect(array_keys(DemoData::recipeData()));
 
         $products = MasterCatalog::products()
@@ -132,7 +131,7 @@ class RecipeController extends Controller
 
     public function edit(int $product): View
     {
-        $ym = DemoData::CURRENT_YM;
+        $ym = BusinessDate::currentYm();
         $productData = MasterCatalog::findProductOrFail($product);
         if (! ProductRecipe::existsForProduct($product)) {
             abort(404);

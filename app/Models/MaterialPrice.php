@@ -22,4 +22,16 @@ class MaterialPrice extends Model
     {
         return $this->belongsTo(Material::class);
     }
+
+    /**
+     * 対象月以前で最も新しい単価を返す。
+     */
+    public static function effectiveFor(int $materialId, string $targetYm): ?self
+    {
+        return self::query()
+            ->where('material_id', $materialId)
+            ->where('ym', '<=', $targetYm)
+            ->orderByDesc('ym')
+            ->first();
+    }
 }

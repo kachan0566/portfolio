@@ -66,6 +66,28 @@ class YarnPriceTest extends TestCase
         $response->assertSessionHasErrors('ym');
     }
 
+    public function test_price_is_inherited_until_a_new_price_is_registered(): void
+    {
+        $junePrice = DemoData::yarnPrice(1, '2026-06');
+
+        $this->assertSame($junePrice, DemoData::yarnPrice(1, '2026-07'));
+
+        MaterialPrice::query()->create([
+            'material_id' => 1,
+            'ym' => '2026-08',
+            'unit_price' => 600,
+        ]);
+
+        $this->assertSame($junePrice, DemoData::yarnPrice(1, '2026-07'));
+        $this->assertSame(600, DemoData::yarnPrice(1, '2026-08'));
+        $this->assertSame(600, DemoData::yarnPrice(1, '2026-09'));
+    }
+
+    public function test_future_price_is_not_used_for_an_earlier_month(): void
+    {
+        $this->assertNull(DemoData::yarnPrice(1, '2026-03'));
+    }
+
     public function test_update_changes_existing_yarn_price(): void
     {
         $row = DemoData::materialPrices()->firstWhere('ym', '2026-06');

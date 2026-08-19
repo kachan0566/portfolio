@@ -2,8 +2,8 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\MonthEndForecast;
 use App\Support\CombinedForecastSnapshot;
-use App\Support\ForecastSnapshot;
 use App\Support\GreigeForecastSnapshot;
 
 /**
@@ -23,12 +23,12 @@ class ForecastSubmissionCoordinator
         $combined = CombinedMonthEndForecastEngine::build($targetYm);
 
         $version = max(
-            ForecastSnapshot::maxVersionForMonth($targetYm),
+            MonthEndForecast::maxVersionForMonth($targetYm),
             GreigeForecastSnapshot::maxVersionForMonth($targetYm),
             CombinedForecastSnapshot::maxVersionForMonth($targetYm),
         ) + 1;
 
-        $productSnapshot = ForecastSnapshot::saveWithVersion([
+        $productSnapshot = MonthEndForecast::saveSnapshotWithVersion([
             'target_ym' => $targetYm,
             'base_date' => date('Y-m-d'),
             'created_by' => self::CREATED_BY,

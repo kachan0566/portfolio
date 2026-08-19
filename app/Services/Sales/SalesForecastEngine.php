@@ -2,17 +2,15 @@
 
 namespace App\Services\Sales;
 
-use App\Support\MasterCatalog;
-
+use App\Models\ForecastManualAdjustment;
 use App\Models\Order;
-use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\SalesForecast;
 use App\Models\SalesForecastLine;
 use App\Support\DemoData;
-use App\Support\ProductStock;
-use App\Support\ForecastManualAdjustment;
 use App\Support\FreightCalculator;
+use App\Support\MasterCatalog;
+use App\Support\ProductStock;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\SalesForecastSourceType;

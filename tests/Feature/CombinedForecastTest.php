@@ -2,16 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\MonthEndForecast;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\CombinedForecastSnapshot;
 use App\Support\DemoData;
-use App\Support\MasterCatalog;
-use App\Support\ForecastSnapshot;
 use App\Support\GreigeForecastManualAdjustment;
 use App\Support\GreigeForecastSnapshot;
+use App\Support\MasterCatalog;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;
@@ -34,12 +34,9 @@ class CombinedForecastTest extends TestCase
         $this->seed(PurchaseOrderSeeder::class);
         $this->seed(OrderAllocationSeeder::class);
         $this->seed(ReceivingSeeder::class);
-        $this->resetJsonState('forecast_manual_adjustments.json');
         $this->resetJsonState('greige_forecast_manual_adjustments.json');
-        $this->resetJsonState('month_end_forecast_snapshots.json');
         $this->resetJsonState('greige_month_end_forecast_snapshots.json');
         $this->resetJsonState('combined_month_end_forecast_snapshots.json');
-        ForecastSnapshot::clearCache();
         GreigeForecastSnapshot::clearCache();
         CombinedForecastSnapshot::clearCache();
         GreigeForecastManualAdjustment::clearCache();
@@ -120,7 +117,7 @@ class CombinedForecastTest extends TestCase
         $result = ForecastSubmissionCoordinator::saveUnified($ym);
 
         $this->assertSame(1, $result->version);
-        $this->assertSame(1, ForecastSnapshot::latestForMonth($ym)->version);
+        $this->assertSame(1, MonthEndForecast::latestForMonth($ym)->version);
         $this->assertSame(1, GreigeForecastSnapshot::latestForMonth($ym)->version);
         $this->assertSame(1, CombinedForecastSnapshot::latestForMonth($ym)->version);
     }
@@ -144,7 +141,7 @@ class CombinedForecastTest extends TestCase
         $ym = DemoData::CURRENT_YM;
         $product = MonthEndForecastEngine::build($ym);
 
-        ForecastSnapshot::save([
+        MonthEndForecast::saveSnapshot([
             'target_ym' => $ym,
             'base_date' => '2026-06-20',
             'created_by' => 'テスト担当',
