@@ -2,9 +2,10 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\CombinedMonthEndForecast;
+use App\Models\GreigeMonthEndForecast;
 use App\Models\MonthEndForecast;
-use App\Support\CombinedForecastSnapshot;
-use App\Support\GreigeForecastSnapshot;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 製品・生機・合算の提出版を同一バージョンで保存する。
@@ -18,50 +19,52 @@ class ForecastSubmissionCoordinator
      */
     public static function saveUnified(string $targetYm): object
     {
-        $product = MonthEndForecastEngine::build($targetYm);
-        $greige = GreigeMonthEndForecastEngine::build($targetYm);
-        $combined = CombinedMonthEndForecastEngine::build($targetYm);
+        return DB::transaction(function () use ($targetYm) {
+            $product = MonthEndForecastEngine::build($targetYm);
+            $greige = GreigeMonthEndForecastEngine::build($targetYm);
+            $combined = CombinedMonthEndForecastEngine::build($targetYm);
 
-        $version = max(
-            MonthEndForecast::maxVersionForMonth($targetYm),
-            GreigeForecastSnapshot::maxVersionForMonth($targetYm),
-            CombinedForecastSnapshot::maxVersionForMonth($targetYm),
-        ) + 1;
+            $version = max(
+                MonthEndForecast::maxVersionForMonth($targetYm),
+                GreigeMonthEndForecast::maxVersionForMonth($targetYm),
+                CombinedMonthEndForecast::maxVersionForMonth($targetYm),
+            ) + 1;
 
-        $productSnapshot = MonthEndForecast::saveSnapshotWithVersion([
-            'target_ym' => $targetYm,
-            'base_date' => date('Y-m-d'),
-            'created_by' => self::CREATED_BY,
-            'total_forecast_value' => $product->forecast_value,
-            'total_long_term_value' => $product->long_term_value,
-        ], self::productLinesForSnapshot($product), $version);
+            $productSnapshot = MonthEndForecast::saveSnapshotWithVersion([
+                'target_ym' => $targetYm,
+                'base_date' => date('Y-m-d'),
+                'created_by' => self::CREATED_BY,
+                'total_forecast_value' => $product->forecast_value,
+                'total_long_term_value' => $product->long_term_value,
+            ], self::productLinesForSnapshot($product), $version);
 
-        $greigeSnapshot = GreigeForecastSnapshot::saveWithVersion([
-            'target_ym' => $targetYm,
-            'base_date' => date('Y-m-d'),
-            'created_by' => self::CREATED_BY,
-            'total_forecast_value' => $greige->forecast_value,
-            'total_long_term_value' => $greige->long_term_value,
-        ], self::greigeLinesForSnapshot($greige), $version);
+            $greigeSnapshot = GreigeMonthEndForecast::saveSnapshotWithVersion([
+                'target_ym' => $targetYm,
+                'base_date' => date('Y-m-d'),
+                'created_by' => self::CREATED_BY,
+                'total_forecast_value' => $greige->forecast_value,
+                'total_long_term_value' => $greige->long_term_value,
+            ], self::greigeLinesForSnapshot($greige), $version);
 
-        $combinedSnapshot = CombinedForecastSnapshot::saveWithVersion([
-            'target_ym' => $targetYm,
-            'base_date' => date('Y-m-d'),
-            'created_by' => self::CREATED_BY,
-            'total_forecast_value' => $combined->forecast_value,
-            'total_current_stock_value' => $combined->current_stock_value,
-            'product_forecast_value' => $combined->product_forecast_value,
-            'greige_forecast_value' => $combined->greige_forecast_value,
-            'product_summary' => $combined->product_summary,
-            'greige_summary' => $combined->greige_summary,
-        ], $version);
+            $combinedSnapshot = CombinedMonthEndForecast::saveSnapshotWithVersion([
+                'target_ym' => $targetYm,
+                'base_date' => date('Y-m-d'),
+                'created_by' => self::CREATED_BY,
+                'total_forecast_value' => $combined->forecast_value,
+                'total_current_stock_value' => $combined->current_stock_value,
+                'product_forecast_value' => $combined->product_forecast_value,
+                'greige_forecast_value' => $combined->greige_forecast_value,
+                'product_summary' => $combined->product_summary,
+                'greige_summary' => $combined->greige_summary,
+            ], $version);
 
-        return (object) [
-            'version' => $version,
-            'product' => $productSnapshot,
-            'greige' => $greigeSnapshot,
-            'combined' => $combinedSnapshot,
-        ];
+            return (object) [
+                'version' => $version,
+                'product' => $productSnapshot,
+                'greige' => $greigeSnapshot,
+                'combined' => $combinedSnapshot,
+            ];
+        });
     }
 
     /**

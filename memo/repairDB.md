@@ -66,27 +66,24 @@
 |----------|--------|------|----------------|
 | `allocation_conversions.json` | `AllocationConversion` | 入荷時の引当変換履歴 | 受注詳細、在庫詳細 |
 | `po_order_links.json` | `PurchaseOrderLink` | 発注↔受注の紐づけ | 発注表示、`PurchaseOrder` モデル |
-| `forecast_manual_adjustments.json` | `ForecastManualAdjustment` | 製品予想の手動調整 | 在庫予想タブ、売上見通し |
 | `greige_forecast_manual_adjustments.json` | `GreigeForecastManualAdjustment` | 生機予想の手動調整 | 生機予想タブ |
-| `month_end_forecast_snapshots.json` | `ForecastSnapshot` | 製品月末予想の提出版 | 在庫予想・統合予想 |
-| `greige_month_end_forecast_snapshots.json` | `GreigeForecastSnapshot` | 生機月末予想の提出版 | 生機予想・統合予想 |
-| `combined_month_end_forecast_snapshots.json` | `CombinedForecastSnapshot` | 統合予想の提出版 | 統合予想タブ |
 
 ---
 
-## 3. DBテーブルはあるのに、コードがまだJSONを読んでいる
+## 3. 在庫予想のDB移行状況
 
-`memo/DB.md` やマイグレーション上はDB化済みですが、**読み取りコードが未切り替え** のものです。
+製品・生機・統合の提出版と、製品予想の手動調整はDB参照へ切り替え済みです。
 
-| DBテーブル（存在する） | 今の読み取り元 | 該当クラス |
-|------------------------|----------------|------------|
-| `forecast_manual_adjustments` | JSON | `ForecastManualAdjustment` |
-| `month_end_forecasts` | JSON | `ForecastSnapshot` |
-| `month_end_forecast_lines` | JSON（スナップショット内） | `ForecastSnapshot` |
-| `shipment_plans` | **DB**（済） | `ShipmentPlan` |
-| `sales_forecasts` / `sales_forecast_lines` | **DB**（済） | `SalesForecast` モデル |
+| DBテーブル | 参照モデル | 状態 |
+|-------------|------------|------|
+| `forecast_manual_adjustments` | `ForecastManualAdjustment` | **DB**（済） |
+| `month_end_forecasts` / `month_end_forecast_lines` | `MonthEndForecast` | **DB**（済） |
+| `greige_month_end_forecasts` / `greige_month_end_forecast_lines` | `GreigeMonthEndForecast` | **DB**（済） |
+| `combined_month_end_forecasts` | `CombinedMonthEndForecast` | **DB**（済） |
+| `shipment_plans` | `ShipmentPlan` | **DB**（済） |
+| `sales_forecasts` / `sales_forecast_lines` | `SalesForecast` | **DB**（済） |
 
-生機予想・統合予想については、**対応するDBテーブル自体がまだ無く** JSONのみです。
+生機予想でJSONに残っているのは、手動調整の `greige_forecast_manual_adjustments.json` です。
 
 ### 使われていないDBテーブル（取得経路なし）
 
@@ -142,10 +139,7 @@
 | **在庫詳細** | 引当変換履歴（JSON） |
 | **受注詳細** | 引当変換履歴（JSON）、発注↔受注リンク（JSON） |
 | **発注詳細** | 受注リンク（JSON） |
-| **在庫予想（製品）** | 手動調整（JSON）、提出スナップショット（JSON） |
-| **在庫予想（生機）** | 手動調整（JSON）、提出スナップショット（JSON） |
-| **統合予想** | 提出スナップショット（JSON） |
-| **売上見通し** | 手動調整の一部（`ForecastManualAdjustment` JSON） |
+| **在庫予想（生機）** | 手動調整（JSON） |
 | **マスタ全般** | テーブル空時のフォールバック（固定配列） |
 | **日付・今月** | `CURRENT_YM` / `today()` 固定値 |
 
@@ -169,6 +163,9 @@
 | 生機レシピ | `greige_recipes` + 明細 |
 | 糸単価 | `material_prices` |
 | 出荷予定 | `shipment_plans` |
+| 製品月末予想（手動調整・提出版） | `forecast_manual_adjustments` / `month_end_forecasts` / `month_end_forecast_lines` |
+| 生機月末予想（提出版） | `greige_month_end_forecasts` / `greige_month_end_forecast_lines` |
+| 製品＋生機の統合予想（提出版） | `combined_month_end_forecasts` |
 | 売上見通し（提出版） | `sales_forecasts` / `sales_forecast_lines` |
 | 得意先一覧 | `customers` テーブル |
 | 仕入先一覧 | `suppliers` テーブル |
@@ -177,13 +174,12 @@
 
 ## 移行の優先順位（おすすめ）
 
-1. **JSON → 既存DBテーブル** … `ForecastManualAdjustment` → `forecast_manual_adjustments`、`ForecastSnapshot` → `month_end_forecasts` 系
+1. **残るJSONのDB化** … `AllocationConversion`、`PurchaseOrderLink`、生機予想の手動調整
 2. **固定配列の廃止** … `stockMovements()`、ダッシュボードの `lowStock` / `trend`
 3. **内部の `findProduct` 等を `MasterCatalog` に統一** … 原価計算の正確性
-4. **JSONの新規DB化** … `AllocationConversion`、`PurchaseOrderLink`、生機予想スナップショット
-5. **フォールバック廃止** … `MasterCatalog` の「DB空なら固定データ」をやめ、シード必須にする
+4. **フォールバック廃止** … `MasterCatalog` の「DB空なら固定データ」をやめ、シード必須にする
 
-`memo/DB.md` の段階10（売上見通し）は済みですが、**在庫予想のスナップショット・手動調整は「テーブルあり／JSON読み」の状態が混在** しています。ここが次の大きなギャップです。
+在庫予想の提出版は製品・生機・統合ともDB化済みです。次のギャップは、生機予想の手動調整と引当変換・発注リンクのJSON保存です。
 
 特定の領域（例：在庫予想だけ、JSON一覧だけ）に絞った移行手順が必要なら、その範囲で詳しく整理できます。
 
@@ -257,10 +253,9 @@
 
 | 対象 | なぜDB化すべきか |
 |------|------------------|
-| JSON（引当変換・発注リンク・予想スナップショット等） | 業務データがファイルに散らばり、複数人・本番運用に向かない |
+| JSON（引当変換・発注リンク・生機予想の手動調整） | 業務データがファイルに散らばり、複数人・本番運用に向かない |
 | `stockMovements()` | 入荷・出荷と別ソースだと **在庫数と履歴が食い違う** |
 | ダッシュボードの `lowStock`（固定 `stock` 列） | 実在庫は `product_rolls` にあるのに、古い固定値を見ている |
-| `forecast_manual_adjustments` 等（テーブルあり・JSON読み） | **DBとJSONの二重管理** になっている |
 
 ---
 
@@ -345,17 +340,16 @@ DB化 **不要** と言えるのは、だいたい次の3つです。
 
 1〜4と5以外で、前回「DB化すべき」としたものはそのまま残ります。
 
-- JSON系（引当変換、発注リンク、予想スナップショット・手動調整）
+- JSON系（引当変換、発注リンク、生機予想の手動調整）
 - `stockMovements()` 固定配列
 - ダッシュボードの `lowStock`（固定 `stock` 列 → `product_rolls` 集計）
-- テーブルあり・JSON読みの取りこぼし（`forecast_manual_adjustments` など）
 
 ---
 
 ## 作業のおすすめ順
 
 1. **4** … フォールバック廃止・`MasterCatalog` 統一（他の修正の土台）
-2. **JSON・固定配列の業務データ** … `stockMovements`、予想スナップショット等
+2. **JSON・固定配列の業務データ** … `stockMovements`、引当変換、発注リンク、生機予想の手動調整
 3. **5** … ダッシュボード推移を出荷DB集計に
 4. **1・2・3** … 整理・リネーム・定数化（大きな挙動変更は少ない）
 

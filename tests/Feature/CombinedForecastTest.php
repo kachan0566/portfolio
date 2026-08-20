@@ -2,15 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\CombinedMonthEndForecast;
+use App\Models\GreigeMonthEndForecast;
+use App\Models\GreigeMonthEndForecastLine;
 use App\Models\MonthEndForecast;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
-use App\Support\CombinedForecastSnapshot;
 use App\Support\DemoData;
 use App\Support\GreigeForecastManualAdjustment;
-use App\Support\GreigeForecastSnapshot;
 use App\Support\MasterCatalog;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -35,10 +36,6 @@ class CombinedForecastTest extends TestCase
         $this->seed(OrderAllocationSeeder::class);
         $this->seed(ReceivingSeeder::class);
         $this->resetJsonState('greige_forecast_manual_adjustments.json');
-        $this->resetJsonState('greige_month_end_forecast_snapshots.json');
-        $this->resetJsonState('combined_month_end_forecast_snapshots.json');
-        GreigeForecastSnapshot::clearCache();
-        CombinedForecastSnapshot::clearCache();
         GreigeForecastManualAdjustment::clearCache();
     }
 
@@ -118,8 +115,19 @@ class CombinedForecastTest extends TestCase
 
         $this->assertSame(1, $result->version);
         $this->assertSame(1, MonthEndForecast::latestForMonth($ym)->version);
-        $this->assertSame(1, GreigeForecastSnapshot::latestForMonth($ym)->version);
-        $this->assertSame(1, CombinedForecastSnapshot::latestForMonth($ym)->version);
+        $this->assertSame(1, GreigeMonthEndForecast::latestForMonth($ym)->version);
+        $this->assertSame(1, CombinedMonthEndForecast::latestForMonth($ym)->version);
+        $this->assertGreaterThan(0, GreigeMonthEndForecastLine::query()->count());
+        $this->assertDatabaseHas('greige_month_end_forecasts', [
+            'target_ym' => $ym,
+            'version' => 1,
+            'submission_status' => 'submitted',
+        ]);
+        $this->assertDatabaseHas('combined_month_end_forecasts', [
+            'target_ym' => $ym,
+            'version' => 1,
+            'submission_status' => 'submitted',
+        ]);
     }
 
     public function test_combined_tab_shows_submitted_badge_when_both_submitted(): void

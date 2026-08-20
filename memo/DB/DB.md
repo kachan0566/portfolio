@@ -932,6 +932,83 @@ GROUP BY product_id;
 
 ---
 
+#### `greige_month_end_forecasts`（生機月末予想・提出版ヘッダ）【追加済み 2026-08】
+
+| 列名 | 型 | NULL | デフォルト | 説明 |
+| --- | --- | --- | --- | --- |
+| `id` | bigint PK | NO | auto | |
+| `target_ym` | string(7) | NO | | 対象月 |
+| `base_date` | date | NO | | 算出基準日 |
+| `version` | unsignedInteger | NO | | 版番号 |
+| `created_by_name` | string | NO | | 提出者名 |
+| `submitted_at` | timestamp | NO | | 提出日時 |
+| `submission_status` | string(32) | NO | `'submitted'` | 提出状態 |
+| `total_forecast_value` | bigInteger | NO | 0 | 月末予想在庫金額の合計 |
+| `total_long_term_value` | bigInteger | NO | 0 | 長期在庫金額の合計 |
+| `created_at` | timestamp | YES | | |
+| `updated_at` | timestamp | YES | | |
+
+**ユニーク:** `(target_ym, version)`
+
+生機月末予想の提出単位を保存する。旧 `greige_month_end_forecast_snapshots.json` と
+`GreigeForecastSnapshot` は廃止し、`GreigeMonthEndForecast` をDBの読み書き窓口とする。
+
+---
+
+#### `greige_month_end_forecast_lines`（生機月末予想・提出版明細）【追加済み 2026-08】
+
+| 列名 | 型 | NULL | デフォルト | 説明 |
+| --- | --- | --- | --- | --- |
+| `id` | bigint PK | NO | auto | |
+| `greige_month_end_forecast_id` | FK → `greige_month_end_forecasts` | NO | cascade | 提出版ヘッダ |
+| `greige_id` | FK → `greiges` | NO | cascade | 生機 |
+| `current_stock_qty` | decimal(12,2) | NO | | 現在庫数量（m） |
+| `inbound_scheduled_qty` | decimal(12,2) | NO | | 入荷予定数量（m） |
+| `outbound_scheduled_qty` | decimal(12,2) | NO | | 染機投入予定数量（m） |
+| `manual_adjustment_qty` | decimal(12,2) | NO | 0 | 手動調整数量（m） |
+| `forecast_qty` | decimal(12,2) | NO | | 月末予想数量（m） |
+| `unit_cost_snapshot` | integer | YES | null | 提出時の生機単価 |
+| `forecast_value` | bigInteger | NO | 0 | 月末予想在庫金額 |
+| `long_term_qty` | decimal(12,2) | NO | 0 | 長期在庫数量（m） |
+| `long_term_value` | bigInteger | NO | 0 | 長期在庫金額 |
+| `oldest_received_date` | date | YES | null | 最古入荷日 |
+| `oldest_age_months` | unsignedInteger | YES | null | 最古在庫月齢 |
+| `note` | text | YES | null | 備考 |
+| `created_at` | timestamp | YES | | |
+| `updated_at` | timestamp | YES | | |
+
+`greige_month_end_forecasts` と1対多、`greiges` と多対1で関連する。
+
+---
+
+#### `combined_month_end_forecasts`（製品＋生機の統合予想・提出版）【追加済み 2026-08】
+
+| 列名 | 型 | NULL | デフォルト | 説明 |
+| --- | --- | --- | --- | --- |
+| `id` | bigint PK | NO | auto | |
+| `target_ym` | string(7) | NO | | 対象月 |
+| `base_date` | date | NO | | 算出基準日 |
+| `version` | unsignedInteger | NO | | 版番号 |
+| `created_by_name` | string | NO | | 提出者名 |
+| `submitted_at` | timestamp | NO | | 提出日時 |
+| `submission_status` | string(32) | NO | `'submitted'` | 提出状態 |
+| `total_forecast_value` | bigInteger | NO | 0 | 製品＋生機の月末予想在庫金額 |
+| `total_current_stock_value` | bigInteger | NO | 0 | 製品＋生機の現在庫金額 |
+| `product_forecast_value` | bigInteger | NO | 0 | 製品の月末予想在庫金額 |
+| `greige_forecast_value` | bigInteger | NO | 0 | 生機の月末予想在庫金額 |
+| `product_summary` | json | NO | | 製品側の集計値 |
+| `greige_summary` | json | NO | | 生機側の集計値 |
+| `created_at` | timestamp | YES | | |
+| `updated_at` | timestamp | YES | | |
+
+**ユニーク:** `(target_ym, version)`
+
+統合予想は集計値のみを保存する。製品・生機の品目別明細は、同じ対象月・版番号の
+`month_end_forecasts` と `greige_month_end_forecasts` を正とする。
+旧 `combined_month_end_forecast_snapshots.json` と `CombinedForecastSnapshot` は廃止済み。
+
+---
+
 #### `sales_forecasts`（売上見通し・提出版ヘッダ）【新規】
 
 
@@ -1021,7 +1098,8 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | `products`, `materials`, `users` | Laravel 初期 | 段階2で拡張（products/materials） |
 | `inbound_lots`, `shipment_lot_consumptions` | `2026_06_29_*` → `2026_07_15_000004_*` で削除 | 段階8で `product_rolls` / `shipment_roll_allocations` へ移行後に廃止済み |
 | `shipment_plans` | 同上 + `2026_07_15_*_extend_shipment_plans` | 段階7で FK・反数列追加済み |
-| `forecast_manual_adjustments`, `month_end_forecasts`, `month_end_forecast_lines` | 同上 | 既存維持。段階10は `sales_forecasts` 系を追加 |
+| `forecast_manual_adjustments`, `month_end_forecasts`, `month_end_forecast_lines` | 同上 | 製品月末予想のDB正本として使用 |
+| `greige_month_end_forecasts`, `greige_month_end_forecast_lines`, `combined_month_end_forecasts` | `2026_08_20_000001_create_greige_and_combined_forecast_tables.php` | 生機・統合月末予想のDB正本として追加 |
 
 
 ### 本線ロードマップ
@@ -1040,6 +1118,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 8 | `shipments`, `shipment_roll_allocations` | 出荷登録 DB 化、`inbound_lots` / `shipment_lot_consumptions` / 関連 JSON 廃止 | `ShipmentSeeder` | 3・6・**7** | **済 2026-07** |
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` | 原価画面、糸入荷・糸引当を DB 化 | `CostFoundationSeeder` | 1・2・6 | **済 2026-07** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | `SalesForecastSeeder` | 2・3 | **済 2026-07** |
+| 10a | `greige_month_end_forecasts`, `greige_month_end_forecast_lines`, `combined_month_end_forecasts` | 生機・統合月末予想の提出版 JSON を廃止し、製品・生機・統合を同一バージョンでDB保存 | — | 1・2・9 | **済 2026-08** |
 
 
 ### 将来ロードマップ（本線10の後。未着手）

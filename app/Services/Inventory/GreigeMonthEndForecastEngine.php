@@ -2,17 +2,14 @@
 
 namespace App\Services\Inventory;
 
-use App\Support\MasterCatalog;
-
-use App\Models\Greige;
+use App\Models\GreigeMonthEndForecast;
 use App\Models\PurchaseOrder;
 use App\Services\Sales\SalesRecognition;
 use App\Support\DemoData;
 use App\Support\GreigeForecastManualAdjustment;
-use App\Support\GreigeForecastSnapshot;
-use App\Support\GreigeInventory;
 use App\Support\GreigeRoll;
 use App\Support\GreigeSupply;
+use App\Support\MasterCatalog;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
@@ -50,7 +47,7 @@ class GreigeMonthEndForecastEngine
             'uncosted_count' => $lines->where('cost_calculable', false)->count(),
             'shortage_count' => $lines->filter(fn ($l) => $l->is_negative)->count(),
             'lines' => $lines,
-            'latest_snapshot' => GreigeForecastSnapshot::latestForMonth($targetYm),
+            'latest_snapshot' => GreigeMonthEndForecast::latestForMonth($targetYm),
         ];
     }
 
@@ -223,7 +220,7 @@ class GreigeMonthEndForecastEngine
             'prev_month_diff' => self::prevMonthDiffForLines($lines, $targetYm),
             'uncosted_count' => $lines->where('cost_calculable', false)->count(),
             'shortage_count' => $lines->filter(fn ($l) => $l->is_negative)->count(),
-            'latest_snapshot' => GreigeForecastSnapshot::latestForMonth($targetYm),
+            'latest_snapshot' => GreigeMonthEndForecast::latestForMonth($targetYm),
         ];
     }
 
