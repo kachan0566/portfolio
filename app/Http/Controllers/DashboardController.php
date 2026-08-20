@@ -12,7 +12,6 @@ class DashboardController extends Controller
         return view('dashboard', [
             'data' => DemoData::dashboard(),
             'orders' => DemoData::recentOrders(),
-            'movements' => DemoData::stockMovements()->take(6),
         ]);
     }
 }

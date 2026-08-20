@@ -24,8 +24,10 @@ return new class extends Migration
 
         Schema::create('greige_month_end_forecast_lines', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('greige_month_end_forecast_id')
-                ->constrained()
+            $table->foreignId('greige_month_end_forecast_id');
+            $table->foreign('greige_month_end_forecast_id', 'gmef_lines_forecast_fk')
+                ->references('id')
+                ->on('greige_month_end_forecasts')
                 ->cascadeOnDelete();
             $table->foreignId('greige_id')->constrained()->cascadeOnDelete();
             $table->decimal('current_stock_qty', 12, 2);

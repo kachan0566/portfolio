@@ -64,7 +64,7 @@ class InventoryController extends Controller
 
         $movementSearch = $search;
         $movementSearch['status'] = '';
-        $movements = ListSearch::filter(DemoData::stockMovements(), $movementSearch, [
+        $movements = ListSearch::filter(ProductStock::stockMovements(), $movementSearch, [
             'code_fields' => [],
             'sku_fields' => ['sku'],
             'date_field' => 'date',
@@ -273,7 +273,7 @@ class InventoryController extends Controller
             'stockPoOptions' => $poOptions['stock'],
             'poPoOptions' => $poOptions['po'],
             'conversionHistory' => $conversionHistory,
-            'movements' => DemoData::stockMovements()->where('product_id', $product)->values(),
+            'movements' => ProductStock::stockMovements()->where('product_id', $product)->values(),
         ]);
     }
 
