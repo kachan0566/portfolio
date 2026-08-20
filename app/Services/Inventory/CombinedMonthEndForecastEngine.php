@@ -2,9 +2,9 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\CombinedMonthEndForecast;
+use App\Models\GreigeMonthEndForecast;
 use App\Models\MonthEndForecast;
-use App\Support\CombinedForecastSnapshot;
-use App\Support\GreigeForecastSnapshot;
 use App\Support\MasterCatalog;
 
 /**
@@ -27,8 +27,8 @@ class CombinedMonthEndForecastEngine
         $prevMonthDiff = self::prevMonthDiff($targetYm, $forecastValue);
 
         $productSnapshot = MonthEndForecast::latestForMonth($targetYm);
-        $greigeSnapshot = GreigeForecastSnapshot::latestForMonth($targetYm);
-        $combinedSnapshot = CombinedForecastSnapshot::latestForMonth($targetYm);
+        $greigeSnapshot = GreigeMonthEndForecast::latestForMonth($targetYm);
+        $combinedSnapshot = CombinedMonthEndForecast::latestForMonth($targetYm);
 
         $bothSubmitted = $productSnapshot !== null && $greigeSnapshot !== null;
         $unifiedVersion = $bothSubmitted

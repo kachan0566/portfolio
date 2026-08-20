@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ForecastManualAdjustment;
+use App\Models\GreigeMonthEndForecast;
 use App\Models\MonthEndForecast;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
@@ -11,7 +12,6 @@ use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\BusinessDate;
 use App\Support\DemoData;
 use App\Support\GreigeForecastManualAdjustment;
-use App\Support\GreigeForecastSnapshot;
 use App\Support\MasterCatalog;
 use App\Support\QtyHelper;
 use Illuminate\Http\RedirectResponse;
@@ -172,7 +172,7 @@ class InventoryForecastController extends Controller
             'oldest_age_months' => $line->oldest_age_months,
         ])->all();
 
-        $snapshot = GreigeForecastSnapshot::save([
+        $snapshot = GreigeMonthEndForecast::saveSnapshot([
             'target_ym' => $ym,
             'base_date' => date('Y-m-d'),
             'created_by' => '木村 勝也',
