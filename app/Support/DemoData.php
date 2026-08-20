@@ -1107,32 +1107,7 @@ class DemoData
     /** 在庫移動履歴 */
     public static function stockMovements(): Collection
     {
-        $rows = [
-            ['date' => '2026-06-08', 'product_id' => 1, 'type' => '入庫', 'qty' => 200, 'note' => '入荷 RC-2606-001'],
-            ['date' => '2026-06-11', 'product_id' => 1, 'type' => '出庫', 'qty' => 120, 'note' => '出荷 SH-2606-001'],
-            ['date' => '2026-06-12', 'product_id' => 2, 'type' => '出庫', 'qty' => 60,  'note' => '出荷 SH-2606-002'],
-            ['date' => '2026-06-14', 'product_id' => 3, 'type' => '入庫', 'qty' => 150, 'note' => '入荷 RC-2606-003'],
-            ['date' => '2026-06-14', 'product_id' => 3, 'type' => '出庫', 'qty' => 80,  'note' => '出荷 SH-2606-003'],
-            ['date' => '2026-06-15', 'product_id' => 1, 'type' => '出庫', 'qty' => 40,  'note' => '出荷 SH-2606-004'],
-            ['date' => '2026-06-25', 'product_id' => 7, 'type' => '入庫', 'qty' => 120,  'note' => '入荷 RC-2606-004'],
-        ];
-
-        return collect($rows)
-            ->map(function ($r) {
-                $product = MasterCatalog::findProduct($r['product_id']);
-                if ($product === null) {
-                    return null;
-                }
-
-                $r['product'] = $product->sku;
-                $r['sku'] = $product->sku;
-                $r['unit'] = $product->unit;
-
-                return (object) $r;
-            })
-            ->filter()
-            ->sortByDesc('date')
-            ->values();
+        return ProductStock::stockMovements();
     }
 
     /** 進捗からステータス文字列を返す */

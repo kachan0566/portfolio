@@ -187,25 +187,6 @@ class MasterCatalogTest extends TestCase
         $this->assertSame(Product::query()->count(), MasterCatalog::products()->count());
     }
 
-    public function test_stock_movements_returns_empty_without_seed(): void
-    {
-        $movements = DemoData::stockMovements();
-
-        $this->assertTrue($movements->isEmpty());
-        $this->assertFalse($movements->contains(fn ($m) => ($m->sku ?? '') === 'FAB-A-BK'));
-    }
-
-    public function test_stock_movements_resolves_sku_after_seed(): void
-    {
-        $this->seedCatalog();
-
-        $movements = DemoData::stockMovements();
-
-        $this->assertSame(7, $movements->count());
-        $this->assertTrue($movements->every(fn ($m) => $m->sku !== ''));
-        $this->assertTrue($movements->contains(fn ($m) => $m->sku === 'FAB-A-BK'));
-    }
-
     public function test_master_catalog_screens_render_without_seed(): void
     {
         $screens = [
