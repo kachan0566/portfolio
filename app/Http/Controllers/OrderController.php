@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
+use App\Models\AllocationConversion;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\PurchaseOrder;
-use App\Support\AllocationConversion;
 use App\Support\DemoData;
 use App\Support\MasterCatalog;
 use App\Support\ProductStock;
@@ -14,7 +14,6 @@ use App\Support\FabricQuantity;
 use App\Support\ListSearch;
 use App\Support\QtyHelper;
 use App\Support\OrderProductionStatus;
-use App\Support\PurchaseOrderLink;
 use App\Support\ShipmentPlan;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
@@ -98,7 +97,7 @@ class OrderController extends Controller
         $allocationLines = StockAllocation::linesForOrder($target->id);
         $stockAllocationLines = StockAllocation::stockLinesForOrder($target->id);
         $poAllocationLines = StockAllocation::poLinesForOrder($target->id);
-        $conversionHistory = AllocationConversion::forOrder($target->id);
+        $conversionHistory = AllocationConversion::eventsForOrder($target->id);
         $shippableQty = StockAllocation::shippableQty($target->id);
 
         $unallocated = max(0, $target->remaining - $target->allocated);
@@ -227,22 +226,23 @@ class OrderController extends Controller
     public function linkPurchase(int $order, int $purchase): RedirectResponse
     {
         $target = $this->orderOrFail($order);
-        $po = DemoData::purchaseOrders()->firstWhere('id', $purchase) ?? abort(404);
+        $poModel = PurchaseOrder::query()->with('lines')->find($purchase) ?? abort(404);
+        $productId = $poModel->productIdForLink();
 
-        if ($po->product_id !== $target->product_id) {
+        if ($productId === null || $productId !== (int) $target->product_id) {
             return redirect()->route('orders.show', $order)
                 ->with('error', '品番が異なる発注は紐づけできません。');
         }
 
-        if (PurchaseOrderLink::orderIdForPurchase($purchase, $po->order_id ?? null) !== null) {
+        if ($poModel->order_id !== null) {
             return redirect()->route('orders.show', $order)
                 ->with('error', 'この発注はすでに別の受注に紐づいています。');
         }
 
-        PurchaseOrderLink::link($purchase, $order);
+        PurchaseOrder::linkToOrder($purchase, $order);
 
         $remaining = Order::remainingFor($order);
-        $message = "発注 {$po->code} を受注 {$target->code} に紐づけました。";
+        $message = "発注 {$poModel->code} を受注 {$target->code} に紐づけました。";
 
         if ($remaining > 0) {
             $effectiveStock = ProductStock::effectiveStock($target->product_id);
@@ -356,19 +356,20 @@ class OrderController extends Controller
 
     public function relinkPurchase(Request $request, int $purchase): RedirectResponse
     {
-        $po = DemoData::purchaseOrders()->firstWhere('id', $purchase) ?? abort(404);
+        $poModel = PurchaseOrder::query()->with('lines')->find($purchase) ?? abort(404);
         $newOrderId = (int) $request->input('new_order_id');
         $newOrder = $this->orderOrFail($newOrderId);
+        $productId = $poModel->productIdForLink();
 
-        if ($po->product_id !== $newOrder->product_id) {
+        if ($productId === null || $productId !== (int) $newOrder->product_id) {
             return redirect()->back()
                 ->with('error', '品番が異なる受注には付け替えできません。');
         }
 
-        PurchaseOrderLink::link($purchase, $newOrderId);
+        PurchaseOrder::linkToOrder($purchase, $newOrderId);
 
         return redirect()->back()
-            ->with('success', "発注 {$po->code} の紐づけ先を {$newOrder->code} に変更しました。（在庫引当の来歴はそのままです）");
+            ->with('success', "発注 {$poModel->code} の紐づけ先を {$newOrder->code} に変更しました。（在庫引当の来歴はそのままです）");
     }
 
     private function orderOrFail(int $orderId): object

@@ -965,9 +965,9 @@ class DemoData
         $row['eta'] = $row['due_date'] ?? $row['eta'] ?? null;
         $row['arrival_memo'] = (string) ($row['arrival_memo'] ?? '');
 
-        $linkedOrderId = PurchaseOrderLink::orderIdForPurchase((int) $row['id'], $row['order_id'] ?? null);
+        $linkedOrderId = $row['order_id'] ?? null;
+        $linkedOrder = $linkedOrderId ? self::findBaseOrder((int) $linkedOrderId) : null;
         $row['order_id'] = $linkedOrderId;
-        $linkedOrder = $linkedOrderId ? self::findBaseOrder($linkedOrderId) : null;
         $row['order_code'] = $linkedOrder['code'] ?? null;
         $row['customer'] = $linkedOrder['customer'] ?? null;
 

@@ -480,6 +480,8 @@ ORDER BY po.id, pol.line_no;
 
 **移行元:** 旧 `yarn_` / `greige_` / `product_purchase_orders` を1行ずつ `line_no = 1` で統合。
 
+**補足（repairDB 2d）:** 発注↔受注の紐づけ（生産意図）は本列が正本。旧 `po_order_links.json` は廃止。
+
 ---
 
 #### `purchase_order_lines`（発注明細）【新規】
@@ -537,6 +539,35 @@ ORDER BY po.id, pol.line_no;
 **インデックス:** `order_id`, `product_id`, `purchase_order_id`, `(order_id, allocation_type)`
 
 **移行元:** `StockAllocation` JSON の `lines`
+
+---
+
+#### `allocation_conversions`（入荷時の引当変換履歴）【repairDB 2d・実装済み 2026-08】
+
+入荷登録で「発注引当 → 現在庫引当」に変換したときの履歴。
+
+
+| 列名                  | 型                      | NULL | デフォルト | 説明              |
+| ------------------- | ---------------------- | ---- | ----- | --------------- |
+| `id`                | bigint PK              | NO   | auto  |                 |
+| `converted_at`      | timestamp              | NO   |       | 変換日時            |
+| `receiving_code`    | string(30)             | NO   |       | 入荷番号（RC-…）      |
+| `purchase_order_id` | FK → `purchase_orders` | NO   | cascade | 対象発注          |
+| `order_id`          | FK → `orders`          | NO   | cascade | 対象受注          |
+| `qty`               | unsignedInteger        | NO   |       | 変換 m 数          |
+| `from_type`         | string(16)             | NO   | `po`  | 変換元（固定 `po`）   |
+| `to_type`           | string(16)             | NO   | `stock` | 変換先（固定 `stock`） |
+| `created_at`        | timestamp              | YES  |       |                 |
+| `updated_at`        | timestamp              | YES  |       |                 |
+
+
+**インデックス:** `purchase_order_id`, `order_id`, `converted_at`
+
+**参照モデル:** `App\Models\AllocationConversion`（`recordEvent` / `eventsForOrder` / `eventsForProduct`）
+
+**移行元:** `allocation_conversions.json`
+
+**シーダー:** 不要（入荷操作で生成）
 
 ---
 
@@ -1119,6 +1150,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` | 原価画面、糸入荷・糸引当を DB 化 | `CostFoundationSeeder` | 1・2・6 | **済 2026-07** |
 | 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | `SalesForecastSeeder` | 2・3 | **済 2026-07** |
 | 10a | `greige_month_end_forecasts`, `greige_month_end_forecast_lines`, `combined_month_end_forecasts` | 生機・統合月末予想の提出版 JSON を廃止し、製品・生機・統合を同一バージョンでDB保存 | — | 1・2・9 | **済 2026-08** |
+| 2d | `allocation_conversions` + `purchase_orders.order_id` 正本化 | 引当変換履歴の JSON 廃止、発注↔受注リンクの JSON 廃止（`po_order_links.json`） | — | 5・6 | **済 2026-08** |
 
 
 ### 将来ロードマップ（本線10の後。未着手）
@@ -1242,6 +1274,7 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | `2026_07_15_000004_*_drop_legacy_inbound_lot_tables` | 8 | 旧 `inbound_lots` / `shipment_lot_consumptions` 削除 |
 | `2026_07_16_000001_*_create_cost_and_yarn_tables` | 9 | レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations` |
 | `2026_07_17_000001_*_create_sales_forecast_tables` | 10 | `sales_forecasts` + `sales_forecast_lines`（下書き version=0 + 提出版） |
+| `2026_08_26_000001_*_create_allocation_conversions_table` | repairDB 2d | 引当変換履歴。発注リンクは `purchase_orders.order_id` を正本化 |
 
 各段階の Seeder はその段階のマイグレ直後に `DatabaseSeeder` へ `call` を追加する。取引系（3以降）は段階ごとに `php artisan migrate:fresh --seed` で通し確認する。
 
@@ -1359,7 +1392,9 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 | 8 | `inbound_lots` | `product_rolls`（移行後廃止） | [x] |
 | 9 | レシピ・単価・糸在庫・糸引当 | 原価系テーブル + `yarn_allocations` | [x] |
 | 10 | 売上見通し JSON | `sales_forecasts` 系 | [x] |
+| 2d | `allocation_conversions.json` | `allocation_conversions` | [x] |
+| 2d | `po_order_links.json` | `purchase_orders.order_id` | [x] |
 
 ---
 
-*最終更新：* 段階10（済 2026-07）、段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。本線0→10 完了。
+*最終更新：* repairDB 2d（済 2026-08）、段階10a（済 2026-08）、段階10（済 2026-07）、段階9（済 2026-07）、8a（入荷側済・発注一覧未）、8b（済）。本線0→10 完了。

@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderDisplay;
 use App\Support\PurchaseOrderLineDisplay;
-use App\Support\PurchaseOrderLink;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
@@ -231,8 +230,7 @@ class PurchaseOrder extends Model
             'line_count' => $this->lines->count(),
         ];
 
-        $linkedOrderId = PurchaseOrderLink::orderIdForPurchase((int) $this->id, $this->order_id);
-        $row['order_id'] = $linkedOrderId;
+        $row['order_id'] = $this->order_id;
         $row['order_code'] = $this->order?->code;
         $row['customer'] = $this->order?->customer?->name;
 
@@ -420,5 +418,26 @@ class PurchaseOrder extends Model
         }
 
         return $skus->implode(', ');
+    }
+
+    /** 受注画面の「発注紐づけ」用。製品発注のみ product_id を返す */
+    public function productIdForLink(): ?int
+    {
+        if ($this->type !== PurchaseOrderType::PRODUCT) {
+            return null;
+        }
+
+        $line = $this->relationLoaded('lines')
+            ? $this->primaryLine()
+            : $this->lines()->orderBy('line_no')->first();
+
+        return $line?->product_id ? (int) $line->product_id : null;
+    }
+
+    public static function linkToOrder(int $purchaseOrderId, int $orderId): void
+    {
+        self::query()
+            ->whereKey($purchaseOrderId)
+            ->update(['order_id' => $orderId]);
     }
 }
