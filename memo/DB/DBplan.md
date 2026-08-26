@@ -824,7 +824,8 @@ erDiagram
 | `DemoData::materials()`            | `materials`（拡張）                                                |
 | `DemoData::orders()`               | `orders`                                                       |
 | `DemoData::purchaseOrders()`       | `purchase_orders` + `purchase_order_lines`                         |
-| `PurchaseOrderLink` JSON           | `purchase_orders.order_id`                                     |
+| `PurchaseOrderLink` JSON           | `purchase_orders.order_id`（**済 repairDB 2d**）                     |
+| `allocation_conversions.json`      | `allocation_conversions`（**済 repairDB 2d**）                       |
 | `StockAllocation` JSON             | `order_allocations`                                            |
 | `DemoData::receivings()`           | `receivings` + `receiving_lines` + 反明細                         |
 | `FabricTanRoll` JSON（生機）           | `greige_rolls`                                                 |

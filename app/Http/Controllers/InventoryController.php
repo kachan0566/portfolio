@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AllocationConversion;
 use App\Models\Order;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
-use App\Support\AllocationConversion;
 use App\Support\BusinessDate;
 use App\Support\DemoData;
 use App\Support\GreigeInventory;
@@ -235,7 +235,7 @@ class InventoryController extends Controller
         $allocation = StockAllocation::resolveForProduct($productForResolve, $orders, $purchases);
         $usage = StockAllocation::usageByPoAndType($product);
         $poOptions = StockAllocation::poOptionsForProduct($product);
-        $conversionHistory = AllocationConversion::forProduct($product);
+        $conversionHistory = AllocationConversion::eventsForProduct($product);
 
         $allocationOrders = $allocation['allocations']->map(function ($a) {
             $o = $a->order;

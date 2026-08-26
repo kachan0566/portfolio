@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\AllocationConversion;
 use App\Models\Order;
 use App\Models\OrderAllocation;
 use App\Models\PurchaseOrder;
@@ -587,7 +588,7 @@ class StockAllocation
 
             $all = collect($all)->filter(fn ($l) => $l['qty'] > 0)->values()->all();
 
-            AllocationConversion::record([
+            AllocationConversion::recordEvent([
                 'receiving_code' => $receivingCode,
                 'po_id' => $poId,
                 'order_id' => $orderId,

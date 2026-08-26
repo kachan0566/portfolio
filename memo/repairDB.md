@@ -64,9 +64,9 @@
 
 | ファイル | クラス | 用途 | 利用画面・処理 |
 |----------|--------|------|----------------|
-| `allocation_conversions.json` | `AllocationConversion` | 入荷時の引当変換履歴 | 受注詳細、在庫詳細 |
-| `po_order_links.json` | `PurchaseOrderLink` | 発注↔受注の紐づけ | 発注表示、`PurchaseOrder` モデル |
 | `greige_forecast_manual_adjustments.json` | `GreigeForecastManualAdjustment` | 生機予想の手動調整 | 生機予想タブ |
+
+**済（repairDB 2d・2026-08）:** `allocation_conversions.json` → `allocation_conversions` テーブル、`po_order_links.json` → `purchase_orders.order_id`
 
 ---
 
@@ -136,9 +136,9 @@
 |-------------|--------------------------|
 | **ダッシュボード** | 移動履歴（固定）、在庫不足（固定 `stock`）、売上推移1〜5月（固定） |
 | **在庫一覧** | 移動履歴タブ（固定） |
-| **在庫詳細** | 引当変換履歴（JSON） |
-| **受注詳細** | 引当変換履歴（JSON）、発注↔受注リンク（JSON） |
-| **発注詳細** | 受注リンク（JSON） |
+| **在庫詳細** | — |
+| **受注詳細** | — |
+| **発注詳細** | — |
 | **在庫予想（生機）** | 手動調整（JSON） |
 | **マスタ全般** | テーブル空時のフォールバック（固定配列） |
 | **日付・今月** | `CURRENT_YM` / `today()` 固定値 |
@@ -157,6 +157,8 @@
 | 出荷 | `Shipment::displayList()` |
 | 製品・生機在庫（反） | `product_rolls` / `greige_rolls` |
 | 引当 | `order_allocations` |
+| 引当変換履歴 | `allocation_conversions`（入荷時の po→stock 変換） |
+| 発注↔受注リンク（生産意図） | `purchase_orders.order_id` |
 | 糸在庫 | `yarn_stock_movements` |
 | 糸引当 | `yarn_allocations` |
 | 製品レシピ | `product_recipes` |
@@ -174,12 +176,12 @@
 
 ## 移行の優先順位（おすすめ）
 
-1. **残るJSONのDB化** … `AllocationConversion`、`PurchaseOrderLink`、生機予想の手動調整
+1. **残るJSONのDB化** … 生機予想の手動調整（`greige_forecast_manual_adjustments.json`）
 2. **固定配列の廃止** … `stockMovements()`、ダッシュボードの `lowStock` / `trend`
 3. **内部の `findProduct` 等を `MasterCatalog` に統一** … 原価計算の正確性
 4. **フォールバック廃止** … `MasterCatalog` の「DB空なら固定データ」をやめ、シード必須にする
 
-在庫予想の提出版は製品・生機・統合ともDB化済みです。次のギャップは、生機予想の手動調整と引当変換・発注リンクのJSON保存です。
+在庫予想の提出版は製品・生機・統合ともDB化済みです。**引当変換履歴・発注↔受注リンクも DB 化済み（repairDB 2d・2026-08）**。次のギャップは、生機予想の手動調整の JSON 保存です。
 
 特定の領域（例：在庫予想だけ、JSON一覧だけ）に絞った移行手順が必要なら、その範囲で詳しく整理できます。
 
@@ -253,7 +255,7 @@
 
 | 対象 | なぜDB化すべきか |
 |------|------------------|
-| JSON（引当変換・発注リンク・生機予想の手動調整） | 業務データがファイルに散らばり、複数人・本番運用に向かない |
+| JSON（生機予想の手動調整） | 業務データがファイルに散らばり、複数人・本番運用に向かない |
 | `stockMovements()` | 入荷・出荷と別ソースだと **在庫数と履歴が食い違う** |
 | ダッシュボードの `lowStock`（固定 `stock` 列） | 実在庫は `product_rolls` にあるのに、古い固定値を見ている |
 
@@ -340,7 +342,7 @@ DB化 **不要** と言えるのは、だいたい次の3つです。
 
 1〜4と5以外で、前回「DB化すべき」としたものはそのまま残ります。
 
-- JSON系（引当変換、発注リンク、生機予想の手動調整）
+- JSON系（生機予想の手動調整）
 - `stockMovements()` 固定配列
 - ダッシュボードの `lowStock`（固定 `stock` 列 → `product_rolls` 集計）
 
@@ -349,7 +351,7 @@ DB化 **不要** と言えるのは、だいたい次の3つです。
 ## 作業のおすすめ順
 
 1. **4** … フォールバック廃止・`MasterCatalog` 統一（他の修正の土台）
-2. **JSON・固定配列の業務データ** … `stockMovements`、引当変換、発注リンク、生機予想の手動調整
+2. **JSON・固定配列の業務データ** … `stockMovements`、生機予想の手動調整
 3. **5** … ダッシュボード推移を出荷DB集計に
 4. **1・2・3** … 整理・リネーム・定数化（大きな挙動変更は少ない）
 
