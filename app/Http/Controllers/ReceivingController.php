@@ -131,7 +131,7 @@ class ReceivingController extends Controller
                     'qty_kg' => $qty,
                 ];
             } else {
-                $poLine = PurchaseOrder::query()->with('greige', 'product')->find($poId)?->lines->firstWhere('id', $poLineId);
+                $poLine = PurchaseOrderLine::query()->with(['greige', 'product'])->find($poLineId);
                 $productId = $poType === PurchaseOrderType::PRODUCT ? (int) ($poLine?->product_id ?? 0) : null;
                 $greigeSku = $poType === PurchaseOrderType::GREIGE
                     ? (string) ($poLine?->greige?->sku ?? '')
