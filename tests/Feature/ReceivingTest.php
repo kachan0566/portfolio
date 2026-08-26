@@ -121,4 +121,66 @@ class ReceivingTest extends TestCase
         $response->assertRedirect(route('receivings.index'));
         $this->assertSame($before + $qty, ProductStock::effectiveStock(6));
     }
+
+    public function test_product_receiving_via_multi_line_entries_increases_stock(): void
+    {
+        $before = ProductStock::effectiveStock(6);
+        $poLineId = (int) PurchaseOrder::query()->with('lines')->find(7)?->lines->first()?->id;
+        $this->assertGreaterThan(0, $poLineId);
+
+        $remaining = (int) floor(PurchaseOrder::remainingQtyFor(7));
+        $qty = min(20, max(1, $remaining));
+        $qtyTan = QtyHelper::tanCount($qty, 6);
+
+        $response = $this->post(route('receivings.store'), [
+            'type' => PurchaseOrderType::PRODUCT,
+            'po_id' => 7,
+            'date' => '2026-06-26',
+            'entries' => [
+                [
+                    'selected' => '1',
+                    'po_line_id' => $poLineId,
+                    'qty_tan' => $qtyTan,
+                    'qty_meters' => $qty,
+                    'rolls' => [
+                        ['tan_qty' => $qtyTan, 'actual_qty_m' => (float) $qty],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('receivings.index'));
+        $this->assertSame($before + $qty, ProductStock::effectiveStock(6));
+    }
+
+    public function test_greige_receiving_via_multi_line_entries_shows_in_inventory(): void
+    {
+        $before = GreigeInventory::totalMetersForSku('KB-A');
+        $poLineId = (int) PurchaseOrder::query()->with('lines')->find(4)?->lines->first()?->id;
+        $this->assertGreaterThan(0, $poLineId);
+
+        $remaining = (int) floor(PurchaseOrder::remainingQtyFor(4));
+        $qty = min(150, max(1, $remaining));
+        $qtyTan = QtyHelper::tanCount($qty, null, true, 'KB-A');
+
+        $response = $this->post(route('receivings.store'), [
+            'type' => PurchaseOrderType::GREIGE,
+            'po_id' => 4,
+            'date' => '2026-06-26',
+            'entries' => [
+                [
+                    'selected' => '1',
+                    'po_line_id' => $poLineId,
+                    'qty_tan' => $qtyTan,
+                    'qty_meters' => $qty,
+                    'rolls' => [
+                        ['tan_qty' => $qtyTan, 'actual_qty_m' => (float) $qty],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('receivings.index'));
+        $this->assertSame($before + $qty, GreigeInventory::totalMetersForSku('KB-A'));
+    }
 }
