@@ -1301,15 +1301,7 @@ class DemoData
                 ->count(),
             'lowStock' => $lowStock,
             'salesByProduct' => $salesByProduct,
-            // 売上・粗利の推移（過去6か月のデモ値）
-            'trend' => collect([
-                ['ym' => '2026-01', 'sales' => 980000,  'profit' => 320000],
-                ['ym' => '2026-02', 'sales' => 1120000, 'profit' => 360000],
-                ['ym' => '2026-03', 'sales' => 1040000, 'profit' => 335000],
-                ['ym' => '2026-04', 'sales' => 1260000, 'profit' => 410000],
-                ['ym' => '2026-05', 'sales' => 1180000, 'profit' => 388000],
-                ['ym' => '2026-06', 'sales' => $salesByProduct->sum('sales'), 'profit' => $calculableRows->sum('profit')],
-            ]),
+            'trend' => self::salesTrend($currentYm),
         ];
     }
 }

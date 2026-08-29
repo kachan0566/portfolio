@@ -63,4 +63,25 @@ class SalesTrendTest extends TestCase
         $this->assertNotNull($row);
         $this->assertSame(MasterCatalog::findProduct(1)?->price, $row->price);
     }
+
+    public function test_dashboard_trend_matches_sales_trend_from_shipments(): void
+    {
+        $currentYm = DemoData::CURRENT_YM;
+        $expected = DemoData::salesTrend($currentYm);
+        $dashboard = DemoData::dashboard();
+
+        $this->assertCount(6, $dashboard['trend']);
+        $this->assertSame(
+            $expected->pluck('ym')->all(),
+            $dashboard['trend']->pluck('ym')->all(),
+        );
+
+        $current = $dashboard['trend']->firstWhere('ym', $currentYm);
+        $this->assertNotNull($current);
+        $this->assertSame(
+            DemoData::monthlySalesByProduct($currentYm)->sum('sales'),
+            $current->sales,
+        );
+        $this->assertSame($expected->firstWhere('ym', $currentYm)?->sales, $current->sales);
+    }
 }
