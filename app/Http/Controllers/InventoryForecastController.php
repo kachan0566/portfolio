@@ -11,7 +11,7 @@ use App\Services\Inventory\LongTermInventoryEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\BusinessDate;
 use App\Support\DemoData;
-use App\Support\GreigeForecastManualAdjustment;
+use App\Models\GreigeForecastManualAdjustment;
 use App\Support\MasterCatalog;
 use App\Support\QtyHelper;
 use Illuminate\Http\RedirectResponse;

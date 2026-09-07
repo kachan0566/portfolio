@@ -6,7 +6,7 @@ use App\Models\GreigeMonthEndForecast;
 use App\Models\PurchaseOrder;
 use App\Services\Sales\SalesRecognition;
 use App\Support\DemoData;
-use App\Support\GreigeForecastManualAdjustment;
+use App\Models\GreigeForecastManualAdjustment;
 use App\Support\GreigeRoll;
 use App\Support\GreigeSupply;
 use App\Support\MasterCatalog;
