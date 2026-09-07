@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * 引当の PO → 在庫 変換イベントを記録するモデル
+ */
 class AllocationConversion extends Model
 {
     public const FROM_PO = 'po';
@@ -22,6 +25,9 @@ class AllocationConversion extends Model
         'to_type',
     ];
 
+    /**
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
@@ -63,7 +69,12 @@ class AllocationConversion extends Model
         ];
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * 指定受注の変換イベント一覧を取得する
+     *
+     * @param  int  $orderId  受注 ID
+     * @return list<array<string, mixed>>
+     */
     public static function eventsForOrder(int $orderId): array
     {
         return self::query()
@@ -75,7 +86,12 @@ class AllocationConversion extends Model
             ->all();
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * 指定製品に紐づく PO の変換イベント一覧を取得する
+     *
+     * @param  int  $productId  製品 ID
+     * @return list<array<string, mixed>>
+     */
     public static function eventsForProduct(int $productId): array
     {
         $poIds = DB::table('purchase_order_lines')
@@ -98,6 +114,8 @@ class AllocationConversion extends Model
     }
 
     /**
+     * PO 引当から在庫引当への変換イベントを 1 件記録する
+     *
      * @param  array{receiving_code: string, po_id: int, order_id: int, qty: int}  $event
      */
     public static function recordEvent(array $event): void
