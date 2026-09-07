@@ -11,7 +11,7 @@ use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\DemoData;
-use App\Support\GreigeForecastManualAdjustment;
+use App\Models\GreigeForecastManualAdjustment;
 use App\Support\MasterCatalog;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -35,16 +35,6 @@ class CombinedForecastTest extends TestCase
         $this->seed(PurchaseOrderSeeder::class);
         $this->seed(OrderAllocationSeeder::class);
         $this->seed(ReceivingSeeder::class);
-        $this->resetJsonState('greige_forecast_manual_adjustments.json');
-        GreigeForecastManualAdjustment::clearCache();
-    }
-
-    private function resetJsonState(string $file): void
-    {
-        $path = storage_path('app/'.$file);
-        if (is_file($path)) {
-            unlink($path);
-        }
     }
 
     public function test_combined_forecast_tab_renders(): void

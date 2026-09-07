@@ -951,6 +951,27 @@ GROUP BY product_id;
 
 ---
 
+#### `greige_forecast_manual_adjustments`【2026-08 追加】
+
+生機月末在庫予想の手動調整。`forecast_manual_adjustments` の生機版。
+
+
+| 列名                 | 型             |
+| ------------------ | ------------- |
+| `id`               | bigint PK     |
+| `greige_id`        | FK → `greiges` |
+| `target_ym`        | string(7)     |
+| `adjustment_qty_m` | decimal(12,2) |
+| `direction`        | string(16)    |
+| `reason`           | text          |
+| `created_by_name`  | string        |
+| `timestamps`       |               |
+
+参照: `App\Models\GreigeForecastManualAdjustment`（`greige_sku` で呼び出し、内部で `greige_id` に解決）
+
+
+---
+
 #### `month_end_forecasts`【既存】
 
 マイグレーション済み。変更不要。
@@ -1130,6 +1151,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | `inbound_lots`, `shipment_lot_consumptions` | `2026_06_29_*` → `2026_07_15_000004_*` で削除 | 段階8で `product_rolls` / `shipment_roll_allocations` へ移行後に廃止済み |
 | `shipment_plans` | 同上 + `2026_07_15_*_extend_shipment_plans` | 段階7で FK・反数列追加済み |
 | `forecast_manual_adjustments`, `month_end_forecasts`, `month_end_forecast_lines` | 同上 | 製品月末予想のDB正本として使用 |
+| `greige_forecast_manual_adjustments` | `2026_08_29_000001_create_greige_forecast_manual_adjustments_table.php` | 生機月末予想の手動調整（JSON 廃止） |
 | `greige_month_end_forecasts`, `greige_month_end_forecast_lines`, `combined_month_end_forecasts` | `2026_08_20_000001_create_greige_and_combined_forecast_tables.php` | 生機・統合月末予想のDB正本として追加 |
 
 
@@ -1151,6 +1173,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 | 10 | `sales_forecasts`, `sales_forecast_lines` | 売上見通し JSON 廃止 | `SalesForecastSeeder` | 2・3 | **済 2026-07** |
 | 10a | `greige_month_end_forecasts`, `greige_month_end_forecast_lines`, `combined_month_end_forecasts` | 生機・統合月末予想の提出版 JSON を廃止し、製品・生機・統合を同一バージョンでDB保存 | — | 1・2・9 | **済 2026-08** |
 | 2d | `allocation_conversions` + `purchase_orders.order_id` 正本化 | 引当変換履歴の JSON 廃止、発注↔受注リンクの JSON 廃止（`po_order_links.json`） | — | 5・6 | **済 2026-08** |
+| 10b | `greige_forecast_manual_adjustments` | 生機月末予想の手動調整 JSON 廃止（`greige_forecast_manual_adjustments.json`） | — | 1・10a | **済 2026-08** |
 
 
 ### 将来ロードマップ（本線10の後。未着手）
