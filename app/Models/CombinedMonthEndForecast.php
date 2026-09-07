@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
+/**
+ * 製品・生機を合算した月末在庫予測の提出スナップショット
+ */
 class CombinedMonthEndForecast extends Model
 {
     protected $fillable = [
@@ -22,6 +25,9 @@ class CombinedMonthEndForecast extends Model
         'greige_summary',
     ];
 
+    /**
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
@@ -38,6 +44,9 @@ class CombinedMonthEndForecast extends Model
     }
 
     /**
+     * 指定月の提出済みスナップショット一覧を版数降順で返す
+     *
+     * @param  string  $targetYm  対象年月（YYYY-MM）
      * @return Collection<int, object>
      */
     public static function forMonth(string $targetYm): Collection
@@ -51,6 +60,12 @@ class CombinedMonthEndForecast extends Model
             ->values();
     }
 
+    /**
+     * 指定月の最新版（提出済み）スナップショットを返す
+     *
+     * @param  string  $targetYm  対象年月（YYYY-MM）
+     * @return object|null
+     */
     public static function latestForMonth(string $targetYm): ?object
     {
         $forecast = self::query()
@@ -62,6 +77,12 @@ class CombinedMonthEndForecast extends Model
         return $forecast?->toSnapshotObject();
     }
 
+    /**
+     * 指定月の提出済みスナップショットの最大版数を返す
+     *
+     * @param  string  $targetYm  対象年月（YYYY-MM）
+     * @return int
+     */
     public static function maxVersionForMonth(string $targetYm): int
     {
         return (int) (self::query()
@@ -71,7 +92,10 @@ class CombinedMonthEndForecast extends Model
     }
 
     /**
+     * 指定月の次版としてスナップショットを保存する
+     *
      * @param  array<string, mixed>  $header
+     * @return object
      */
     public static function saveSnapshot(array $header): object
     {
@@ -84,7 +108,11 @@ class CombinedMonthEndForecast extends Model
     }
 
     /**
+     * 指定版数でスナップショットを保存する
+     *
      * @param  array<string, mixed>  $header
+     * @param  int  $version  版数
+     * @return object
      */
     public static function saveSnapshotWithVersion(array $header, int $version): object
     {
@@ -106,6 +134,11 @@ class CombinedMonthEndForecast extends Model
         return $forecast->toSnapshotObject();
     }
 
+    /**
+     * 画面・API 向けのスナップショットオブジェクトに変換する
+     *
+     * @return object
+     */
     public function toSnapshotObject(): object
     {
         return (object) [
