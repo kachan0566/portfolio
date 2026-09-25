@@ -39,8 +39,13 @@ class OrderAllocationSeederTest extends TestCase
 
         $this->assertNotNull($row);
         $this->assertSame(2, $row->purchase_order_id);
-        $this->assertSame(2.4, (float) $row->qty_tan);
-        $this->assertSame(120, $row->qty_m);
+        $this->assertSame(2.5, (float) $row->qty_tan);
+        $this->assertSame(125, $row->qty_m);
+
+        OrderAllocation::query()->each(function (OrderAllocation $allocation) {
+            $steps = (float) $allocation->qty_tan / 0.25;
+            $this->assertEqualsWithDelta(round($steps), $steps, 0.0001);
+        });
     }
 
     public function test_stock_allocation_reads_from_database_after_seed(): void
@@ -48,8 +53,8 @@ class OrderAllocationSeederTest extends TestCase
         $this->seedAllocations();
 
         $this->assertSame(9, count(StockAllocation::allLines()));
-        $this->assertSame(120, StockAllocation::poAllocatedForOrder(2));
-        $this->assertSame(80, StockAllocation::stockAllocatedForOrder(2));
+        $this->assertSame(125, StockAllocation::poAllocatedForOrder(2));
+        $this->assertSame(75, StockAllocation::stockAllocatedForOrder(2));
     }
 
     public function test_order_show_page_reflects_seeded_allocations(): void

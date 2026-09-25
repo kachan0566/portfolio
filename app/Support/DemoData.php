@@ -878,41 +878,41 @@ class DemoData
             [
                 'id' => 1, 'order_id' => 1, 'product_id' => 1,
                 'purchase_order_id' => 1, 'allocation_type' => OrderAllocation::TYPE_STOCK,
-                'qty_tan' => 2.4,
+                'qty_tan' => 2.5,
             ],
-            // SO-2606-002: 一部出荷。在庫80m + 発注残120m
+            // SO-2606-002: 一部出荷。在庫75m + 発注残125m
             [
                 'id' => 2, 'order_id' => 2, 'product_id' => 3,
                 'purchase_order_id' => 2, 'allocation_type' => OrderAllocation::TYPE_STOCK,
-                'qty_tan' => 1.6,
+                'qty_tan' => 1.5,
             ],
             [
                 'id' => 3, 'order_id' => 2, 'product_id' => 3,
                 'purchase_order_id' => 2, 'allocation_type' => OrderAllocation::TYPE_PO,
-                'qty_tan' => 2.4,
+                'qty_tan' => 2.5,
             ],
             // SO-2606-003: 入荷待ち。発注引当のみ
             [
                 'id' => 4, 'order_id' => 3, 'product_id' => 5,
                 'purchase_order_id' => 3, 'allocation_type' => OrderAllocation::TYPE_PO,
-                'qty_tan' => 1.8,
+                'qty_tan' => 1.75,
             ],
-            // SO-2606-007: 在庫140m + PO-007 から40m
+            // SO-2606-007: 在庫138m + PO-007 から38m
             [
                 'id' => 5, 'order_id' => 7, 'product_id' => 6,
                 'purchase_order_id' => null, 'allocation_type' => OrderAllocation::TYPE_STOCK,
-                'qty_tan' => 2.8,
+                'qty_tan' => 2.75,
             ],
             [
                 'id' => 6, 'order_id' => 7, 'product_id' => 6,
                 'purchase_order_id' => 7, 'allocation_type' => OrderAllocation::TYPE_PO,
-                'qty_tan' => 0.8,
+                'qty_tan' => 0.75,
             ],
             // SO-2606-008: PO-008 入荷分から在庫引当
             [
                 'id' => 7, 'order_id' => 8, 'product_id' => 7,
                 'purchase_order_id' => 8, 'allocation_type' => OrderAllocation::TYPE_STOCK,
-                'qty_tan' => 1.6,
+                'qty_tan' => 1.5,
             ],
             // SO-2606-009: 大型案件。発注引当のみ
             [
