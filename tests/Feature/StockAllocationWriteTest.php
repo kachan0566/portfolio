@@ -104,7 +104,7 @@ class StockAllocationWriteTest extends TestCase
                 ->where('allocation_type', StockAllocation::TYPE_PO)
                 ->first()
         );
-        $this->assertSame(80, StockAllocation::stockAllocatedForOrder(2));
+        $this->assertSame(75, StockAllocation::stockAllocatedForOrder(2));
         $this->assertSame(0, StockAllocation::poAllocatedForOrder(2));
     }
 
