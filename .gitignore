@@ -25,3 +25,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# 面接回答の下書き（個人情報・志望企業ごとの内容）
+/memo/interview/
