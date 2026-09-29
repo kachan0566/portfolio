@@ -34,7 +34,7 @@ class AllocationConversion extends Model
             'converted_at' => 'datetime',
             'purchase_order_id' => 'integer',
             'order_id' => 'integer',
-            'qty' => 'integer',
+            'qty' => 'decimal:2',
         ];
     }
 
@@ -53,7 +53,7 @@ class AllocationConversion extends Model
     /**
      * Blade が期待する配列形式（旧 JSON 互換）
      *
-     * @return array{id: int, at: string, receiving_code: string, po_id: int, order_id: int, qty: int, from_type: string, to_type: string}
+     * @return array{id: int, at: string, receiving_code: string, po_id: int, order_id: int, qty: float, from_type: string, to_type: string}
      */
     public function toEventArray(): array
     {
@@ -63,7 +63,7 @@ class AllocationConversion extends Model
             'receiving_code' => $this->receiving_code,
             'po_id' => $this->purchase_order_id,
             'order_id' => $this->order_id,
-            'qty' => $this->qty,
+            'qty' => (float) $this->qty,
             'from_type' => $this->from_type,
             'to_type' => $this->to_type,
         ];
@@ -116,7 +116,7 @@ class AllocationConversion extends Model
     /**
      * PO 引当から在庫引当への変換イベントを 1 件記録する
      *
-     * @param  array{receiving_code: string, po_id: int, order_id: int, qty: int}  $event
+     * @param  array{receiving_code: string, po_id: int, order_id: int, qty: float}  $event
      */
     public static function recordEvent(array $event): void
     {
@@ -125,7 +125,7 @@ class AllocationConversion extends Model
             'receiving_code' => $event['receiving_code'],
             'purchase_order_id' => (int) $event['po_id'],
             'order_id' => (int) $event['order_id'],
-            'qty' => (int) $event['qty'],
+            'qty' => round((float) $event['qty'], 2),
             'from_type' => self::FROM_PO,
             'to_type' => self::TO_STOCK,
         ]);

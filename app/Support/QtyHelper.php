@@ -19,14 +19,14 @@ class QtyHelper
     /** 生機品番の標準：1反あたりのメートル数 */
     public const METERS_PER_TAN_GREIGE = 100;
 
-    /** 反数の最小刻み（レガシー互換・集計用） */
-    public const TAN_STEP = 0.05;
+    /** 受注・発注・入荷・引当・出荷で共通する反数の最小刻み */
+    public const TAN_STEP = 0.25;
 
-    /** 受注・発注・出荷・引当：整数反のみ */
-    public const ORDER_PO_TAN_STEP = 1;
+    /** @deprecated TAN_STEPを使用。後方互換のため同じ0.25を返す */
+    public const ORDER_PO_TAN_STEP = self::TAN_STEP;
 
-    /** 入荷（在庫化）：0.25反刻み（工場ミスで短い反） */
-    public const RECEIVING_TAN_STEP = 0.25;
+    /** @deprecated TAN_STEPを使用。後方互換のため同じ0.25を返す */
+    public const RECEIVING_TAN_STEP = self::TAN_STEP;
 
     public const TAN_DECIMALS = 2;
 
@@ -59,6 +59,14 @@ class QtyHelper
         return (int) $product->meters_per_tan;
     }
 
+    /**
+     * 反数を全工程共通の0.25反刻みへ丸める。
+     *
+     * 入力検証では丸め前にisValidTanStepを使い、不正値を黙って補正しない。
+     *
+     * @param  float|int  $tan  丸める反数
+     * @return float 0.25反刻みに丸めた反数
+     */
     public static function roundTan(float|int $tan): float
     {
         $steps = round((float) $tan / self::TAN_STEP);
@@ -66,6 +74,12 @@ class QtyHelper
         return round($steps * self::TAN_STEP, self::TAN_DECIMALS);
     }
 
+    /**
+     * 正の反数が0.25の倍数かを判定する。
+     *
+     * @param  float|int  $tan  利用者が入力した丸め前の反数
+     * @return bool 0.25の倍数ならtrue
+     */
     public static function isValidTanStep(float|int $tan): bool
     {
         if ((float) $tan <= 0) {
@@ -107,20 +121,6 @@ class QtyHelper
         return $dot === false ? 0 : strlen(substr($formatted, $dot + 1));
     }
 
-    public static function isIntegerTan(float|int $tan): bool
-    {
-        if ((float) $tan <= 0) {
-            return false;
-        }
-
-        return abs((float) $tan - round((float) $tan)) < 0.0001;
-    }
-
-    public static function roundIntegerTan(float|int $tan): float
-    {
-        return (float) max(0, (int) round((float) $tan));
-    }
-
     public static function roundReceivingTan(float|int $tan): float
     {
         return self::roundTanWithStep($tan, self::RECEIVING_TAN_STEP);
@@ -146,19 +146,38 @@ class QtyHelper
         return (float) (int) ceil((float) $meters / $perTan);
     }
 
+    /**
+     * m数を表示・見積用の反数へ換算する。
+     *
+     * m指定受注や予測値は0.25反入力の対象外なので、0.25刻みへ丸めず小数2桁で返す。
+     *
+     * @param  float|int  $meters  換算元のm数
+     * @param  int|null  $productId  製品の場合に標準m/反を取得する製品ID
+     * @param  bool  $isGreige  生機として換算する場合はtrue
+     * @param  string|null  $greigeSku  生機の場合に標準m/反を取得するSKU
+     * @return float 表示・見積用の反数
+     */
     public static function tanCount(float|int $meters, ?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): float
     {
         $perTan = self::metersPerTan($productId, $isGreige, $greigeSku);
 
-        return $perTan > 0 ? self::roundTan((float) $meters / $perTan) : 0.0;
+        return $perTan > 0 ? round((float) $meters / $perTan, self::TAN_DECIMALS) : 0.0;
     }
 
-    public static function metersFromTan(float|int $tan, ?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): int
+    /**
+     * 反数を品番の標準m/反で換算し、小数2桁のm数を返す。
+     *
+     * @param  float|int  $tan  換算する反数。入力値の刻み検証は呼び出し前に行う
+     * @param  int|null  $productId  製品の場合に標準m/反を取得する製品ID
+     * @param  bool  $isGreige  生機として換算する場合はtrue
+     * @param  string|null  $greigeSku  生機の場合に標準m/反を取得するSKU
+     * @return float 標準換算したm数（小数2桁）
+     */
+    public static function metersFromTan(float|int $tan, ?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): float
     {
         $perTan = self::metersPerTan($productId, $isGreige, $greigeSku);
-        $roundedTan = self::roundTan($tan);
 
-        return (int) round($roundedTan * $perTan);
+        return round((float) $tan * $perTan, 2);
     }
 
     public static function formatTanCount(float|int $tan, ?int $decimals = null): string
@@ -174,7 +193,7 @@ class QtyHelper
     {
         $tan = self::tanCount($meters, $productId, $isGreige, $greigeSku);
 
-        return self::formatTanCount($tan).'反 / '.number_format((int) $meters).'m';
+        return self::formatTanCount($tan).'反 / '.self::formatMeters($meters).'m';
     }
 
     /** 反数から表示（見込mは標準換算） */
@@ -183,7 +202,7 @@ class QtyHelper
         $roundedTan = self::roundTan($tan);
         $meters = self::metersFromTan($roundedTan, $productId, $isGreige, $greigeSku);
 
-        return self::formatTanCount($roundedTan).'反 / '.number_format($meters).'m';
+        return self::formatTanCount($roundedTan).'反 / '.self::formatMeters($meters).'m';
     }
 
     /**
@@ -234,8 +253,8 @@ class QtyHelper
         $total = 0.0;
         foreach ($lines as $line) {
             $row = (object) $line;
-            if (isset($row->qty_meters) && (int) $row->qty_meters > 0) {
-                $total += (int) $row->qty_meters;
+            if (isset($row->qty_meters) && (float) $row->qty_meters > 0) {
+                $total += (float) $row->qty_meters;
             } elseif (isset($row->qty_tan) && (float) $row->qty_tan > 0) {
                 $productId = $isGreige ? null : (int) ($row->{$productIdKey} ?? 0);
                 $greigeSku = $greigeSkuKey !== null ? (string) ($row->{$greigeSkuKey} ?? '') : null;
@@ -255,7 +274,7 @@ class QtyHelper
 
     public static function formatAggregate(float $totalMeters, float $totalTan): string
     {
-        return self::formatTanCount($totalTan).'反 / '.number_format((int) round($totalMeters)).'m';
+        return self::formatTanCount($totalTan).'反 / '.self::formatMeters($totalMeters).'m';
     }
 
     /**
@@ -272,7 +291,7 @@ class QtyHelper
         ?string $greigeSkuKey = null,
     ): string {
         if ($productId !== null) {
-            $meters = (int) round(self::sumMetersFromLines($lines, $qtyKey));
+            $meters = self::sumMetersFromLines($lines, $qtyKey);
 
             return self::format($meters, $isGreige ? null : $productId, $isGreige);
         }
@@ -281,6 +300,19 @@ class QtyHelper
         $totalTan = self::sumTanFromLines($lines, $qtyKey, $productIdKey, $isGreige, $greigeSkuKey);
 
         return self::formatAggregate($totalMeters, $totalTan);
+    }
+
+    /**
+     * m数を小数2桁まで表示し、不要な末尾の0を省く。
+     *
+     * @param  float|int  $meters  表示するm数
+     * @return string 桁区切り済みのm数（例: 1,250 / 12.5）
+     */
+    public static function formatMeters(float|int $meters): string
+    {
+        $formatted = number_format((float) $meters, 2);
+
+        return rtrim(rtrim($formatted, '0'), '.');
     }
 
     /** 生機反数 → 同長さの製品反数（例：生機1反100m → 製品2反） */

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Greige;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
@@ -30,7 +31,10 @@ class PurchaseOrderSeeder extends Seeder
                     'status' => $row['status'],
                     'supplier_id' => $row['supplier_id'],
                     'ship_to_id' => $row['ship_to_id'],
-                    'order_id' => $row['order_id'] ?? null,
+                    'order_id' => isset($row['order_id'])
+                        && Order::query()->whereKey($row['order_id'])->exists()
+                            ? $row['order_id']
+                            : null,
                     'order_date' => $row['order_date'],
                     'due_date' => $row['due_date'],
                     'arrival_memo' => $row['arrival_memo'] ?? null,
@@ -63,19 +67,18 @@ class PurchaseOrderSeeder extends Seeder
                 }
 
                 $metersPerTan = (int) ($row['meters_per_tan'] ?? DemoData::METERS_PER_TAN_GREIGE);
-                $qtyTan = (int) round((float) ($row['qty_tan'] ?? 0));
-                $receivedM = (int) ($row['received'] ?? 0);
+                $qtyTan = (float) ($row['qty_tan'] ?? 0);
+                $receivedM = (float) ($row['received'] ?? 0);
                 $receivedTan = $metersPerTan > 0
                     ? round($receivedM / $metersPerTan, 2)
                     : 0.0;
-
                 PurchaseOrderLine::query()->updateOrCreate(
                     ['purchase_order_id' => $row['id'], 'line_no' => 1],
                     array_merge($linePayload, [
                         'greige_id' => $greigeId,
                         'qty_tan' => $qtyTan,
                         'meters_per_tan' => $metersPerTan,
-                        'qty_meters' => (int) ($row['qty_meters'] ?? 0),
+                        'qty_meters' => (float) ($row['qty_meters'] ?? 0),
                         'received_qty_tan' => $receivedTan,
                         'received_qty_m' => $receivedM,
                         'stage' => PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null),
@@ -84,17 +87,16 @@ class PurchaseOrderSeeder extends Seeder
                 );
             } else {
                 $productId = (int) $row['product_id'];
-                $qtyMeters = (int) ($row['qty_meters'] ?? 0);
+                $qtyMeters = (float) ($row['qty_meters'] ?? 0);
                 $qtyTan = isset($row['qty_tan']) && (float) $row['qty_tan'] > 0
-                    ? (int) round((float) $row['qty_tan'])
-                    : (int) QtyHelper::tanCount($qtyMeters, $productId);
-                $receivedM = (int) ($row['received'] ?? 0);
+                    ? (float) $row['qty_tan']
+                    : QtyHelper::tanCount($qtyMeters, $productId);
+                $receivedM = (float) ($row['received'] ?? 0);
                 $product = Product::query()->find($productId);
                 $perTan = (int) ($product?->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
                 $receivedTan = $perTan > 0
                     ? round($receivedM / $perTan, 2)
                     : 0.0;
-
                 PurchaseOrderLine::query()->updateOrCreate(
                     ['purchase_order_id' => $row['id'], 'line_no' => 1],
                     array_merge($linePayload, [

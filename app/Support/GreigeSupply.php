@@ -2,10 +2,6 @@
 
 namespace App\Support;
 
-use App\Support\MasterCatalog;
-
-use App\Models\Greige;
-use App\Models\Product;
 use App\Models\PurchaseOrder;
 
 /**
@@ -19,15 +15,15 @@ class GreigeSupply
     }
 
     /** 染工場仕掛の生機（m）— 生機発注入荷実績 */
-    public static function dyeFactoryMeters(string $greigeSku): int
+    public static function dyeFactoryMeters(string $greigeSku): float
     {
         return GreigeInventory::totalMetersForSku($greigeSku);
     }
 
     /** 生機発注の未入荷残（m） */
-    public static function greigePoRemainingMeters(string $greigeSku, ?int $excludeProductPoId = null): int
+    public static function greigePoRemainingMeters(string $greigeSku, ?int $excludeProductPoId = null): float
     {
-        $total = 0;
+        $total = 0.0;
         PurchaseOrder::query()
             ->where('type', PurchaseOrderType::GREIGE)
             ->whereIn('status', [
@@ -40,8 +36,8 @@ class GreigeSupply
                     if (($line->greige?->sku ?? '') !== $greigeSku) {
                         continue;
                     }
-                    $ordered = (int) ($line->qty_meters ?? 0);
-                    $received = (int) ($line->received_qty_m ?? 0);
+                    $ordered = (float) ($line->qty_meters ?? 0);
+                    $received = (float) ($line->received_qty_m ?? 0);
                     $total += max(0, $ordered - $received);
                 }
             });
@@ -49,12 +45,12 @@ class GreigeSupply
         return $total;
     }
 
-    public static function availableMeters(string $greigeSku, ?int $excludeProductPoId = null): int
+    public static function availableMeters(string $greigeSku, ?int $excludeProductPoId = null): float
     {
         return self::dyeFactoryMeters($greigeSku) + self::greigePoRemainingMeters($greigeSku, $excludeProductPoId);
     }
 
-    public static function canFulfillProductMeters(int $productId, int $requiredMeters, ?int $excludeProductPoId = null): bool
+    public static function canFulfillProductMeters(int $productId, float $requiredMeters, ?int $excludeProductPoId = null): bool
     {
         $sku = self::greigeSkuForProduct($productId);
         if ($sku === null || $requiredMeters <= 0) {
@@ -64,7 +60,7 @@ class GreigeSupply
         return self::availableMeters($sku, $excludeProductPoId) >= $requiredMeters;
     }
 
-    public static function shortageMessage(int $productId, int $requiredMeters, ?int $excludeProductPoId = null): ?string
+    public static function shortageMessage(int $productId, float $requiredMeters, ?int $excludeProductPoId = null): ?string
     {
         $sku = self::greigeSkuForProduct($productId);
         if ($sku === null) {
@@ -79,6 +75,6 @@ class GreigeSupply
         $short = $requiredMeters - $available;
         $greige = MasterCatalog::findGreige($sku);
 
-        return ($greige?->name ?? $sku).'（'.$sku.'）が '.number_format($short).'m 不足しています（必要 '.number_format($requiredMeters).'m / 利用可能 '.number_format($available).'m）。';
+        return ($greige?->name ?? $sku).'（'.$sku.'）が '.QtyHelper::formatMeters($short).'m 不足しています（必要 '.QtyHelper::formatMeters($requiredMeters).'m / 利用可能 '.QtyHelper::formatMeters($available).'m）。';
     }
 }

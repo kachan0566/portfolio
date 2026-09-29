@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * 発注1行の品目と、発注・入荷済みの反数、m数、kg数を保持する。
+ */
 #[Fillable([
     'purchase_order_id',
     'line_no',
@@ -29,6 +32,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class PurchaseOrderLine extends Model
 {
+    /**
+     * 0.25反と小数mを失わず読み書きする型変換を定義する。
+     *
+     * @return array<string, string> Eloquentの列別キャスト
+     */
     protected function casts(): array
     {
         return [
@@ -39,11 +47,11 @@ class PurchaseOrderLine extends Model
             'product_id' => 'integer',
             'qty_kg' => 'decimal:3',
             'received_qty_kg' => 'decimal:3',
-            'qty_tan' => 'integer',
+            'qty_tan' => 'decimal:2',
             'meters_per_tan' => 'integer',
-            'qty_meters' => 'integer',
+            'qty_meters' => 'decimal:2',
             'received_qty_tan' => 'decimal:2',
-            'received_qty_m' => 'integer',
+            'received_qty_m' => 'decimal:2',
             'finish_date' => 'date',
             'contact_date' => 'date',
         ];
@@ -115,6 +123,11 @@ class PurchaseOrderLine extends Model
         return max(0.0, $this->orderedQty() - $this->receivedQty());
     }
 
+    /**
+     * 発注明細の反数を返し、反数がなければ小数mから参考反数を換算する。
+     *
+     * @return float 糸発注は0、それ以外は発注反数
+     */
     public function orderedTan(): float
     {
         $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
@@ -129,16 +142,21 @@ class PurchaseOrderLine extends Model
 
         if ($type === PurchaseOrderType::GREIGE) {
             return QtyHelper::tanCount(
-                (int) ($this->qty_meters ?? 0),
+                (float) ($this->qty_meters ?? 0),
                 null,
                 true,
                 $this->greige?->sku,
             );
         }
 
-        return QtyHelper::tanCount((int) ($this->qty_meters ?? 0), (int) ($this->product_id ?? 0));
+        return QtyHelper::tanCount((float) ($this->qty_meters ?? 0), (int) ($this->product_id ?? 0));
     }
 
+    /**
+     * 入荷済み反数を返し、反数がなければ小数mから参考反数を換算する。
+     *
+     * @return float 糸発注は0、それ以外は入荷済み反数
+     */
     public function receivedTan(): float
     {
         $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
@@ -153,14 +171,14 @@ class PurchaseOrderLine extends Model
 
         if ($type === PurchaseOrderType::GREIGE) {
             return QtyHelper::tanCount(
-                (int) ($this->received_qty_m ?? 0),
+                (float) ($this->received_qty_m ?? 0),
                 null,
                 true,
                 $this->greige?->sku,
             );
         }
 
-        return QtyHelper::tanCount((int) ($this->received_qty_m ?? 0), (int) ($this->product_id ?? 0));
+        return QtyHelper::tanCount((float) ($this->received_qty_m ?? 0), (int) ($this->product_id ?? 0));
     }
 
     public function remainingTan(): float

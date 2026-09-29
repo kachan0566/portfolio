@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * 入荷反修正の変更前後値と、入荷明細合計のスナップショットを保持する。
+ */
 #[Fillable([
     'receiving_line_id',
     'roll_type',
@@ -31,6 +34,11 @@ class ReceivingRollAmendment extends Model
 
     public const FIELD_ACTUAL_QTY_M = 'actual_qty_m';
 
+    /**
+     * 0.25反と小数mを失わず読み書きする型変換を定義する。
+     *
+     * @return array<string, string> Eloquentの列別キャスト
+     */
     protected function casts(): array
     {
         return [
@@ -39,9 +47,9 @@ class ReceivingRollAmendment extends Model
             'old_value' => 'decimal:3',
             'new_value' => 'decimal:3',
             'line_qty_tan_before' => 'decimal:2',
-            'line_qty_m_before' => 'integer',
+            'line_qty_m_before' => 'decimal:2',
             'line_qty_tan_after' => 'decimal:2',
-            'line_qty_m_after' => 'integer',
+            'line_qty_m_after' => 'decimal:2',
             'changed_at' => 'datetime',
         ];
     }

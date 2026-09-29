@@ -23,12 +23,13 @@ class ShipmentRegistrar
     public static function register(
         int $orderId,
         float $qtyTan,
-        ?int $qtyMeters,
+        ?float $qtyMeters,
         string $shippedDate,
         ?string $shipToName = null,
         ?string $note = null,
+        ?float $partialActualMeters = null,
     ): array {
-        return DB::transaction(function () use ($orderId, $qtyTan, $qtyMeters, $shippedDate, $shipToName, $note) {
+        return DB::transaction(function () use ($orderId, $qtyTan, $qtyMeters, $shippedDate, $shipToName, $note, $partialActualMeters) {
             $order = Order::query()->lockForUpdate()->findOrFail($orderId);
             $productId = (int) $order->product_id;
             $isMetersOrder = ($order->order_qty_mode ?? 'tan') === 'meters';
@@ -57,9 +58,10 @@ class ShipmentRegistrar
             } else {
                 $result = ShipmentRollAllocator::allocate(
                     $productId,
-                    QtyHelper::roundIntegerTan($qtyTan),
+                    QtyHelper::roundTan($qtyTan),
                     (int) $shipment->id,
                     $noteRef,
+                    $partialActualMeters,
                 );
             }
 
@@ -70,22 +72,22 @@ class ShipmentRegistrar
                 throw new \RuntimeException('出荷できる在庫反がありません。');
             }
 
-            $allocatedMInt = (int) round($allocatedM);
+            $allocatedM = round($allocatedM, 2);
 
             $shipment->update([
                 'qty_tan' => $allocatedTan,
-                'qty_m' => $allocatedMInt,
+                'qty_m' => $allocatedM,
             ]);
 
             $order->update([
                 'shipped_qty_tan' => round((float) $order->shipped_qty_tan + $allocatedTan, 2),
-                'shipped_qty_m' => (int) $order->shipped_qty_m + $allocatedMInt,
+                'shipped_qty_m' => round((float) $order->shipped_qty_m + $allocatedM, 2),
             ]);
 
             ShipmentPlan::recordShipment($orderId, $allocatedM, $allocatedTan);
 
             $messageQty = $isMetersOrder
-                ? number_format($allocatedMInt).'m（実測）'
+                ? QtyHelper::formatMeters($allocatedM).'m（実測）'
                 : QtyHelper::formatFromTan($allocatedTan, $productId);
 
             return [
@@ -116,7 +118,7 @@ class ShipmentRegistrar
 
             $shipment->update([
                 'qty_tan' => (float) ($result['allocated_tan'] ?? 0),
-                'qty_m' => (int) round((float) ($result['allocated_m'] ?? 0)),
+                'qty_m' => round((float) ($result['allocated_m'] ?? 0), 2),
             ]);
         });
     }
@@ -129,8 +131,8 @@ class ShipmentRegistrar
         return [
             ['id' => 1, 'code' => 'SH-2606-001', 'order_id' => 1, 'product_id' => 1, 'qty_m' => 120, 'shipped_date' => '2026-06-11', 'ship_to_name' => '東レ商事 滋賀倉庫', 'note' => '時間指定 午前中'],
             ['id' => 2, 'code' => 'SH-2606-002', 'order_id' => 4, 'product_id' => 2, 'qty_m' => 60, 'shipped_date' => '2026-06-12', 'ship_to_name' => 'ユニフォーム製作所 本社', 'note' => ''],
-            ['id' => 3, 'code' => 'SH-2606-003', 'order_id' => 2, 'product_id' => 3, 'qty_m' => 80, 'shipped_date' => '2026-06-14', 'ship_to_name' => 'アパレル東京 物流センター', 'note' => '分納の1回目'],
-            ['id' => 4, 'code' => 'SH-2606-004', 'order_id' => 6, 'product_id' => 1, 'qty_m' => 40, 'shipped_date' => '2026-06-15', 'ship_to_name' => 'アパレル東京 物流センター', 'note' => ''],
+            ['id' => 3, 'code' => 'SH-2606-003', 'order_id' => 2, 'product_id' => 3, 'qty_m' => 75, 'shipped_date' => '2026-06-14', 'ship_to_name' => 'アパレル東京 物流センター', 'note' => '分納の1回目'],
+            ['id' => 4, 'code' => 'SH-2606-004', 'order_id' => 6, 'product_id' => 1, 'qty_m' => 50, 'shipped_date' => '2026-06-15', 'ship_to_name' => 'アパレル東京 物流センター', 'note' => ''],
         ];
     }
 

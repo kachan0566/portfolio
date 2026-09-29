@@ -162,7 +162,7 @@ class RollAmendmentService
         return DB::transaction(function () use ($line, $rollType, $rollId, $rollCode, $changedFields, $reason, $updateRoll) {
             $line = $line->fresh();
             $tanBefore = (float) ($line->qty_tan ?? 0);
-            $mBefore = (int) ($line->qty_m ?? 0);
+            $mBefore = (float) ($line->qty_m ?? 0);
             $changedAt = now();
 
             $updateRoll();
@@ -172,7 +172,7 @@ class RollAmendmentService
 
             $lineAfter = $line->fresh();
             $tanAfter = (float) ($lineAfter->qty_tan ?? 0);
-            $mAfter = (int) ($lineAfter->qty_m ?? 0);
+            $mAfter = (float) ($lineAfter->qty_m ?? 0);
 
             foreach ($changedFields as $field => $values) {
                 ReceivingRollAmendment::query()->create([

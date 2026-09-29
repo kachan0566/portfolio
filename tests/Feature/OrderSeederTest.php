@@ -32,8 +32,9 @@ class OrderSeederTest extends TestCase
         $this->assertNotNull($order);
         $this->assertSame('東レ商事', $order->customer->name);
         $this->assertSame('FAB-A-BK', $order->product->sku);
-        $this->assertSame('tan', $order->order_qty_mode);
-        $this->assertSame(120, $order->shipped_qty_m);
+        $this->assertSame('meters', $order->order_qty_mode);
+        $this->assertSame(120.0, (float) $order->qty_meters);
+        $this->assertSame(120.0, (float) $order->shipped_qty_m);
     }
 
     public function test_order_display_object_matches_demo_shape(): void

@@ -98,16 +98,16 @@
                 <div>
                     <h2 class="card__title">引当の管理</h2>
                     <p class="field-hint" style="margin:4px 0 0;">
-                        <strong>{{ $order->sku }}（{{ $order->color }}）</strong> の現在庫 <strong>@include('partials.qty', ['qty' => $effectiveStock, 'productId' => $product->id])</strong> を、入荷済み発注から「現在庫引当」として配分できます。未入荷の発注残は「発注引当」として別管理します。
+                        <strong>{{ $order->sku }}（{{ $order->color }}）</strong> の現在庫 <strong>@include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</strong> を、入荷済み発注から「現在庫引当」として配分できます。未入荷の発注残は「発注引当」として別管理します。
                     </p>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;flex-wrap:wrap;">
-                    @if ($effectiveStock === 0)
+                    @if ($inStockRoll->meters <= 0 && $inStockRoll->tan <= 0)
                         <span class="badge badge-rose">在庫なし</span>
                     @elseif ($order->stock_allocated >= $order->remaining)
                         <span class="badge badge-green">現在庫確保完了</span>
                     @else
-                        <span class="badge badge-amber">在庫 @include('partials.qty', ['qty' => $effectiveStock, 'productId' => $product->id])</span>
+                        <span class="badge badge-amber">在庫 @include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</span>
                     @endif
                 </div>
             </div>
@@ -115,16 +115,24 @@
             <div class="card__body">
 
                 @php
-                    $stockTotal = $effectiveStock;
-                    $otherPct   = $stockTotal > 0 ? round($otherOrdersStockAllocated / $stockTotal * 100) : 0;
-                    $thisPct    = $stockTotal > 0 ? round($order->stock_allocated / $stockTotal * 100) : 0;
-                    $freePct    = max(0, 100 - $otherPct - $thisPct);
-                    $freeStock  = max(0, $stockTotal - $otherOrdersStockAllocated - $order->stock_allocated);
+                    $stockTotalTan = $inStockRoll->tan;
+                    $otherStockTan = round((float) $sameProductOrders
+                        ->where('id', '!=', $order->id)
+                        ->sum(fn ($o) => \App\Support\StockAllocation::stockLinesForOrder($o->id)->sum('qty_tan')), 2);
+                    $thisStockTan = round((float) \App\Support\StockAllocation::stockLinesForOrder($order->id)->sum('qty_tan'), 2);
+                    $freeStockTan = max(0.0, round($stockTotalTan - $otherStockTan - $thisStockTan, 2));
+                    $otherPct = $stockTotalTan > 0 ? round($otherStockTan / $stockTotalTan * 100) : 0;
+                    $thisPct = $stockTotalTan > 0 ? round($thisStockTan / $stockTotalTan * 100) : 0;
+                    $freePct = max(0, 100 - $otherPct - $thisPct);
+                    $rollMeters = $inStockRoll->meters;
+                    $metersForTan = static fn (float $tan): float => $stockTotalTan > 0
+                        ? round($tan / $stockTotalTan * $rollMeters, 2)
+                        : 0.0;
                 @endphp
                 <div style="margin-bottom:20px;">
                     <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-faint);margin-bottom:6px;">
                         <span>現在庫引当の使用状況（発注引当は含まない）</span>
-                        <span class="mono">現在庫 @include('partials.qty', ['qty' => $stockTotal, 'productId' => $product->id])</span>
+                        <span class="mono">現在庫 @include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</span>
                     </div>
                     <div style="width:100%;height:14px;background:#e5e7eb;border-radius:7px;overflow:hidden;display:flex;" id="budget-bar-track">
                         <div id="budget-bar-others" style="height:100%;background:#f59e0b;width:{{ $otherPct }}%;transition:width 0.2s;" title="他の受注への引当"></div>
@@ -132,9 +140,9 @@
                         <div id="budget-bar-free" style="height:100%;background:#d1fae5;width:{{ $freePct }}%;transition:width 0.2s;" title="未配分"></div>
                     </div>
                     <div style="display:flex;gap:20px;font-size:12px;margin-top:8px;">
-                        <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>他の受注 <strong class="mono" id="budget-other-text">@include('partials.qty', ['qty' => $otherOrdersStockAllocated, 'productId' => $product->id])</strong></span>
-                        <span><span style="display:inline-block;width:10px;height:10px;background:#3b82f6;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>この受注 <strong class="mono" id="budget-this-text">@include('partials.qty', ['qty' => $order->stock_allocated, 'productId' => $product->id])</strong></span>
-                        <span style="color:var(--text-faint);"><span style="display:inline-block;width:10px;height:10px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>未配分 <strong class="mono" id="budget-free-text">@include('partials.qty', ['qty' => $freeStock, 'productId' => $product->id])</strong></span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>他の受注 <strong class="mono" id="budget-other-text">@include('partials.qty-roll-stock', ['tan' => $otherStockTan, 'meters' => $metersForTan($otherStockTan)])</strong></span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#3b82f6;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>この受注 <strong class="mono" id="budget-this-text">@include('partials.qty-roll-stock', ['tan' => $thisStockTan, 'meters' => $metersForTan($thisStockTan)])</strong></span>
+                        <span style="color:var(--text-faint);"><span style="display:inline-block;width:10px;height:10px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>未配分 <strong class="mono" id="budget-free-text">@include('partials.qty-roll-stock', ['tan' => $freeStockTan, 'meters' => $metersForTan($freeStockTan)])</strong></span>
                         <span id="budget-over-warning" style="color:#ef4444;font-weight:600;display:none;">@include('partials.icon', ['name' => 'alert']) 在庫超過！</span>
                     </div>
                 </div>
@@ -143,7 +151,8 @@
                     @csrf
                     <script id="alloc-meta" type="application/json">
                         {!! json_encode([
-                            'stock'          => $stockTotal,
+                            'stockTan'       => $inStockRoll->tan,
+                            'stockMeters'    => $inStockRoll->meters,
                             'currentOrderId' => $order->id,
                             'metersPerTan'   => $product->meters_per_tan ?? 50,
                         ], JSON_UNESCAPED_UNICODE) !!}
@@ -270,11 +279,11 @@
                         @endif
 
                         <div style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:16px;font-size:13px;">
-                            <span>現在庫 <strong class="mono">@include('partials.qty', ['qty' => $stockTotal, 'productId' => $product->id])</strong></span>
+                            <span>現在庫 <strong class="mono">@include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</strong></span>
                             <span style="color:var(--text-faint);">|</span>
-                            <span>現在庫引当合計 <strong class="mono" id="total-stock-allocated-text">@include('partials.qty', ['qty' => $otherOrdersStockAllocated + $order->stock_allocated, 'productId' => $product->id])</strong></span>
+                            <span>現在庫引当合計 <strong class="mono" id="total-stock-allocated-text">@include('partials.qty-roll-stock', ['tan' => $otherStockTan + $thisStockTan, 'meters' => $metersForTan($otherStockTan + $thisStockTan)])</strong></span>
                             <span style="color:var(--text-faint);">|</span>
-                            <span>未配分 <strong class="mono" id="total-free-text">@include('partials.qty', ['qty' => $freeStock, 'productId' => $product->id])</strong></span>
+                            <span>未配分 <strong class="mono" id="total-free-text">@include('partials.qty-roll-stock', ['tan' => $freeStockTan, 'meters' => $metersForTan($freeStockTan)])</strong></span>
                         </div>
 
                         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px;">
@@ -301,7 +310,7 @@
                         <div style="flex:1;">
                             <strong>@include('partials.qty', ['qty' => $supplyShortage, 'productId' => $product->id]) 不足しています。</strong>
                             <p class="field-hint" style="margin:6px 0 0;">
-                                未割当在庫 @include('partials.qty', ['qty' => $unallocatedStock, 'productId' => $product->id])
+                                未割当在庫 @include('partials.qty-roll-stock', ['tan' => $unallocatedStockQty->tan, 'meters' => $unallocatedStockQty->meters])
                                 と未引当の発注残 @include('partials.qty', ['qty' => $unallocatedPoRemaining, 'productId' => $product->id])
                                 を合わせても、受注残 @include('partials.qty', ['qty' => $order->remaining, 'productId' => $product->id]) に足りません。追加の生産発注が必要です。
                             </p>
@@ -544,7 +553,7 @@
                 </div>
                 <div class="stat-row__item">
                     <div class="stat-row__label">現在庫（品番全体）</div>
-                    <div class="stat-row__value mono">@include('partials.qty', ['qty' => $product->stock, 'productId' => $product->id])</div>
+                    <div class="stat-row__value mono">@include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</div>
                     <div class="t-muted" style="font-size:12px;">安全在庫 @include('partials.qty', ['qty' => $product->stock_min, 'productId' => $product->id])</div>
                 </div>
             </div>

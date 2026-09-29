@@ -5,18 +5,18 @@
     $isGreige = $isGreige ?? false;
     $greigeSku = $greigeSku ?? null;
     $metersPerTan = isset($metersPerTan)
-        ? (int) $metersPerTan
-        : \App\Support\QtyHelper::metersPerTan($productId, $isGreige, $greigeSku);
-    $valueMeters = isset($valueMeters) ? (int) $valueMeters : null;
+        ? (float) $metersPerTan
+        : (float) \App\Support\QtyHelper::metersPerTan($productId, $isGreige, $greigeSku);
+    $valueMeters = isset($valueMeters) ? (float) $valueMeters : null;
     $valueTan = isset($valueTan)
         ? (float) $valueTan
         : ($valueMeters !== null && $valueMeters > 0
             ? \App\Support\QtyHelper::roundTan($valueMeters / max(1, $metersPerTan))
             : 0.0);
     if ($valueMeters === null && $valueTan > 0) {
-        $valueMeters = (int) round(\App\Support\QtyHelper::roundTan($valueTan) * $metersPerTan);
+        $valueMeters = round(\App\Support\QtyHelper::roundTan($valueTan) * $metersPerTan, 2);
     }
-    $valueMeters = (int) ($valueMeters ?? 0);
+    $valueMeters = (float) ($valueMeters ?? 0);
     $pageKey = $pageKey ?? 'default';
     $id = $id ?? null;
     $maxTan = isset($maxTan)
@@ -39,9 +39,9 @@
      @if ($maxTan !== null) data-max-tan="{{ \App\Support\QtyHelper::formatTanCount($maxTan) }}" @endif>
     <input type="hidden" name="{{ $tanName }}" value="{{ \App\Support\QtyHelper::formatTanCount($valueTan) }}" data-qty-tan-hidden>
     @if ($submitMeters)
-        <input type="hidden" name="{{ $metersName }}" value="{{ $valueMeters > 0 ? $valueMeters : '' }}" data-qty-meters-hidden>
+        <input type="hidden" name="{{ $metersName }}" value="{{ $valueMeters > 0 ? \App\Support\QtyHelper::formatMeters($valueMeters) : '' }}" data-qty-meters-hidden>
     @else
-        <input type="hidden" value="{{ $valueMeters > 0 ? $valueMeters : '' }}" data-qty-meters-hidden>
+        <input type="hidden" value="{{ $valueMeters > 0 ? \App\Support\QtyHelper::formatMeters($valueMeters) : '' }}" data-qty-meters-hidden>
     @endif
     <div data-qty-tan-row>
         <div class="input-group{{ $compact ? ' po-line__input-group' : '' }}">

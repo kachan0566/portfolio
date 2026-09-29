@@ -96,7 +96,7 @@
                             @forelse ($data['lowStock'] as $p)
                                 <tr>
                                     <td class="code-cell t-strong">{{ $p->sku }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $p->stock, 'productId' => $p->id])</td>
+                                    <td class="num mono">@include('partials.qty-roll-stock', ['productId' => $p->id])</td>
                                     <td class="num mono t-muted">@include('partials.qty', ['qty' => $p->stock_min, 'productId' => $p->id])</td>
                                     <td><span class="badge badge-rose">要発注</span></td>
                                 </tr>

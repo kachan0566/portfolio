@@ -154,7 +154,7 @@ class PurchaseOrderShowTest extends TestCase
         $this->assertCount(1, $summary);
         $this->assertSame(2.0, $summary[0]['ordered_tan']);
         $this->assertSame(1.0, $summary[0]['received_tan']);
-        $this->assertSame(50, $summary[0]['received_m']);
+        $this->assertSame(50.0, (float) $summary[0]['received_m']);
         $this->assertSame(1.0, $summary[0]['remaining_tan']);
     }
 

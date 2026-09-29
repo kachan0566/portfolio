@@ -30,31 +30,31 @@ class ReceivingLineTotals
     }
 
     /**
-     * @return array{qty_tan: float, qty_m: int, qty_kg: float}
+     * @return array{qty_tan: float, qty_m: float, qty_kg: float}
      */
     private static function totalsFromGreigeRolls(ReceivingLine $line): array
     {
         $rolls = GreigeRoll::query()->where('receiving_line_id', $line->id)->get();
         $tan = QtyHelper::roundReceivingTan((float) $rolls->sum(fn ($roll) => (float) $roll->tan_qty));
-        $meters = (int) round((float) $rolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
+        $meters = round((float) $rolls->sum(fn ($roll) => (float) $roll->actual_qty_m), 2);
 
         return ['qty_tan' => $tan, 'qty_m' => $meters, 'qty_kg' => 0];
     }
 
     /**
-     * @return array{qty_tan: float, qty_m: int, qty_kg: float}
+     * @return array{qty_tan: float, qty_m: float, qty_kg: float}
      */
     private static function totalsFromProductRolls(ReceivingLine $line): array
     {
         $rolls = ProductRoll::query()->where('receiving_line_id', $line->id)->get();
         $tan = QtyHelper::roundReceivingTan((float) $rolls->sum(fn ($roll) => (float) $roll->tan_qty));
-        $meters = (int) round((float) $rolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
+        $meters = round((float) $rolls->sum(fn ($roll) => (float) $roll->actual_qty_m), 2);
 
         return ['qty_tan' => $tan, 'qty_m' => $meters, 'qty_kg' => 0];
     }
 
     /**
-     * @return array{qty_tan: float, qty_m: int, qty_kg: float}
+     * @return array{qty_tan: float, qty_m: float, qty_kg: float}
      */
     private static function totalsFromYarnMovements(ReceivingLine $line): array
     {

@@ -2,10 +2,8 @@
 
 namespace App\Support;
 
-use App\Support\MasterCatalog;
-
-use App\Models\Greige;
 use App\Models\PurchaseOrder;
+use App\Services\Inventory\GreigeDyeInput;
 use Illuminate\Support\Collection;
 
 /**
@@ -20,7 +18,7 @@ class GreigeInventory
      *     po_code: string,
      *     greige_sku: string,
      *     greige_name: string,
-     *     qty_meters: int,
+     *     qty_meters: float,
      *     qty_tan_calc: float,
      *     ship_to: string,
      *     due_date: string
@@ -28,7 +26,7 @@ class GreigeInventory
      */
     public static function entries(): Collection
     {
-        \App\Services\Inventory\GreigeDyeInput::bootstrapIfNeeded();
+        GreigeDyeInput::bootstrapIfNeeded();
 
         return DemoData::purchaseOrders()
             ->filter(fn ($po) => ($po->type ?? '') === PurchaseOrderType::GREIGE)
@@ -47,10 +45,10 @@ class GreigeInventory
                 ], true));
 
                 if ($stockRolls->isNotEmpty()) {
-                    $received = (int) round($stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m));
+                    $received = round((float) $stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m), 2);
                     $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
                 } else {
-                    $received = (int) floor(PurchaseOrder::receivedQtyFor($poId, $po));
+                    $received = PurchaseOrder::receivedQtyFor($poId, $po);
                     if ($received <= 0) {
                         return null;
                     }
@@ -77,16 +75,16 @@ class GreigeInventory
             ->values();
     }
 
-    public static function totalMeters(): int
+    public static function totalMeters(): float
     {
-        return (int) self::entries()->sum('qty_meters');
+        return round((float) self::entries()->sum('qty_meters'), 2);
     }
 
-    public static function totalMetersForSku(string $greigeSku): int
+    public static function totalMetersForSku(string $greigeSku): float
     {
-        return (int) self::entries()
+        return round((float) self::entries()
             ->where('greige_sku', $greigeSku)
-            ->sum('qty_meters');
+            ->sum('qty_meters'), 2);
     }
 
     /** 製品発注詳細用：紐づく生機品番の染工場在庫 */

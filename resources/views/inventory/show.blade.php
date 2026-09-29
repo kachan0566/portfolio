@@ -20,7 +20,7 @@
         <div class="kpi">
             <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'archive'])</div>
             <div class="kpi__label">現在庫</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.qty', ['qty' => $effectiveStock, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</div>
             <div class="kpi__sub">安全在庫 @include('partials.qty', ['qty' => $product->stock_min, 'productId' => $product->id])</div>
         </div>
         <div class="kpi">
@@ -77,7 +77,7 @@
                     <div class="cmp__track">
                         <div class="cmp__fill cmp__fill--stock" style="width:{{ round($effectiveStock / $scale * 100) }}%;"></div>
                     </div>
-                    <div class="cmp__value mono">@include('partials.qty', ['qty' => $effectiveStock, 'productId' => $product->id])</div>
+                    <div class="cmp__value mono">@include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</div>
                 </div>
                 <div class="cmp__row">
                     <div class="cmp__label">受注残</div>
@@ -110,7 +110,7 @@
             <div class="allocation-summary">
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">現在庫引当</div>
-                    <div class="allocation-summary__value mono">@include('partials.qty', ['qty' => $stockAllocatedTotal, 'productId' => $product->id])</div>
+                    <div class="allocation-summary__value mono">@include('partials.qty-roll-stock', ['tan' => $stockAllocatedQty->tan, 'meters' => $stockAllocatedQty->meters])</div>
                 </div>
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">発注引当</div>
@@ -118,7 +118,7 @@
                 </div>
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">未割当在庫</div>
-                    <div class="allocation-summary__value mono">@include('partials.qty', ['qty' => $unallocatedStock, 'productId' => $product->id])</div>
+                    <div class="allocation-summary__value mono">@include('partials.qty-roll-stock', ['tan' => $unallocatedStockQty->tan, 'meters' => $unallocatedStockQty->meters])</div>
                 </div>
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">未引当の受注残</div>
@@ -132,10 +132,11 @@
                 <div class="po-usage-summary" style="margin-bottom:16px;">
                     @foreach ($purchases as $po)
                         @php
-                            $stockUsed = $stockUsageByPo[$po->id] ?? 0;
                             $poUsed = $poUsageByPo[$po->id] ?? 0;
                             $received = (int) floor(\App\Models\PurchaseOrder::receivedQtyFor((int) $po->id, $po));
                             $poRem = \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po);
+                            $stockUsedTan = \App\Support\StockAllocation::stockUsageTanByPo($product->id)[$po->id] ?? 0.0;
+                            $stockUsedM = $stockUsageByPo[$po->id] ?? 0;
                         @endphp
                         <div class="po-usage-item">
                             <div class="po-usage-item__code">
@@ -143,7 +144,7 @@
                             </div>
                             <div class="po-usage-item__nums mono" style="font-size:12px;">
                                 <span class="t-muted">入荷済 @include('partials.qty', ['qty' => $received, 'productId' => $product->id])</span>
-                                <span class="{{ $stockUsed > 0 ? 't-strong' : 't-muted' }}">在庫引当 @include('partials.qty', ['qty' => $stockUsed, 'productId' => $product->id])</span>
+                                <span class="{{ $stockUsedTan > 0 ? 't-strong' : 't-muted' }}">在庫引当 @include('partials.qty-roll-stock', ['tan' => $stockUsedTan, 'meters' => $stockUsedM])</span>
                                 <span class="{{ $poUsed > 0 ? 't-strong' : 't-muted' }}">発注引当 @include('partials.qty', ['qty' => $poUsed, 'productId' => $product->id])</span>
                                 <span class="t-muted">残 @include('partials.qty', ['qty' => $poRem, 'productId' => $product->id])</span>
                             </div>
@@ -155,7 +156,12 @@
             <form action="{{ route('inventory.allocate', $product->id) }}" method="POST" id="allocation-form">
                 @csrf
                 <script id="alloc-meta" type="application/json">
-                    {!! json_encode(['stock' => $effectiveStock, 'currentOrderId' => 0, 'metersPerTan' => $product->meters_per_tan ?? 50], JSON_UNESCAPED_UNICODE) !!}
+                    {!! json_encode([
+                        'stockTan' => $inStockRoll->tan,
+                        'stockMeters' => $inStockRoll->meters,
+                        'currentOrderId' => 0,
+                        'metersPerTan' => $product->meters_per_tan ?? 50,
+                    ], JSON_UNESCAPED_UNICODE) !!}
                 </script>
                 <script id="stock-po-options" type="application/json">{!! json_encode($stockPoOptions->values(), JSON_UNESCAPED_UNICODE) !!}</script>
                 <script id="po-po-options" type="application/json">{!! json_encode($poPoOptions->values(), JSON_UNESCAPED_UNICODE) !!}</script>

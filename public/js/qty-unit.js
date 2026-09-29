@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const DEFAULT_TAN_STEP = 0.05;
+    const DEFAULT_TAN_STEP = 0.25;
 
     function tanStepOf(field) {
         const step = parseFloat(field.dataset.tanStep || String(DEFAULT_TAN_STEP));
@@ -30,14 +30,19 @@
         return perTan > 0 ? roundTan(meters / perTan, step) : 0;
     }
 
+    function roundMeters(m) {
+        return Math.round((parseFloat(m) || 0) * 100) / 100;
+    }
+
     function tanToMeters(tan, perTan, step) {
-        return Math.round(roundTan(tan, step) * perTan);
+        return roundMeters(roundTan(tan, step) * perTan);
     }
 
     function formatQty(meters, perTan, step) {
-        const m = parseInt(meters, 10) || 0;
+        step = step ?? DEFAULT_TAN_STEP;
+        const m = roundMeters(meters);
         const tan = formatTanCount(metersToTan(m, perTan, step), step);
-        return tan + '反 / ' + m.toLocaleString() + 'm';
+        return tan + '反 / ' + m.toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'm';
     }
 
     function getMode(field) {
@@ -63,7 +68,7 @@
 
     function readMetersHidden(field) {
         const raw = field.querySelector('[data-qty-meters-hidden]')?.value;
-        return raw === '' || raw === undefined ? 0 : parseInt(raw, 10) || 0;
+        return raw === '' || raw === undefined ? 0 : roundMeters(raw);
     }
 
     function syncField(field) {
@@ -140,7 +145,7 @@
             if (hint) hint.textContent = '= ' + meters.toLocaleString() + 'm';
             if (metersHidden) metersHidden.value = '';
         } else {
-            meters = Math.round(parseFloat(meterDisplay?.value || '0') || 0);
+            meters = roundMeters(parseFloat(meterDisplay?.value || '0') || 0);
             tan = meters > 0 ? metersToTan(meters, perTan, step) : 0;
             if (hint) {
                 hint.textContent = '≈ ' + formatTanCount(tan, step) + '反';

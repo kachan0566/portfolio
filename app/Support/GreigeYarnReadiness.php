@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\PurchaseOrder;
+use Illuminate\Support\Collection;
 
 /**
  * 生機発注に必要な糸が織工場へすべて入荷完了したかを判定する。
@@ -14,7 +15,7 @@ class GreigeYarnReadiness
         $requirements = $greigePo->yarn_requirements ?? [];
         if ($requirements === []) {
             $sku = (string) ($greigePo->sku ?? $greigePo->greige_sku ?? '');
-            $meters = (int) ($greigePo->qty_meters ?? $greigePo->qty ?? 0);
+            $meters = (float) ($greigePo->qty_meters ?? $greigePo->qty ?? 0);
             $requirements = DemoData::greigeYarnRequirements($sku, $meters);
         }
 
@@ -46,9 +47,9 @@ class GreigeYarnReadiness
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, object>
+     * @return Collection<int, object>
      */
-    private static function rawYarnPurchaseOrders(): \Illuminate\Support\Collection
+    private static function rawYarnPurchaseOrders(): Collection
     {
         return PurchaseOrder::query()
             ->where('type', PurchaseOrderType::YARN)

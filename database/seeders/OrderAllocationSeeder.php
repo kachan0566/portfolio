@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Order;
 use App\Models\OrderAllocation;
+use App\Models\PurchaseOrder;
 use App\Support\DemoData;
 use App\Support\QtyHelper;
 use Illuminate\Database\Seeder;
@@ -14,8 +16,14 @@ class OrderAllocationSeeder extends Seeder
         $now = now();
 
         foreach (DemoData::baseAllocationRows() as $row) {
+            if (! Order::query()->whereKey($row['order_id'])->exists()
+                || (($row['purchase_order_id'] ?? null) !== null
+                    && ! PurchaseOrder::query()->whereKey($row['purchase_order_id'])->exists())) {
+                continue;
+            }
+
             $productId = (int) $row['product_id'];
-            $qtyTan = QtyHelper::roundTan((float) $row['qty_tan']);
+            $qtyTan = (float) $row['qty_tan'];
 
             OrderAllocation::query()->updateOrCreate(
                 ['id' => $row['id']],

@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\MasterCatalog;
-
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
+use App\Services\Fabric\TanRollRecorder;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\DemoData;
 use App\Support\FabricQuantity;
@@ -15,6 +14,7 @@ use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class ReceivingController extends Controller
@@ -136,9 +136,13 @@ class ReceivingController extends Controller
                 $greigeSku = $poType === PurchaseOrderType::GREIGE
                     ? (string) ($poLine?->greige?->sku ?? '')
                     : null;
+                $rawQtyTan = (float) ($row['qty_tan'] ?? 0);
+                if (! QtyHelper::isValidTanStep($rawQtyTan)) {
+                    continue;
+                }
 
                 $resolved = FabricQuantity::resolve(
-                    $row['qty_tan'] ?? null,
+                    $rawQtyTan,
                     $row['qty_meters'] ?? null,
                     $productId,
                     $poType === PurchaseOrderType::GREIGE,
@@ -199,9 +203,13 @@ class ReceivingController extends Controller
         $greigeSku = $poType === PurchaseOrderType::GREIGE
             ? (string) ($po->greige_sku ?? $po->sku)
             : null;
+        $rawQtyTan = (float) $request->input('qty_tan');
+        if (! QtyHelper::isValidTanStep($rawQtyTan)) {
+            return [];
+        }
 
         $resolved = FabricQuantity::resolve(
-            $request->input('qty_tan'),
+            $rawQtyTan,
             $request->input('qty_meters', $request->input('qty')),
             $productId,
             $poType === PurchaseOrderType::GREIGE,
@@ -240,13 +248,17 @@ class ReceivingController extends Controller
     }
 
     /**
-     * @param  mixed  $rollsInput
-     * @return list<array{tan_qty: float, actual_qty_m: float}>
+     * 入荷反明細を丸め前に検証し、0.25反刻みの行だけを正規化する。
+     *
+     * @param  mixed  $rollsInput  反数と実測mを持つ入力行の配列
+     * @param  float  $headerTan  入荷明細全体の反数
+     * @param  float  $totalMeters  入荷明細全体の実測m
+     * @return list<array{tan_qty: float, actual_qty_m: float}> 検証済みの反明細
      */
-    private function normalizeRollLines(mixed $rollsInput, float $headerTan, int $totalMeters): array
+    private function normalizeRollLines(mixed $rollsInput, float $headerTan, float $totalMeters): array
     {
         if (! is_array($rollsInput) || $rollsInput === []) {
-            return \App\Services\Fabric\TanRollRecorder::defaultRollLines($headerTan, $totalMeters);
+            return TanRollRecorder::defaultRollLines($headerTan, $totalMeters);
         }
 
         $lines = [];
@@ -256,12 +268,14 @@ class ReceivingController extends Controller
             if (! is_array($row)) {
                 continue;
             }
-            $tanQty = QtyHelper::roundReceivingTan((float) ($row['tan_qty'] ?? 0));
-            $actualM = round((float) ($row['actual_qty_m'] ?? 0), 2);
-            if ($tanQty <= 0 || $actualM <= 0) {
+            $rawTanQty = (float) ($row['tan_qty'] ?? 0);
+            if (! QtyHelper::isValidTanStep($rawTanQty)) {
                 continue;
             }
-            if (! QtyHelper::isValidReceivingTanStep($tanQty)) {
+
+            $tanQty = QtyHelper::roundTan($rawTanQty);
+            $actualM = round((float) ($row['actual_qty_m'] ?? 0), 2);
+            if ($tanQty <= 0 || $actualM <= 0) {
                 continue;
             }
             $lines[] = ['tan_qty' => $tanQty, 'actual_qty_m' => $actualM];
@@ -280,7 +294,7 @@ class ReceivingController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, object>  $pending
+     * @param  Collection<int, object>  $pending
      */
     private function pendingPoLinesJson(string $type, $pending): string
     {

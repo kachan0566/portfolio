@@ -254,7 +254,7 @@
                                     <td class="code-cell">
                                         <a href="{{ route('inventory.show', $p->id) }}" class="link-strong">{{ $p->sku }}</a>
                                     </td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $p->stock, 'productId' => $p->id])</td>
+                                    <td class="num mono">@include('partials.qty-roll-stock', ['tan' => $p->stock_tan ?? 0, 'meters' => $p->stock])</td>
                                     <td class="num mono t-muted">@include('partials.qty', ['qty' => $p->stock_min, 'productId' => $p->id])</td>
                                     <td>
                                         @if ($p->stock < $p->stock_min)

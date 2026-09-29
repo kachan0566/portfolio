@@ -40,7 +40,7 @@ class OrderAllocationSeederTest extends TestCase
         $this->assertNotNull($row);
         $this->assertSame(2, $row->purchase_order_id);
         $this->assertSame(2.5, (float) $row->qty_tan);
-        $this->assertSame(125, $row->qty_m);
+        $this->assertSame(125.0, (float) $row->qty_m);
 
         OrderAllocation::query()->each(function (OrderAllocation $allocation) {
             $steps = (float) $allocation->qty_tan / 0.25;
@@ -53,8 +53,8 @@ class OrderAllocationSeederTest extends TestCase
         $this->seedAllocations();
 
         $this->assertSame(9, count(StockAllocation::allLines()));
-        $this->assertSame(125, StockAllocation::poAllocatedForOrder(2));
-        $this->assertSame(75, StockAllocation::stockAllocatedForOrder(2));
+        $this->assertSame(125.0, StockAllocation::poAllocatedForOrder(2));
+        $this->assertSame(100.0, StockAllocation::stockAllocatedForOrder(2));
     }
 
     public function test_order_show_page_reflects_seeded_allocations(): void

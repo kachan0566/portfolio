@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * 受注数量・出荷済み数量と、得意先・製品との関連を保持する。
+ */
 #[Fillable([
     'code',
     'customer_id',
@@ -29,15 +32,20 @@ use Illuminate\Support\Facades\Schema;
 ])]
 class Order extends Model
 {
+    /**
+     * 0.25反と小数mを失わず読み書きする型変換を定義する。
+     *
+     * @return array<string, string> Eloquentの列別キャスト
+     */
     protected function casts(): array
     {
         return [
             'customer_id' => 'integer',
             'product_id' => 'integer',
-            'qty_tan' => 'integer',
-            'qty_meters' => 'integer',
+            'qty_tan' => 'decimal:2',
+            'qty_meters' => 'decimal:2',
             'shipped_qty_tan' => 'decimal:2',
-            'shipped_qty_m' => 'integer',
+            'shipped_qty_m' => 'decimal:2',
             'order_date' => 'date',
             'due_date' => 'date',
             'planned_ship_date' => 'date',
@@ -80,6 +88,11 @@ class Order extends Model
         return $order?->toDisplayObject();
     }
 
+    /**
+     * 保存mが反数の標準換算mと異なるかを判定する。
+     *
+     * @return bool m指定受注または標準換算との差が0.001mを超える場合はtrue
+     */
     public function metersOverridden(): bool
     {
         if (($this->order_qty_mode ?? 'tan') === 'meters') {
@@ -92,12 +105,17 @@ class Order extends Model
 
         $nominal = QtyHelper::metersFromTan($this->qty_tan, (int) $this->product_id);
 
-        return $this->qty_meters !== $nominal;
+        return abs((float) $this->qty_meters - $nominal) > 0.001;
     }
 
-    public function shippedMeters(): int
+    /**
+     * 出荷済み実測mを小数2桁で返す。
+     *
+     * @return float 0以上の出荷済みm
+     */
+    public function shippedMeters(): float
     {
-        return max(0, (int) ($this->shipped_qty_m ?? 0));
+        return max(0.0, round((float) ($this->shipped_qty_m ?? 0), 2));
     }
 
     public function shippedTan(): float
@@ -105,19 +123,29 @@ class Order extends Model
         return max(0.0, QtyHelper::roundReceivingTan((float) ($this->shipped_qty_tan ?? 0)));
     }
 
-    public function remainingMeters(): int
+    /**
+     * 受注数量から出荷済み数量を引いた受注残mを返す。
+     *
+     * @return float 0以上の受注残m（小数2桁）
+     */
+    public function remainingMeters(): float
     {
         $mode = $this->order_qty_mode ?? 'tan';
 
         if ($mode === 'meters') {
-            $qtyM = (int) ($this->qty_meters ?? $this->qty ?? 0);
+            $qtyM = (float) ($this->qty_meters ?? $this->qty ?? 0);
 
-            return max(0, $qtyM - $this->shippedMeters());
+            return max(0.0, round($qtyM - $this->shippedMeters(), 2));
         }
 
         return QtyHelper::metersFromTan($this->remainingTan(), (int) $this->product_id);
     }
 
+    /**
+     * 受注数量から出荷済み数量を引いた受注残反数を返す。
+     *
+     * @return float 反数指定は0.25刻み、m指定は出荷に必要な切り上げ反数
+     */
     public function remainingTan(): float
     {
         $mode = $this->order_qty_mode ?? 'tan';
@@ -131,19 +159,26 @@ class Order extends Model
             return QtyHelper::tanCountCeilForShipment($remainingM, (int) $this->product_id);
         }
 
-        $qtyTan = (float) ($this->qty_tan ?? QtyHelper::roundIntegerTan(
-            QtyHelper::tanCount((int) $this->qty, (int) $this->product_id)
+        $qtyTan = (float) ($this->qty_tan ?? QtyHelper::roundTan(
+            QtyHelper::tanCount((float) $this->qty, (int) $this->product_id)
         ));
 
         return max(0.0, QtyHelper::roundReceivingTan($qtyTan - $this->shippedTan()));
     }
 
-    public function remaining(): int
+    /** @return float 受注残m（小数2桁） */
+    public function remaining(): float
     {
         return $this->remainingMeters();
     }
 
-    public static function shippedMetersFor(int $orderId): int
+    /**
+     * 指定受注の出荷済み実測mを返す。
+     *
+     * @param  int  $orderId  orders.id
+     * @return float 受注がない場合は0、ある場合は出荷済みm
+     */
+    public static function shippedMetersFor(int $orderId): float
     {
         if (! Schema::hasTable('orders')) {
             return 0;
@@ -161,7 +196,13 @@ class Order extends Model
         return self::query()->find($orderId)?->shippedTan() ?? 0.0;
     }
 
-    public static function remainingMetersFor(int $orderId): int
+    /**
+     * 指定受注の受注残mを返す。
+     *
+     * @param  int  $orderId  orders.id
+     * @return float 受注がない場合は0、ある場合は受注残m
+     */
+    public static function remainingMetersFor(int $orderId): float
     {
         if (! Schema::hasTable('orders')) {
             return 0;
@@ -179,7 +220,13 @@ class Order extends Model
         return self::query()->find($orderId)?->remainingTan() ?? 0.0;
     }
 
-    public static function remainingFor(int $orderId): int
+    /**
+     * 指定受注の受注残mを返す互換メソッド。
+     *
+     * @param  int  $orderId  orders.id
+     * @return float 受注がない場合は0、ある場合は受注残m
+     */
+    public static function remainingFor(int $orderId): float
     {
         if (! Schema::hasTable('orders')) {
             return 0;
@@ -188,13 +235,18 @@ class Order extends Model
         return self::remainingMetersFor($orderId);
     }
 
+    /**
+     * 一覧・詳細画面用に関連名と小数数量をまとめる。
+     *
+     * @return object 受注、出荷、進捗表示に必要な値
+     */
     public function toDisplayObject(): object
     {
         $product = $this->product;
         $mode = $this->order_qty_mode ?? 'tan';
 
         $qtyTan = $mode === 'tan'
-            ? QtyHelper::roundIntegerTan((float) $this->qty_tan)
+            ? QtyHelper::roundTan((float) $this->qty_tan)
             : FabricQuantity::tanFromRecord(
                 ['qty_tan' => $this->qty_tan, 'qty_meters' => $this->qty_meters],
                 (int) $this->product_id,
@@ -206,7 +258,7 @@ class Order extends Model
         );
 
         $qtyMeters = $mode === 'meters'
-            ? (int) $this->qty_meters
+            ? (float) $this->qty_meters
             : FabricQuantity::metersFromRecord(
                 ['qty_tan' => $qtyTan, 'qty_meters' => $this->qty_meters],
                 (int) $this->product_id,

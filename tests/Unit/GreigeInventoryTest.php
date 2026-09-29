@@ -34,7 +34,7 @@ class GreigeInventoryTest extends TestCase
 
         $this->assertNotNull($entry);
         $this->assertSame('KB-T', $entry->greige_sku);
-        $this->assertSame(200, $entry->qty_meters);
+        $this->assertSame(200.0, (float) $entry->qty_meters);
     }
 
     public function test_legacy_product_po_not_in_greige_entries(): void
@@ -50,7 +50,7 @@ class GreigeInventoryTest extends TestCase
         $physical = GreigeSupply::dyeFactoryMeters($sku);
         $onOrder = GreigeSupply::greigePoRemainingMeters($sku);
 
-        $this->assertSame(200, $physical);
+        $this->assertSame(200.0, $physical);
         $this->assertGreaterThanOrEqual(0, $onOrder);
         $this->assertSame($physical + $onOrder, GreigeSupply::availableMeters($sku));
     }

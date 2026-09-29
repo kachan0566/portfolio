@@ -8,12 +8,12 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\PurchaseOrder;
 use App\Support\DemoData;
-use App\Support\MasterCatalog;
-use App\Support\ProductStock;
 use App\Support\FabricQuantity;
 use App\Support\ListSearch;
-use App\Support\QtyHelper;
+use App\Support\MasterCatalog;
 use App\Support\OrderProductionStatus;
+use App\Support\ProductStock;
+use App\Support\QtyHelper;
 use App\Support\ShipmentPlan;
 use App\Support\StockAllocation;
 use Illuminate\Http\RedirectResponse;
@@ -137,6 +137,12 @@ class OrderController extends Controller
         $unallocatedStock = StockAllocation::unallocatedStockForProduct($target->product_id);
         $unallocatedPoRemaining = StockAllocation::unallocatedPoRemainingForProduct($target->product_id);
         $supplyShortage = StockAllocation::supplyShortageForOrder($target->id);
+        $inStockRoll = ProductStock::inStockRollTotals($target->product_id);
+        $unallocatedStockQty = StockAllocation::unallocatedStockQuantityForProduct($target->product_id);
+        $stockAllocatedQty = (object) [
+            'tan' => StockAllocation::stockUsageTanForProduct($target->product_id),
+            'meters' => StockAllocation::stockUsageMetersForProduct($target->product_id),
+        ];
 
         return view('orders.show', [
             'order' => $target,
@@ -165,11 +171,14 @@ class OrderController extends Controller
             'otherOrdersStockAllocated' => $otherOrdersStockAllocated,
             'availableStockForThis' => $availableStockForThis,
             'unallocatedStock' => $unallocatedStock,
+            'unallocatedStockQty' => $unallocatedStockQty,
+            'stockAllocatedQty' => $stockAllocatedQty,
             'unallocatedPoRemaining' => $unallocatedPoRemaining,
             'supplyShortage' => $supplyShortage,
             'stockPoOptions' => $poOptions['stock'],
             'poPoOptions' => $poOptions['po'],
             'purchaseOrdersById' => $purchaseOrdersById,
+            'inStockRoll' => $inStockRoll,
             'shipmentPlans' => ShipmentPlan::forOrder($target->id),
             'siblingOrders' => $siblingOrders,
         ]);
@@ -378,7 +387,10 @@ class OrderController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * 検証済み受注入力を、0.25反・小数mを失わない保存属性へ変換する。
+     *
+     * @param  StoreOrderRequest  $request  反数またはm指定で検証済みの受注入力
+     * @return array<string, mixed> Orderへ保存する属性
      */
     private function attributesFromRequest(StoreOrderRequest $request): array
     {
@@ -394,10 +406,10 @@ class OrderController extends Controller
             $mode === 'meters' ? FabricQuantity::CONTEXT_DEFAULT : FabricQuantity::CONTEXT_ORDER,
         );
 
-        $qtyTan = $mode === 'tan' ? (int) $resolved->qty_tan : 0;
+        $qtyTan = $mode === 'tan' ? $resolved->qty_tan : 0.0;
         $qtyMeters = $mode === 'meters'
             ? $resolved->qty_meters
-            : QtyHelper::metersFromTan((int) $resolved->qty_tan, $productId);
+            : QtyHelper::metersFromTan($resolved->qty_tan, $productId);
 
         return [
             'customer_id' => (int) $request->input('customer_id'),
@@ -411,10 +423,17 @@ class OrderController extends Controller
         ];
     }
 
+    /**
+     * 欠番がある場合も既存の最大番号より後ろの受注番号を生成する。
+     */
     private function generateOrderCode(string $orderDate): string
     {
         $ym = date('ym', strtotime($orderDate));
-        $seq = Order::query()->where('code', 'like', "SO-{$ym}-%")->count() + 1;
+        $lastCode = Order::query()
+            ->where('code', 'like', "SO-{$ym}-%")
+            ->orderByDesc('code')
+            ->value('code');
+        $seq = $lastCode !== null ? (int) substr((string) $lastCode, -3) + 1 : 1;
 
         return 'SO-'.$ym.'-'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
     }

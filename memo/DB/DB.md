@@ -25,10 +25,9 @@
 | 主キー          | `id()`                             | 自動採番                               |
 | 人間向け番号       | `string` + `unique`                | 例：`SO-2606-001`                    |
 | 糸の量（kg）      | `decimal(12, 3)`                   | 小数第3位まで                            |
-| 反数（在庫・入荷）    | `decimal(8, 2)`                    | **0.25 刻み**（`QtyHelper::TAN_STEP`） |
-| 反数（受注・発注）    | `unsignedInteger`                  | **整数反のみ**                          |
+| 反数（受注・発注・入荷・引当・出荷） | `decimal(8, 2)`                    | **0.25 刻み**（`QtyHelper::TAN_STEP`） |
 | 実測メートル（m）    | `decimal(12, 2)`                   | 反ごとの実測。請求・納品の根拠                    |
-| 見積メートル（m）    | `unsignedInteger`                  | 標準長 × 反数などの換算値                     |
+| 見積メートル（m）    | `decimal(12, 2)`                   | 標準長 × 反数などの換算値。0.25反×50m＝12.50mを保持 |
 | 金額（円）        | `unsignedInteger` または `bigInteger` | 小数なし                               |
 | 単価（円/kg・円/m） | `unsignedInteger`                  | 小数なし                               |
 | ロス率          | `decimal(5, 4)`                    | 例：0.0300 = 3%                      |
@@ -419,10 +418,10 @@
 | `customer_id`       | FK → `customers` | NO   |         | 得意先                      |
 | `product_id`        | FK → `products`  | NO   |         | 製品品番                     |
 | `order_qty_mode`    | string(16)       | NO   | `'tan'` | `tan` / `meters`         |
-| `qty_tan`           | unsignedInteger  | NO   | 0       | 受注反数（整数）                 |
-| `qty_meters`        | unsignedInteger  | NO   | 0       | 受注m（`meters` モード時はこちらが正） |
+| `qty_tan`           | decimal(8,2)     | NO   | 0       | 受注反数（0.25反刻み）           |
+| `qty_meters`        | decimal(12,2)    | NO   | 0       | 受注m（`meters` モード時はこちらが正） |
 | `shipped_qty_tan`   | decimal(8,2)     | NO   | 0       | 出荷済み反数合計                 |
-| `shipped_qty_m`     | unsignedInteger  | NO   | 0       | 出荷済み**実測m**合計            |
+| `shipped_qty_m`     | decimal(12,2)    | NO   | 0       | 出荷済み**実測m**合計            |
 | `order_date`        | date             | NO   |         | 受注日                      |
 | `due_date`          | date             | NO   |         | 納期                       |
 | `planned_ship_date` | date             | YES  | null    | 出荷予定日                    |
@@ -497,11 +496,11 @@ ORDER BY po.id, pol.line_no;
 | `product_id`        | FK → `products`        | YES  | null    | 製品発注時                            |
 | `qty_kg`            | decimal(12,3)          | YES  | null    | 糸発注量                             |
 | `received_qty_kg`   | decimal(12,3)          | YES  | null    | 糸入荷済み                            |
-| `qty_tan`           | unsignedInteger        | YES  | null    | 発注反数（整数）                         |
+| `qty_tan`           | decimal(8,2)           | YES  | null    | 発注反数（0.25反刻み）                  |
 | `meters_per_tan`    | unsignedInteger        | YES  | null    | 生機：発注時スナップショット                   |
-| `qty_meters`        | unsignedInteger        | YES  | null    | 見積m                              |
+| `qty_meters`        | decimal(12,2)          | YES  | null    | 見積m                              |
 | `received_qty_tan`  | decimal(8,2)           | YES  | null    | 入荷済み反数                           |
-| `received_qty_m`    | unsignedInteger        | YES  | null    | 入荷済み実測m合計                        |
+| `received_qty_m`    | decimal(12,2)          | YES  | null    | 入荷済み実測m合計                        |
 | `stage`             | string(50)             | YES  | null    | 生機・製品の手動工程（`織編機投入済` / `染機投入済`）   |
 | `finish_date`       | date                   | YES  | null    | 生機・製品：入荷予定日（一覧の入荷予定・在庫予想）          |
 | `contact_date`      | date                   | YES  | null    | 製品：連絡日                           |
@@ -531,7 +530,7 @@ ORDER BY po.id, pol.line_no;
 | `purchase_order_id` | FK → `purchase_orders` | YES  | null  | 発注引当時のみ          |
 | `allocation_type`   | string(16)             | NO   |       | `stock` / `po`   |
 | `qty_tan`           | decimal(8,2)           | NO   | 0     | 引当反数             |
-| `qty_m`             | unsignedInteger        | NO   | 0     | 見積m（未入荷時は標準長換算可） |
+| `qty_m`             | decimal(12,2)          | NO   | 0     | 見積m（未入荷時は標準長換算可） |
 | `created_at`        | timestamp              | YES  |       |                  |
 | `updated_at`        | timestamp              | YES  |       |                  |
 
@@ -554,7 +553,7 @@ ORDER BY po.id, pol.line_no;
 | `receiving_code`    | string(30)             | NO   |       | 入荷番号（RC-…）      |
 | `purchase_order_id` | FK → `purchase_orders` | NO   | cascade | 対象発注          |
 | `order_id`          | FK → `orders`          | NO   | cascade | 対象受注          |
-| `qty`               | unsignedInteger        | NO   |       | 変換 m 数          |
+| `qty`               | decimal(12,2)          | NO   |       | 変換m数（小数2桁保持） |
 | `from_type`         | string(16)             | NO   | `po`  | 変換元（固定 `po`）   |
 | `to_type`           | string(16)             | NO   | `stock` | 変換先（固定 `stock`） |
 | `created_at`        | timestamp              | YES  |       |                 |
@@ -603,7 +602,7 @@ ORDER BY po.id, pol.line_no;
 | `purchase_order_line_id` | FK → `purchase_order_lines` | NO   |         | どの発注明細に対する入荷か                   |
 | `line_no`                | unsignedSmallInteger        | NO   |         | 入荷内の行番号（1始まり）                    |
 | `qty_tan`                | decimal(8,2)                | NO   | 0       | 反数合計（表示用キャッシュ）                   |
-| `qty_m`                  | unsignedInteger             | NO   | 0       | 実測m合計（表示用キャッシュ）                  |
+| `qty_m`                  | decimal(12,2)               | NO   | 0       | 実測m合計（表示用キャッシュ）                  |
 | `qty_kg`                 | decimal(12,3)               | NO   | 0       | 糸kg合計（表示用キャッシュ）                      |
 | `created_at`             | timestamp                   | YES  |         |                                 |
 | `updated_at`             | timestamp                   | YES  |         |                                 |
@@ -639,9 +638,9 @@ ORDER BY po.id, pol.line_no;
 | `old_value`          | decimal(12,3)          | NO   | 変更前（その反の値）                               |
 | `new_value`          | decimal(12,3)          | NO   | 変更後（その反の値）                               |
 | `line_qty_tan_before` | decimal(8,2)         | NO   | 変更前の入荷明細合計（反数）                           |
-| `line_qty_m_before`  | unsignedInteger        | NO   | 変更前の入荷明細合計（実測m）                         |
+| `line_qty_m_before`  | decimal(12,2)          | NO   | 変更前の入荷明細合計（実測m）                         |
 | `line_qty_tan_after` | decimal(8,2)           | YES  | 変更後合計（照合用・任意）                            |
-| `line_qty_m_after`   | unsignedInteger        | YES  | 変更後合計（照合用・任意）                            |
+| `line_qty_m_after`   | decimal(12,2)          | YES  | 変更後合計（照合用・任意）                            |
 | `reason`             | text                   | YES  | 修正理由                                     |
 | `changed_at`         | timestamp              | NO   |                                          |
 | `created_at`         | timestamp              | YES  |                                          |
@@ -676,7 +675,7 @@ DB は複数行対応済み。UI の進捗：
 | `order_id`     | FK → `orders`   | NO   |       |                 |
 | `product_id`   | FK → `products` | NO   |       |                 |
 | `qty_tan`      | decimal(8,2)    | NO   | 0     | 出荷反数合計          |
-| `qty_m`        | unsignedInteger | NO   | 0     | 出荷**実測m**合計     |
+| `qty_m`        | decimal(12,2)   | NO   | 0     | 出荷**実測m**合計     |
 | `shipped_date` | date            | NO   |       |                 |
 | `ship_to_name` | string(200)     | YES  | null  | 届け先名称（スナップショット） |
 | `note`         | text            | YES  | null  |                 |

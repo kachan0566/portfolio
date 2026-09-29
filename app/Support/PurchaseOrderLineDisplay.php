@@ -152,7 +152,7 @@ class PurchaseOrderLineDisplay
     private static function lineYarnReady(PurchaseOrderLine $line): bool
     {
         $sku = (string) ($line->greige?->sku ?? '');
-        $meters = (int) ($line->qty_meters ?? 0);
+        $meters = (float) ($line->qty_meters ?? 0);
         if ($sku === '' || $meters <= 0) {
             return false;
         }

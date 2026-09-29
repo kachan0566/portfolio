@@ -34,11 +34,16 @@ class QtyHelperTest extends TestCase
         $this->assertSame(2.0, QtyHelper::productTanFromGreigeMeters(100, 1));
     }
 
-    public function test_round_tan_snaps_to_five_hundredths(): void
+    /**
+     * 反数の内部丸めが、全工程共通の0.25反刻みへそろうことを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_round_tan_snaps_to_quarter(): void
     {
-        $this->assertSame(2.45, QtyHelper::roundTan(2.47));
-        $this->assertSame(2.5, QtyHelper::roundTan(2.48));
-        $this->assertSame(0.05, QtyHelper::roundTan(0.04));
+        $this->assertSame(2.5, QtyHelper::roundTan(2.47));
+        $this->assertSame(2.25, QtyHelper::roundTan(2.37));
+        $this->assertSame(0.25, QtyHelper::roundTan(0.14));
     }
 
     public function test_is_valid_receiving_tan_step(): void
@@ -47,14 +52,6 @@ class QtyHelperTest extends TestCase
         $this->assertTrue(QtyHelper::isValidReceivingTanStep(1.0));
         $this->assertFalse(QtyHelper::isValidReceivingTanStep(0.3));
         $this->assertFalse(QtyHelper::isValidReceivingTanStep(0));
-    }
-
-    public function test_is_integer_tan(): void
-    {
-        $this->assertTrue(QtyHelper::isIntegerTan(2.0));
-        $this->assertTrue(QtyHelper::isIntegerTan(1));
-        $this->assertFalse(QtyHelper::isIntegerTan(1.5));
-        $this->assertFalse(QtyHelper::isIntegerTan(0.25));
     }
 
     public function test_round_receiving_tan_snaps_to_quarter(): void
@@ -69,12 +66,28 @@ class QtyHelperTest extends TestCase
         $this->assertSame(1.0, QtyHelper::tanCountCeilForShipment(50, 1));
     }
 
+    /**
+     * 0.25の倍数だけを有効な反数として受け付けることを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
     public function test_is_valid_tan_step(): void
     {
-        $this->assertTrue(QtyHelper::isValidTanStep(2.5));
-        $this->assertTrue(QtyHelper::isValidTanStep(0.05));
-        $this->assertFalse(QtyHelper::isValidTanStep(2.03));
+        $this->assertTrue(QtyHelper::isValidTanStep(0.25));
+        $this->assertTrue(QtyHelper::isValidTanStep(1.5));
+        $this->assertFalse(QtyHelper::isValidTanStep(0.05));
+        $this->assertFalse(QtyHelper::isValidTanStep(0.3));
         $this->assertFalse(QtyHelper::isValidTanStep(0));
+    }
+
+    /**
+     * 製品50m/反の0.25反を12.5mのまま換算し、整数へ丸めないことを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_meters_from_quarter_tan_keeps_half_meter_precision(): void
+    {
+        $this->assertSame(12.5, QtyHelper::metersFromTan(0.25, 1));
     }
 
     public function test_format_from_tan(): void

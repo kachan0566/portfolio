@@ -2,16 +2,15 @@
 
 namespace Tests\Feature;
 
-use App\Models\ReceivingLine;
-use App\Models\YarnStockMovement;
-use App\Services\Receiving\ReceivingRegistrar;
-use App\Support\YarnMovementType;
 use App\Models\PurchaseOrder;
-use App\Support\ProductStock;
+use App\Models\ReceivingLine;
+use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\GreigeInventory;
+use App\Support\ProductStock;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use App\Support\YarnInventory;
+use App\Support\YarnMovementType;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
@@ -104,37 +103,45 @@ class ReceivingTest extends TestCase
         $this->assertSame($before + $qty, GreigeInventory::totalMetersForSku('KB-A'));
     }
 
+    /**
+     * 0.5反＝25mの製品入荷で在庫が増えることを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
     public function test_product_receiving_increases_stock(): void
     {
-        $before = ProductStock::effectiveStock(6);
-        $remaining = (int) floor(PurchaseOrder::remainingQtyFor(7));
-        $qty = min(20, max(1, $remaining));
+        $before = ProductStock::effectiveStock(7);
+        $qty = 25;
 
         $response = $this->post(route('receivings.store'), [
             'type' => PurchaseOrderType::PRODUCT,
-            'po_id' => 7,
-            'qty_tan' => QtyHelper::tanCount($qty, 6),
+            'po_id' => 9,
+            'qty_tan' => QtyHelper::tanCount($qty, 7),
             'qty_meters' => $qty,
             'date' => '2026-06-26',
         ]);
 
         $response->assertRedirect(route('receivings.index'));
-        $this->assertSame($before + $qty, ProductStock::effectiveStock(6));
+        $this->assertSame($before + $qty, ProductStock::effectiveStock(7));
     }
 
+    /**
+     * 複数明細形式でも0.5反＝25mの製品入荷で在庫が増えることを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
     public function test_product_receiving_via_multi_line_entries_increases_stock(): void
     {
-        $before = ProductStock::effectiveStock(6);
-        $poLineId = (int) PurchaseOrder::query()->with('lines')->find(7)?->lines->first()?->id;
+        $before = ProductStock::effectiveStock(7);
+        $poLineId = (int) PurchaseOrder::query()->with('lines')->find(9)?->lines->first()?->id;
         $this->assertGreaterThan(0, $poLineId);
 
-        $remaining = (int) floor(PurchaseOrder::remainingQtyFor(7));
-        $qty = min(20, max(1, $remaining));
-        $qtyTan = QtyHelper::tanCount($qty, 6);
+        $qty = 25;
+        $qtyTan = QtyHelper::tanCount($qty, 7);
 
         $response = $this->post(route('receivings.store'), [
             'type' => PurchaseOrderType::PRODUCT,
-            'po_id' => 7,
+            'po_id' => 9,
             'date' => '2026-06-26',
             'entries' => [
                 [
@@ -150,7 +157,29 @@ class ReceivingTest extends TestCase
         ]);
 
         $response->assertRedirect(route('receivings.index'));
-        $this->assertSame($before + $qty, ProductStock::effectiveStock(6));
+        $this->assertSame($before + $qty, ProductStock::effectiveStock(7));
+    }
+
+    /**
+     * 0.25の倍数ではない0.3反を入荷時に丸めず、保存前に拒否することを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_product_receiving_rejects_tan_outside_quarter_step_without_rounding(): void
+    {
+        $before = ReceivingLine::query()->count();
+
+        $response = $this->post(route('receivings.store'), [
+            'type' => PurchaseOrderType::PRODUCT,
+            'po_id' => 9,
+            'qty_tan' => 0.3,
+            'qty_meters' => 15,
+            'date' => '2026-06-26',
+        ]);
+
+        $response->assertRedirect(route('receivings.create', ['type' => PurchaseOrderType::PRODUCT]));
+        $response->assertSessionHas('error', '入荷する明細行を1行以上選択し、数量を正しく入力してください。');
+        $this->assertSame($before, ReceivingLine::query()->count());
     }
 
     public function test_greige_receiving_via_multi_line_entries_shows_in_inventory(): void

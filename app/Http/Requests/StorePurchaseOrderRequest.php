@@ -87,7 +87,7 @@ class StorePurchaseOrderRequest extends FormRequest
                 'required', 'integer',
                 Rule::in(MasterCatalog::products()->pluck('id')->all()),
             ],
-            'lines.*.qty_meters' => ['required', 'integer', 'min:1', 'max:9999999'],
+            'lines.*.qty_meters' => ['required', 'numeric', 'min:0.01', 'max:9999999'],
             'order_id' => ['nullable', 'integer'],
         ];
     }
@@ -114,6 +114,12 @@ class StorePurchaseOrderRequest extends FormRequest
         ];
     }
 
+    /**
+     * 生地発注明細が0.25反刻みになっていることを丸め前に検証する。
+     *
+     * @param  Validator  $validator  基本ルール適用後の検証器
+     * @return void 検証エラーを同じ検証器へ追加するため戻り値は使わない
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
@@ -137,8 +143,19 @@ class StorePurchaseOrderRequest extends FormRequest
                     }
 
                     $tan = (float) ($line['qty_tan'] ?? 0);
-                    if ($tan > 0 && ! QtyHelper::isIntegerTan($tan)) {
-                        $validator->errors()->add("lines.{$index}.qty_tan", '発注反数は整数で入力してください。');
+                    if ($tan > 0 && ! QtyHelper::isValidTanStep($tan)) {
+                        $validator->errors()->add("lines.{$index}.qty_tan", '発注反数は0.25反刻みで入力してください。');
+                    }
+                }
+
+                if ($type === PurchaseOrderType::PRODUCT) {
+                    $productId = (int) ($line['product_id'] ?? 0);
+                    $meters = (float) ($line['qty_meters'] ?? 0);
+                    if ($productId > 0 && $meters > 0) {
+                        $tan = QtyHelper::tanCount($meters, $productId);
+                        if (! QtyHelper::isValidTanStep($tan)) {
+                            $validator->errors()->add("lines.{$index}.qty_meters", '製品発注数量は0.25反刻みになる数量で入力してください。');
+                        }
                     }
                 }
             }
@@ -177,7 +194,7 @@ class StorePurchaseOrderRequest extends FormRequest
                 ];
             } else {
                 $productId = (int) ($line['product_id'] ?? 0);
-                $qtyMeters = (int) ($line['qty_meters'] ?? 0);
+                $qtyMeters = round((float) ($line['qty_meters'] ?? 0), 2);
                 $lines[] = [
                     'product_id' => $productId,
                     'qty_meters' => $qtyMeters,
