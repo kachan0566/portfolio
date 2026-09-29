@@ -52,12 +52,12 @@ class ProductStockTest extends TestCase
 
         $rc001 = $movements->first(fn ($m) => $m->note === '入荷 RC-2606-001');
         $this->assertNotNull($rc001);
-        $this->assertSame(200, $rc001->qty);
+        $this->assertSame(200.0, (float) $rc001->qty);
 
         $sh001 = $movements->first(fn ($m) => $m->note === '出荷 SH-2606-001');
         $this->assertNotNull($sh001);
         $shipment = Shipment::query()->where('code', 'SH-2606-001')->first();
         $this->assertNotNull($shipment);
-        $this->assertSame((int) $shipment->qty_m, $sh001->qty);
+        $this->assertEqualsWithDelta((float) $shipment->qty_m, (float) $sh001->qty, 0.001);
     }
 }

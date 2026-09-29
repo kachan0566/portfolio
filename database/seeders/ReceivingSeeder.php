@@ -16,6 +16,7 @@ use App\Support\DemoData;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 class ReceivingSeeder extends Seeder
 {
@@ -84,7 +85,7 @@ class ReceivingSeeder extends Seeder
     /**
      * @param  array<string, mixed>  $row
      */
-    private function seedGreigeRolls(array $row, PurchaseOrder $po, ReceivingLine $receivingLine, \Illuminate\Support\Carbon $now): void
+    private function seedGreigeRolls(array $row, PurchaseOrder $po, ReceivingLine $receivingLine, Carbon $now): void
     {
         $greigeSku = (string) ($row['greige_sku'] ?? '');
         $greige = DemoData::findGreige($greigeSku);
@@ -92,7 +93,7 @@ class ReceivingSeeder extends Seeder
             return;
         }
 
-        $meters = (int) ($row['qty_meters'] ?? $row['qty'] ?? 0);
+        $meters = (float) ($row['qty_meters'] ?? $row['qty'] ?? 0);
         if ($meters <= 0) {
             return;
         }
@@ -126,7 +127,7 @@ class ReceivingSeeder extends Seeder
     /**
      * @param  array<string, mixed>  $row
      */
-    private function seedProductRolls(array $row, PurchaseOrder $po, ReceivingLine $receivingLine, \Illuminate\Support\Carbon $now): void
+    private function seedProductRolls(array $row, PurchaseOrder $po, ReceivingLine $receivingLine, Carbon $now): void
     {
         $productId = (int) ($row['product_id'] ?? 0);
         $product = DemoData::findProduct($productId);
@@ -134,17 +135,17 @@ class ReceivingSeeder extends Seeder
             return;
         }
 
-        $meters = (int) ($row['qty'] ?? 0);
+        $meters = (float) ($row['qty'] ?? 0);
         if ($meters <= 0) {
             return;
         }
 
-        $qtyTan = (float) QtyHelper::roundIntegerTan(QtyHelper::tanCount($meters, $productId));
-        $rollCount = max(1, (int) round($qtyTan));
-        $perRoll = TanRollRecorder::distributeMeters($meters, $rollCount);
+        $qtyTan = QtyHelper::tanCount($meters, $productId);
+
+        $rollLines = TanRollRecorder::defaultRollLines($qtyTan, (int) round($meters));
         $nominal = (int) ($product->meters_per_tan ?? DemoData::METERS_PER_TAN_PRODUCT);
 
-        foreach ($perRoll as $index => $actual) {
+        foreach ($rollLines as $index => $rollLine) {
             $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
             $code = $product->sku.'-'.$po->code.'-'.$seq;
 
@@ -155,8 +156,8 @@ class ReceivingSeeder extends Seeder
                     'purchase_order_id' => $po->id,
                     'receiving_line_id' => $receivingLine->id,
                     'parent_greige_roll_id' => null,
-                    'tan_qty' => 1.0,
-                    'actual_qty_m' => $actual,
+                    'tan_qty' => $rollLine['tan_qty'],
+                    'actual_qty_m' => $rollLine['actual_qty_m'],
                     'nominal_meters' => $nominal,
                     'status' => ProductRoll::STATUS_IN_STOCK,
                     'received_date' => $row['date'],

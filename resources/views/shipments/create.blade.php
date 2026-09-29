@@ -103,6 +103,15 @@
                             <p class="field-hint" id="shippable-hint"></p>
                             <div id="fifo-preview" class="field-hint" style="margin-top:8px;"></div>
                         </div>
+                        <div class="field" id="partial-m-field">
+                            <label class="label" for="partial_actual_qty_m">分割出荷の実測m</label>
+                            <div class="input-group">
+                                <input class="input mono" type="number" id="partial_actual_qty_m" name="partial_actual_qty_m"
+                                       min="1" step="1" placeholder="例：10">
+                                <span class="input-group__suffix">m</span>
+                            </div>
+                            <p class="field-hint">0.25反刻みで、在庫反の端数だけ出すときに入力します（1m単位・実測）。丸ごと1反出す場合は空欄でOKです。</p>
+                        </div>
                         <div class="field">
                             <label class="label" for="date">出荷日<span class="req">*</span></label>
                             <input class="input" type="date" id="date" name="date" value="2026-06-15">
@@ -159,7 +168,7 @@
                 hint.textContent = isMeters
                     ? 'm受注です。FIFOで足りる反が自動選択され、実測mで出荷されます。'
                     : (max > 0
-                        ? 'この受注は現在庫引当の範囲で最大 ' + QtyUnit.formatQty(max, perTan) + ' まで出荷できます（整数反・FIFO自動）。'
+                        ? 'この受注は現在庫引当の範囲で最大 ' + QtyUnit.formatQty(max, perTan) + ' まで出荷できます（0.25反刻み・FIFO自動）。'
                         : '現在庫引当がないため出荷できません。');
             }
             if (fifoPreview) {

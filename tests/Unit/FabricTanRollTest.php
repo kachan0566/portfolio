@@ -56,7 +56,7 @@ class FabricTanRollTest extends TestCase
 
         $entry = GreigeInventory::entries()->firstWhere('po_id', 5);
         $this->assertNotNull($entry);
-        $this->assertSame(200, $entry->qty_meters);
+        $this->assertSame(200.0, (float) $entry->qty_meters);
         $this->assertGreaterThanOrEqual(0, $entry->roll_count);
     }
 

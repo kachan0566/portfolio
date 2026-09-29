@@ -36,8 +36,8 @@ class PurchaseOrderSeederTest extends TestCase
         $this->assertNotNull($po);
         $this->assertSame(PurchaseOrderType::PRODUCT, $po->type);
         $this->assertSame(1, $po->order_id);
-        $this->assertSame(200, $po->primaryLine()?->qty_meters);
-        $this->assertSame(200, $po->primaryLine()?->received_qty_m);
+        $this->assertSame(200.0, (float) $po->primaryLine()?->qty_meters);
+        $this->assertSame(200.0, (float) $po->primaryLine()?->received_qty_m);
     }
 
     public function test_purchase_order_display_object_matches_demo_shape(): void
@@ -53,7 +53,7 @@ class PurchaseOrderSeederTest extends TestCase
         $display = $dbPo->toDisplayObject();
         $this->assertSame(PurchaseOrderType::GREIGE, $display->type);
         $this->assertSame('KB-A', $display->sku);
-        $this->assertSame(500, $display->qty_meters);
+        $this->assertSame(500.0, (float) $display->qty_meters);
         $this->assertNotEmpty($display->yarn_requirements);
     }
 

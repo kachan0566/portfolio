@@ -78,7 +78,7 @@ class AllocationConversionAndPoLinkTest extends TestCase
         $this->assertCount(1, $events);
         $this->assertSame(7, $events[0]['po_id']);
         $this->assertSame(7, $events[0]['order_id']);
-        $this->assertSame($qty, $events[0]['qty']);
+        $this->assertSame(20.0, (float) $events[0]['qty']);
         $this->assertNotSame('', $events[0]['at']);
     }
 

@@ -31,7 +31,9 @@ class InventoryController extends Controller
         $search = ListSearch::params($request);
 
         $products = MasterCatalog::products()->map(function ($p) use ($ym) {
-            $p->stock = ProductStock::effectiveStock($p->id);
+            $roll = ProductStock::inStockRollTotals($p->id);
+            $p->stock = $roll->meters;
+            $p->stock_tan = $roll->tan;
             $unitCost = DemoData::unitCost($p->id, $ym);
             $p->unit_cost = $unitCost !== null ? (int) round($unitCost) : null;
             $p->cost_calculable = $unitCost !== null;
@@ -211,6 +213,12 @@ class InventoryController extends Controller
         $ym = BusinessDate::currentYm();
         $target = MasterCatalog::findProductOrFail($product);
         $effectiveStock = ProductStock::effectiveStock($product);
+        $inStockRoll = ProductStock::inStockRollTotals($product);
+        $unallocatedStockQty = StockAllocation::unallocatedStockQuantityForProduct($product);
+        $stockAllocatedQty = (object) [
+            'tan' => StockAllocation::stockUsageTanForProduct($product),
+            'meters' => StockAllocation::stockUsageMetersForProduct($product),
+        ];
 
         $orders = DemoData::orders()
             ->where('product_id', $product)
@@ -253,6 +261,7 @@ class InventoryController extends Controller
         return view('inventory.show', [
             'product' => $target,
             'effectiveStock' => $effectiveStock,
+            'inStockRoll' => $inStockRoll,
             'unitCost' => $unitCost,
             'costCalculable' => $unitCost !== null,
             'costWarnings' => $costWarnings,
@@ -266,6 +275,8 @@ class InventoryController extends Controller
             'stockAllocatedTotal' => $allocation['stockAllocatedTotal'],
             'poAllocatedTotal' => $allocation['poAllocatedTotal'],
             'unallocatedStock' => $allocation['unallocatedStock'],
+            'unallocatedStockQty' => $unallocatedStockQty,
+            'stockAllocatedQty' => $stockAllocatedQty,
             'allocationShortage' => $allocation['allocationShortage'],
             'allocationRecorded' => $allocation['isRecorded'],
             'stockUsageByPo' => $usage['stock'],

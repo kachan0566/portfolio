@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Order;
 use App\Models\Shipment;
 use App\Services\Inventory\ShipmentRollAllocator;
 use App\Support\ProductRoll;
@@ -69,9 +70,12 @@ class ShipmentRollAllocatorTest extends TestCase
 
     private function createTestShipment(int $productId): Shipment
     {
+        $orderId = (int) Order::query()->where('product_id', $productId)->value('id');
+        $this->assertGreaterThan(0, $orderId);
+
         return Shipment::query()->create([
             'code' => 'SH-TEST-'.uniqid(),
-            'order_id' => 1,
+            'order_id' => $orderId,
             'product_id' => $productId,
             'qty_tan' => 1,
             'qty_m' => 50,

@@ -692,14 +692,14 @@ class DemoData
     public static function baseOrderRows(): Collection
     {
         $rows = [
-            ['id' => 1, 'code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'shipped' => 120, 'order_date' => '2026-06-02', 'due_date' => '2026-06-12', 'planned_ship_date' => '2026-06-11', 'ship_memo' => '6/11 全量出荷済み'],
-            ['id' => 2, 'code' => 'SO-2606-002', 'customer' => 'アパレル東京',    'product_id' => 3, 'qty' => 200, 'shipped' => 80,  'order_date' => '2026-06-03', 'due_date' => '2026-06-18', 'planned_ship_date' => '2026-06-17', 'ship_memo' => '残120は6/17午前に分納予定'],
-            ['id' => 3, 'code' => 'SO-2606-003', 'customer' => '西日本繊維',      'product_id' => 5, 'qty' => 90,  'shipped' => 0,   'order_date' => '2026-06-05', 'due_date' => '2026-06-20', 'planned_ship_date' => '2026-06-19', 'ship_memo' => '在庫確保のうえ6/19出荷予定'],
-            ['id' => 4, 'code' => 'SO-2606-004', 'customer' => 'ユニフォーム製作所', 'product_id' => 2, 'qty' => 60,  'shipped' => 60,  'order_date' => '2026-06-06', 'due_date' => '2026-06-15', 'planned_ship_date' => '2026-06-12', 'ship_memo' => '6/12 出荷完了'],
+            ['id' => 1, 'code' => 'SO-2606-001', 'customer' => '東レ商事',        'product_id' => 1, 'qty' => 120, 'shipped' => 120, 'order_qty_mode' => 'meters', 'order_date' => '2026-06-02', 'due_date' => '2026-06-12', 'planned_ship_date' => '2026-06-11', 'ship_memo' => '6/11 全量出荷済み'],
+            ['id' => 2, 'code' => 'SO-2606-002', 'customer' => 'アパレル東京',    'product_id' => 3, 'qty' => 200, 'shipped' => 75,  'order_date' => '2026-06-03', 'due_date' => '2026-06-18', 'planned_ship_date' => '2026-06-17', 'ship_memo' => '残125は6/17午前に分納予定'],
+            ['id' => 3, 'code' => 'SO-2606-003', 'customer' => '西日本繊維',      'product_id' => 5, 'qty' => 90,  'shipped' => 0,   'order_qty_mode' => 'meters', 'order_date' => '2026-06-05', 'due_date' => '2026-06-20', 'planned_ship_date' => '2026-06-19', 'ship_memo' => '在庫確保のうえ6/19出荷予定'],
+            ['id' => 4, 'code' => 'SO-2606-004', 'customer' => 'ユニフォーム製作所', 'product_id' => 2, 'qty' => 60,  'shipped' => 60,  'order_qty_mode' => 'meters', 'order_date' => '2026-06-06', 'due_date' => '2026-06-15', 'planned_ship_date' => '2026-06-12', 'ship_memo' => '6/12 出荷完了'],
             ['id' => 5, 'code' => 'SO-2606-005', 'customer' => '東レ商事',        'product_id' => 4, 'qty' => 150, 'shipped' => 0,   'order_date' => '2026-06-08', 'due_date' => '2026-06-25', 'planned_ship_date' => '2026-06-24', 'ship_memo' => '入荷待ち。6/24までに出荷予定'],
-            ['id' => 6, 'code' => 'SO-2606-006', 'customer' => 'アパレル東京',    'product_id' => 1, 'qty' => 100, 'shipped' => 40,  'order_date' => '2026-06-10', 'due_date' => '2026-06-28', 'planned_ship_date' => '2026-06-27', 'ship_memo' => '残60を6/27に出荷予定'],
-            ['id' => 7, 'code' => 'SO-2606-007', 'customer' => '西日本繊維',      'product_id' => 6, 'qty' => 180, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-03', 'planned_ship_date' => '2026-07-02', 'ship_memo' => '本日受付。在庫140mを引当予定。不足40mは PO-2606-007 で追加発注済み'],
-            ['id' => 8, 'code' => 'SO-2606-008', 'customer' => 'アパレル東京',    'product_id' => 7, 'qty' => 80,  'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-08', 'planned_ship_date' => '2026-07-07', 'ship_memo' => '本日受付。在庫不足のため PO-2606-008 を追加手配済み'],
+            ['id' => 6, 'code' => 'SO-2606-006', 'customer' => 'アパレル東京',    'product_id' => 1, 'qty' => 100, 'shipped' => 50,  'order_date' => '2026-06-10', 'due_date' => '2026-06-28', 'planned_ship_date' => '2026-06-27', 'ship_memo' => '残50を6/27に出荷予定'],
+            ['id' => 7, 'code' => 'SO-2606-007', 'customer' => '西日本繊維',      'product_id' => 6, 'qty' => 180, 'shipped' => 0,   'order_qty_mode' => 'meters', 'order_date' => '2026-06-25', 'due_date' => '2026-07-03', 'planned_ship_date' => '2026-07-02', 'ship_memo' => '本日受付。在庫140mを引当予定。不足40mは PO-2606-007 で追加発注済み'],
+            ['id' => 8, 'code' => 'SO-2606-008', 'customer' => 'アパレル東京',    'product_id' => 7, 'qty' => 80,  'shipped' => 0,   'order_qty_mode' => 'meters', 'order_date' => '2026-06-25', 'due_date' => '2026-07-08', 'planned_ship_date' => '2026-07-07', 'ship_memo' => '本日受付。在庫不足のため PO-2606-008 を追加手配済み'],
             ['id' => 9, 'code' => 'SO-2606-009', 'customer' => '東レ商事',        'product_id' => 7, 'qty' => 500, 'shipped' => 0,   'order_date' => '2026-06-25', 'due_date' => '2026-07-20', 'planned_ship_date' => '2026-07-18', 'ship_memo' => '本日受付。大型案件500m。在庫不足のため PO-2606-009 を追加手配済み'],
             ['id' => 10, 'code' => 'SO-2606-010', 'customer' => 'ユニフォーム製作所', 'product_id' => 3, 'qty' => 50, 'shipped' => 0, 'order_date' => '2026-06-25', 'due_date' => '2026-07-05', 'planned_ship_date' => '2026-07-04', 'ship_memo' => '本日受付。在庫70mから全量引当可能'],
         ];
@@ -793,7 +793,7 @@ class DemoData
                 'id' => 3, 'code' => 'PO-2606-003', 'type' => PurchaseOrderType::PRODUCT,
                 'status' => PurchaseOrderStatus::ORDERED, 'order_id' => 3,
                 'supplier_id' => 7, 'ship_to_id' => 4,
-                'product_id' => 5, 'qty_meters' => 120, 'received' => 0,
+                'product_id' => 5, 'qty_meters' => 100, 'received' => 0,
                 'order_date' => '2026-06-05', 'due_date' => '2026-06-19',
                 'stage' => '染機投入済', 'finish_date' => '2026-06-22', 'contact_date' => '2026-06-20',
                 'arrival_memo' => '染工場に確認済み。6/22入荷見込み',
@@ -831,16 +831,16 @@ class DemoData
                 'id' => 7, 'code' => 'PO-2606-007', 'type' => PurchaseOrderType::PRODUCT,
                 'status' => PurchaseOrderStatus::ORDERED, 'order_id' => 7,
                 'supplier_id' => 6, 'ship_to_id' => 4,
-                'product_id' => 6, 'qty_meters' => 40, 'received' => 0,
+                'product_id' => 6, 'qty_meters' => 50, 'received' => 0,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-01',
                 'stage' => '染機投入済', 'finish_date' => '2026-07-02', 'contact_date' => '2026-06-30',
-                'arrival_memo' => '不足分40mの追加手配。7/2上がり予定',
+                'arrival_memo' => '不足分50mの追加手配。7/2上がり予定',
             ],
             [
                 'id' => 8, 'code' => 'PO-2606-008', 'type' => PurchaseOrderType::PRODUCT,
                 'status' => PurchaseOrderStatus::PARTIAL, 'order_id' => 8,
                 'supplier_id' => 6, 'ship_to_id' => 4,
-                'product_id' => 7, 'qty_meters' => 200, 'received' => 120,
+                'product_id' => 7, 'qty_meters' => 200, 'received' => 125,
                 'order_date' => '2026-06-25', 'due_date' => '2026-07-05',
                 'stage' => '染機投入済', 'finish_date' => '2026-07-06', 'contact_date' => '2026-07-04',
             ],
@@ -880,11 +880,11 @@ class DemoData
                 'purchase_order_id' => 1, 'allocation_type' => OrderAllocation::TYPE_STOCK,
                 'qty_tan' => 2.5,
             ],
-            // SO-2606-002: 一部出荷。在庫75m + 発注残125m
+            // SO-2606-002: 一部出荷。在庫100m + 発注残125m
             [
                 'id' => 2, 'order_id' => 2, 'product_id' => 3,
                 'purchase_order_id' => 2, 'allocation_type' => OrderAllocation::TYPE_STOCK,
-                'qty_tan' => 1.5,
+                'qty_tan' => 2.0,
             ],
             [
                 'id' => 3, 'order_id' => 2, 'product_id' => 3,
@@ -983,11 +983,11 @@ class DemoData
             $row['sku'] = $greige?->sku ?? ($row['greige_sku'] ?? '—');
             $row['product'] = $greige?->name ?? '—';
             $row['unit'] = '反';
-            $row['qty_meters'] = (int) ($row['qty_meters'] ?? 0);
+            $row['qty_meters'] = (float) ($row['qty_meters'] ?? 0);
             $row['qty'] = $row['qty_meters'];
             $row['qty_tan'] = (float) ($row['qty_tan'] ?? 0);
             $row['meters_per_tan'] = (int) ($row['meters_per_tan'] ?? self::METERS_PER_TAN_GREIGE);
-            $row['received'] = (int) ($row['received'] ?? 0);
+            $row['received'] = (float) ($row['received'] ?? 0);
             $row['yarn_requirements'] = self::greigeYarnRequirements($row['sku'], $row['qty_meters']);
             $row['manual_stage'] = PurchaseOrderStages::normalizeGreigeManualStage($row['stage'] ?? null);
             $row['finish_date'] = $row['finish_date'] ?? $row['due_date'] ?? null;
@@ -997,7 +997,7 @@ class DemoData
             $row['product'] = $product?->sku ?? '—';
             $row['sku'] = $product?->sku ?? '—';
             $row['unit'] = $product?->unit ?? '反';
-            $row['qty_meters'] = (int) ($row['qty_meters'] ?? $row['qty'] ?? 0);
+            $row['qty_meters'] = (float) ($row['qty_meters'] ?? $row['qty'] ?? 0);
             $row['qty_tan'] = isset($row['qty_tan']) && (float) $row['qty_tan'] > 0
                 ? QtyHelper::roundTan((float) $row['qty_tan'])
                 : QtyHelper::tanCount($row['qty_meters'], (int) ($row['product_id'] ?? 0));
@@ -1005,7 +1005,7 @@ class DemoData
                 $row['qty_meters'] = QtyHelper::metersFromTan($row['qty_tan'], (int) ($row['product_id'] ?? 0));
             }
             $row['qty'] = $row['qty_meters'];
-            $row['received'] = (int) ($row['received'] ?? 0);
+            $row['received'] = (float) ($row['received'] ?? 0);
             $row['manual_stage'] = PurchaseOrderStages::normalizeProductManualStage($row['stage'] ?? null);
         }
 
@@ -1031,29 +1031,29 @@ class DemoData
         return match ($po->type ?? PurchaseOrderType::PRODUCT) {
             PurchaseOrderType::YARN => (float) ($po->qty_kg ?? $po->qty ?? 0),
             PurchaseOrderType::GREIGE => (float) ($po->qty_tan ?? QtyHelper::tanCount(
-                (int) ($po->qty_meters ?? $po->qty ?? 0),
+                (float) ($po->qty_meters ?? $po->qty ?? 0),
                 null,
                 true,
                 (string) ($po->greige_sku ?? $po->sku ?? ''),
             )),
             default => (float) ($po->qty_tan ?? QtyHelper::tanCount(
-                (int) ($po->qty_meters ?? $po->qty ?? 0),
+                (float) ($po->qty_meters ?? $po->qty ?? 0),
                 (int) ($po->product_id ?? 0),
             )),
         };
     }
 
-    public static function purchaseOrderOrderedMeters(object $po): int
+    public static function purchaseOrderOrderedMeters(object $po): float
     {
         return match ($po->type ?? PurchaseOrderType::PRODUCT) {
             PurchaseOrderType::YARN => 0,
-            PurchaseOrderType::GREIGE => (int) ($po->qty_meters ?? QtyHelper::metersFromTan(
+            PurchaseOrderType::GREIGE => (float) ($po->qty_meters ?? QtyHelper::metersFromTan(
                 (float) ($po->qty_tan ?? 0),
                 null,
                 true,
                 (string) ($po->greige_sku ?? $po->sku ?? ''),
             )),
-            default => (int) ($po->qty_meters ?? QtyHelper::metersFromTan(
+            default => (float) ($po->qty_meters ?? QtyHelper::metersFromTan(
                 (float) ($po->qty_tan ?? 0),
                 (int) ($po->product_id ?? 0),
             )),
@@ -1093,7 +1093,7 @@ class DemoData
             ['id' => 1, 'code' => 'RC-2606-001', 'po_code' => 'PO-2606-001', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => '紡績ワークス', 'product_id' => 1, 'qty' => 200, 'date' => '2026-06-08'],
             ['id' => 2, 'code' => 'RC-2606-002', 'po_code' => 'PO-G-2606-002', 'po_type' => PurchaseOrderType::GREIGE, 'supplier' => '東洋織物', 'greige_sku' => 'KB-T', 'qty_meters' => 200, 'date' => '2026-06-18'],
             ['id' => 3, 'code' => 'RC-2606-003', 'po_code' => 'PO-2606-002', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => 'ケミカル商会', 'product_id' => 3, 'qty' => 150, 'date' => '2026-06-14'],
-            ['id' => 4, 'code' => 'RC-2606-004', 'po_code' => 'PO-2606-008', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => '紡績ワークス', 'product_id' => 7, 'qty' => 120, 'date' => '2026-06-25'],
+            ['id' => 4, 'code' => 'RC-2606-004', 'po_code' => 'PO-2606-008', 'po_type' => PurchaseOrderType::PRODUCT, 'supplier' => '紡績ワークス', 'product_id' => 7, 'qty' => 125, 'date' => '2026-06-25'],
             ['id' => 5, 'code' => 'RC-2606-005', 'po_code' => 'PO-Y-2606-002', 'po_type' => PurchaseOrderType::YARN, 'supplier' => '紡績ワークス', 'material_id' => 2, 'qty_kg' => 150.0, 'date' => '2026-06-16'],
         ]);
     }

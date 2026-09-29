@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
+/**
+ * 受注に対する出荷実績の反数・実測mと配送情報を保持する。
+ */
 #[Fillable([
     'code',
     'order_id',
@@ -20,13 +23,18 @@ use Illuminate\Support\Collection;
 ])]
 class Shipment extends Model
 {
+    /**
+     * 0.25反と小数mを失わず読み書きする型変換を定義する。
+     *
+     * @return array<string, string> Eloquentの列別キャスト
+     */
     protected function casts(): array
     {
         return [
             'order_id' => 'integer',
             'product_id' => 'integer',
             'qty_tan' => 'decimal:2',
-            'qty_m' => 'integer',
+            'qty_m' => 'decimal:2',
             'shipped_date' => 'date',
         ];
     }
@@ -64,7 +72,7 @@ class Shipment extends Model
     {
         $product = $this->product;
         $order = $this->order;
-        $qtyM = (int) $this->qty_m;
+        $qtyM = (float) $this->qty_m;
         $price = (int) ($product?->price ?? 0);
 
         return (object) [

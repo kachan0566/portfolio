@@ -2,10 +2,9 @@
 
 namespace App\Services\Fabric;
 
-use App\Support\MasterCatalog;
 use App\Support\DemoData;
-use App\Support\FabricTanRoll;
 use App\Support\GreigeRoll;
+use App\Support\MasterCatalog;
 use App\Support\ProductRoll;
 use App\Support\QtyHelper;
 
@@ -107,8 +106,8 @@ class TanRollRecorder
         $greigeNominal = (int) ($greige->meters_per_tan ?? QtyHelper::METERS_PER_TAN_GREIGE);
         $productNominal = (int) ($product->meters_per_tan ?? QtyHelper::METERS_PER_TAN_PRODUCT);
 
-        $targetTan = (float) ($po->qty_tan ?? QtyHelper::roundIntegerTan(
-            QtyHelper::tanCount((int) $po->qty_meters, $productId)
+        $targetTan = (float) ($po->qty_tan ?? QtyHelper::roundTan(
+            QtyHelper::tanCount((float) $po->qty_meters, $productId)
         ));
         $greigeRolls = GreigeRoll::inDyeingForPurchaseOrder($productPoId);
         if ($greigeRolls->isEmpty()) {
@@ -348,7 +347,7 @@ class TanRollRecorder
     /**
      * 入荷反数から反行の初期値を生成（0.25刻み対応）。
      *
-     * @return list<array{tan_qty: float, actual_qty_m: int}>
+     * @return list<array{tan_qty: float, actual_qty_m: float}>
      */
     public static function defaultRollLines(float $qtyTan, int $totalMeters): array
     {
@@ -366,13 +365,13 @@ class TanRollRecorder
             for ($i = 0; $i < $fullRolls; $i++) {
                 $lines[] = [
                     'tan_qty' => 1.0,
-                    'actual_qty_m' => (int) round($perFull[$i] ?? ($totalMeters / $qtyTan)),
+                    'actual_qty_m' => round($perFull[$i] ?? ($totalMeters / $qtyTan), 2),
                 ];
             }
             if ($fraction > 0) {
                 $lines[] = [
                     'tan_qty' => $fraction,
-                    'actual_qty_m' => (int) round($perFull[$fullRolls] ?? 0),
+                    'actual_qty_m' => round($perFull[$fullRolls] ?? 0, 2),
                 ];
             }
         } else {

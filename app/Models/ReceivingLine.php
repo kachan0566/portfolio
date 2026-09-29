@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * 入荷伝票の明細合計を、発注明細との関連とともに保持する。
+ */
 #[Fillable([
     'receiving_id',
     'purchase_order_line_id',
@@ -17,6 +20,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class ReceivingLine extends Model
 {
+    /**
+     * 0.25反と小数mを失わず読み書きする型変換を定義する。
+     *
+     * @return array<string, string> Eloquentの列別キャスト
+     */
     protected function casts(): array
     {
         return [
@@ -24,7 +32,7 @@ class ReceivingLine extends Model
             'purchase_order_line_id' => 'integer',
             'line_no' => 'integer',
             'qty_tan' => 'decimal:2',
-            'qty_m' => 'integer',
+            'qty_m' => 'decimal:2',
             'qty_kg' => 'decimal:3',
         ];
     }

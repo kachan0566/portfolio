@@ -27,22 +27,28 @@ class OrderSeeder extends Seeder
             $productId = (int) $row['product_id'];
             $mode = $row['order_qty_mode'] ?? 'tan';
 
-            $qtyTan = $mode === 'tan'
-                ? QtyHelper::roundIntegerTan((float) ($row['qty_tan'] ?? FabricQuantity::tanFromRecord($row, $productId)))
-                : FabricQuantity::tanFromRecord($row, $productId);
-
-            $qtyMeters = $mode === 'meters'
-                ? (int) ($row['qty_meters'] ?? $row['qty'] ?? 0)
-                : FabricQuantity::metersFromRecord(
+            if ($mode === 'meters') {
+                $qtyMeters = (float) ($row['qty_meters'] ?? $row['qty'] ?? 0);
+                $qtyTan = 0.0;
+                $shippedM = (float) ($row['shipped_meters'] ?? $row['shipped'] ?? 0);
+                $shippedTan = 0.0;
+            } else {
+                $qtyTan = (float) ($row['qty_tan'] ?? FabricQuantity::tanFromRecord($row, $productId));
+                $qtyMeters = FabricQuantity::metersFromRecord(
                     ['qty_tan' => $qtyTan, 'qty_meters' => $row['qty_meters'] ?? null],
                     $productId,
                 );
+                $shippedM = (float) ($row['shipped_meters'] ?? $row['shipped'] ?? 0);
+                $shippedTan = FabricQuantity::tanFromRecord(
+                    ['qty_tan' => $row['shipped_tan'] ?? null, 'qty' => $shippedM],
+                    $productId,
+                );
 
-            $shippedM = (int) ($row['shipped_meters'] ?? $row['shipped'] ?? 0);
-            $shippedTan = FabricQuantity::tanFromRecord(
-                ['qty_tan' => $row['shipped_tan'] ?? null, 'qty' => $shippedM],
-                $productId,
-            );
+                if ($shippedTan > 0 && ! QtyHelper::isValidTanStep($shippedTan)) {
+                    $shippedM = 0.0;
+                    $shippedTan = 0.0;
+                }
+            }
 
             Order::query()->updateOrCreate(
                 ['id' => $row['id']],
@@ -51,7 +57,7 @@ class OrderSeeder extends Seeder
                     'customer_id' => $customerId,
                     'product_id' => $productId,
                     'order_qty_mode' => $mode,
-                    'qty_tan' => $mode === 'tan' ? (int) $qtyTan : 0,
+                    'qty_tan' => $mode === 'tan' ? $qtyTan : 0,
                     'qty_meters' => $qtyMeters,
                     'shipped_qty_tan' => $shippedTan,
                     'shipped_qty_m' => $shippedM,

@@ -29,7 +29,7 @@ class ShipmentPlan
             ['id' => 2, 'code' => 'SP-2606-002', 'order_id' => 3, 'product_id' => 5, 'planned_ship_date' => '2026-06-19', 'confirmed_qty_m' => 90, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => ''],
             ['id' => 3, 'code' => 'SP-2606-003', 'order_id' => 5, 'product_id' => 4, 'planned_ship_date' => '2026-06-24', 'confirmed_qty_m' => 150, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '入荷待ち'],
             ['id' => 4, 'code' => 'SP-2606-004', 'order_id' => 6, 'product_id' => 1, 'planned_ship_date' => '2026-06-27', 'confirmed_qty_m' => 60, 'shipped_qty_m' => 0, 'status' => self::STATUS_CONFIRMED, 'note' => '残量出荷'],
-            ['id' => 5, 'code' => 'SP-2606-005', 'order_id' => 2, 'product_id' => 3, 'planned_ship_date' => '2026-06-14', 'confirmed_qty_m' => 80, 'shipped_qty_m' => 80, 'status' => self::STATUS_COMPLETED, 'note' => '1回目出荷済'],
+            ['id' => 5, 'code' => 'SP-2606-005', 'order_id' => 2, 'product_id' => 3, 'planned_ship_date' => '2026-06-14', 'confirmed_qty_m' => 75, 'shipped_qty_m' => 75, 'status' => self::STATUS_COMPLETED, 'note' => '1回目出荷済'],
         ];
     }
 

@@ -76,7 +76,7 @@ class PurchaseOrder extends Model
                 fn ($line) => (float) ($line->received_qty_kg ?? 0),
             ),
             default => (float) $this->lines->sum(
-                fn ($line) => (int) ($line->received_qty_m ?? 0),
+                fn ($line) => (float) ($line->received_qty_m ?? 0),
             ),
         };
     }
@@ -88,7 +88,7 @@ class PurchaseOrder extends Model
                 fn ($line) => (float) ($line->qty_kg ?? 0),
             ),
             default => (float) $this->lines->sum(
-                fn ($line) => (int) ($line->qty_meters ?? 0),
+                fn ($line) => (float) ($line->qty_meters ?? 0),
             ),
         };
     }
@@ -251,11 +251,11 @@ class PurchaseOrder extends Model
             $row['sku'] = $this->summarizeLineSkus(fn ($line) => $line->greige?->sku ?? '—');
             $row['product'] = $greige?->name ?? '—';
             $row['unit'] = '反';
-            $row['qty_meters'] = (int) $this->lines->sum(fn ($line) => (int) ($line->qty_meters ?? 0));
+            $row['qty_meters'] = round((float) $this->lines->sum(fn ($line) => (float) ($line->qty_meters ?? 0)), 2);
             $row['qty'] = $row['qty_meters'];
             $row['qty_tan'] = (float) $this->lines->sum(fn ($line) => (float) ($line->qty_tan ?? 0));
             $row['meters_per_tan'] = (int) ($detail?->meters_per_tan ?? DemoData::METERS_PER_TAN_GREIGE);
-            $row['received'] = (int) $this->lines->sum(fn ($line) => (int) ($line->received_qty_m ?? 0));
+            $row['received'] = round((float) $this->lines->sum(fn ($line) => (float) ($line->received_qty_m ?? 0)), 2);
             $row['yarn_requirements'] = DemoData::greigeYarnRequirements($sku, $row['qty_meters']);
             $row['manual_stage'] = $this->manualStageValue()
                 ?: PurchaseOrderStages::normalizeGreigeManualStage($detail?->stage);
@@ -268,7 +268,7 @@ class PurchaseOrder extends Model
             $row['product'] = $product?->sku ?? '—';
             $row['sku'] = $this->summarizeLineSkus(fn ($line) => $line->product?->sku ?? '—');
             $row['unit'] = $product?->unit ?? '反';
-            $row['qty_meters'] = (int) $this->lines->sum(fn ($line) => (int) ($line->qty_meters ?? 0));
+            $row['qty_meters'] = round((float) $this->lines->sum(fn ($line) => (float) ($line->qty_meters ?? 0)), 2);
             $row['qty_tan'] = (float) $this->lines->sum(fn ($line) => (float) ($line->qty_tan ?? 0));
             if ($row['qty_tan'] <= 0 && $row['qty_meters'] > 0 && $productId > 0) {
                 $row['qty_tan'] = QtyHelper::tanCount($row['qty_meters'], $productId);
@@ -277,7 +277,7 @@ class PurchaseOrder extends Model
                 $row['qty_meters'] = QtyHelper::metersFromTan($row['qty_tan'], $productId);
             }
             $row['qty'] = $row['qty_meters'];
-            $row['received'] = (int) $this->lines->sum(fn ($line) => (int) ($line->received_qty_m ?? 0));
+            $row['received'] = round((float) $this->lines->sum(fn ($line) => (float) ($line->received_qty_m ?? 0)), 2);
             $row['finish_date'] = $detail?->finish_date?->toDateString();
             $row['contact_date'] = $detail?->contact_date?->toDateString();
             $row['manual_stage'] = $this->manualStageValue()
@@ -350,11 +350,11 @@ class PurchaseOrder extends Model
             $row['sku'] = $line->skuLabel();
             $row['product'] = $line->greige?->name ?? '—';
             $row['unit'] = '反';
-            $row['qty_meters'] = (int) ($line->qty_meters ?? 0);
+            $row['qty_meters'] = (float) ($line->qty_meters ?? 0);
             $row['qty'] = $row['qty_meters'];
             $row['qty_tan'] = (float) ($line->qty_tan ?? 0);
             $row['meters_per_tan'] = $line->metersPerTanValue();
-            $row['received'] = (int) ($line->received_qty_m ?? 0);
+            $row['received'] = (float) ($line->received_qty_m ?? 0);
             $row['yarn_requirements'] = DemoData::greigeYarnRequirements($greigeSku, $row['qty_meters']);
             $row['manual_stage'] = PurchaseOrderStages::normalizeGreigeManualStage($line->stage);
             $row['finish_date'] = $line->finish_date?->toDateString()
@@ -365,7 +365,7 @@ class PurchaseOrder extends Model
             $row['product'] = $line->product?->sku ?? '—';
             $row['sku'] = $line->skuLabel();
             $row['unit'] = $line->product?->unit ?? '反';
-            $row['qty_meters'] = (int) ($line->qty_meters ?? 0);
+            $row['qty_meters'] = (float) ($line->qty_meters ?? 0);
             $row['qty_tan'] = (float) ($line->qty_tan ?? 0);
             if ($row['qty_tan'] <= 0 && $row['qty_meters'] > 0 && $productId > 0) {
                 $row['qty_tan'] = QtyHelper::tanCount($row['qty_meters'], $productId);
@@ -374,7 +374,7 @@ class PurchaseOrder extends Model
                 $row['qty_meters'] = QtyHelper::metersFromTan($row['qty_tan'], $productId);
             }
             $row['qty'] = $row['qty_meters'];
-            $row['received'] = (int) ($line->received_qty_m ?? 0);
+            $row['received'] = (float) ($line->received_qty_m ?? 0);
             $row['finish_date'] = $line->finish_date?->toDateString();
             $row['contact_date'] = $line->contact_date?->toDateString();
             $row['manual_stage'] = PurchaseOrderStages::normalizeProductManualStage($line->stage);

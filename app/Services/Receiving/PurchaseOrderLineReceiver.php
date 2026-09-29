@@ -41,7 +41,7 @@ class PurchaseOrderLineReceiver
         }
 
         $receivedTan = QtyHelper::roundReceivingTan((float) $lines->sum(fn ($row) => (float) $row->qty_tan));
-        $receivedM = (int) $lines->sum(fn ($row) => (int) $row->qty_m);
+        $receivedM = round((float) $lines->sum(fn ($row) => (float) $row->qty_m), 2);
 
         $poLine->update([
             'received_qty_tan' => $receivedTan,

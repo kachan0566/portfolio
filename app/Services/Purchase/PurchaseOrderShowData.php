@@ -51,7 +51,7 @@ class PurchaseOrderShowData
             } else {
                 $groups[$key]['ordered_tan'] += $line->orderedTan();
                 $groups[$key]['received_tan'] += $line->receivedTan();
-                $groups[$key]['received_m'] += (int) ($line->received_qty_m ?? 0);
+                $groups[$key]['received_m'] += (float) ($line->received_qty_m ?? 0);
                 $groups[$key]['remaining_tan'] = max(
                     0.0,
                     $groups[$key]['ordered_tan'] - $groups[$key]['received_tan'],

@@ -10,20 +10,27 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * 出荷時の FIFO 反丸ごと割当。
+ * 出荷時の FIFO 反割当。丸ごと消費と、最後の反だけの分割出荷に対応する。
  */
 class ShipmentRollAllocator
 {
     /**
+     * 指定反数を FIFO で割り当てる。最後の反が分割になる場合は実測mが必須。
+     *
      * @return array{allocated_tan: float, allocated_m: float, roll_ids: list<int>}
      */
-    public static function allocate(int $productId, float $qtyTan, int $shipmentId, ?string $note = null): array
-    {
+    public static function allocate(
+        int $productId,
+        float $qtyTan,
+        int $shipmentId,
+        ?string $note = null,
+        ?float $partialActualMeters = null,
+    ): array {
         if ($qtyTan <= 0) {
             return ['allocated_tan' => 0.0, 'allocated_m' => 0.0, 'roll_ids' => []];
         }
 
-        $targetTan = QtyHelper::roundReceivingTan($qtyTan);
+        $targetTan = QtyHelper::roundTan($qtyTan);
         $remainingTan = $targetTan;
         $allocatedM = 0.0;
         $rollIds = [];
@@ -33,22 +40,78 @@ class ShipmentRollAllocator
                 break;
             }
 
+            $rollId = (int) $roll->id;
             $rollTan = (float) $roll->tan_qty;
             $rollM = (float) $roll->actual_qty_m;
 
-            self::recordAllocation($shipmentId, (int) $roll->id, $rollTan, $rollM, $note);
-            ProductRoll::markShipped((int) $roll->id);
+            if ($remainingTan + 0.0001 >= $rollTan) {
+                self::recordAllocation($shipmentId, $rollId, $rollTan, $rollM, $note);
+                ProductRoll::markShipped($rollId);
 
-            $rollIds[] = (int) $roll->id;
-            $remainingTan = round($remainingTan - $rollTan, 2);
-            $allocatedM += $rollM;
+                $rollIds[] = $rollId;
+                $remainingTan = round($remainingTan - $rollTan, 2);
+                $allocatedM += $rollM;
+
+                continue;
+            }
+
+            $useTan = QtyHelper::roundTan($remainingTan);
+            if ($partialActualMeters === null || $partialActualMeters <= 0) {
+                throw new \RuntimeException('分割出荷には、分割する反の出荷実測m（1m単位）を入力してください。');
+            }
+
+            $consumeM = round($partialActualMeters, 2);
+            if ($consumeM > $rollM + 0.0001) {
+                throw new \RuntimeException('出荷実測mが在庫反の実測mを超えています。');
+            }
+
+            self::recordAllocation($shipmentId, $rollId, $useTan, $consumeM, $note);
+            ProductRoll::update($rollId, [
+                'tan_qty' => round($rollTan - $useTan, 2),
+                'actual_qty_m' => round($rollM - $consumeM, 2),
+                'status' => ProductRoll::STATUS_IN_STOCK,
+            ]);
+
+            $rollIds[] = $rollId;
+            $allocatedM += $consumeM;
+            $remainingTan = 0.0;
+        }
+
+        if ($remainingTan > 0.0001) {
+            throw new \RuntimeException('出荷できる在庫反がありません。');
         }
 
         return [
-            'allocated_tan' => round($targetTan - max(0, $remainingTan), 2),
+            'allocated_tan' => $targetTan,
             'allocated_m' => round($allocatedM, 2),
             'roll_ids' => $rollIds,
         ];
+    }
+
+    /**
+     * 最後の反を分割して出荷する場合に、実測m入力が必要かどうか。
+     */
+    public static function requiresPartialActualMeters(int $productId, float $qtyTan): bool
+    {
+        $remainingTan = QtyHelper::roundTan($qtyTan);
+        if ($remainingTan <= 0) {
+            return false;
+        }
+
+        foreach (ProductRoll::fifoInStock($productId) as $roll) {
+            if ($remainingTan <= 0.0001) {
+                break;
+            }
+
+            $rollTan = (float) $roll->tan_qty;
+            if ($remainingTan + 0.0001 < $rollTan) {
+                return true;
+            }
+
+            $remainingTan = round($remainingTan - $rollTan, 2);
+        }
+
+        return false;
     }
 
     /**
@@ -94,7 +157,7 @@ class ShipmentRollAllocator
      */
     public static function previewFifo(int $productId, float $qtyTan): array
     {
-        $remainingTan = QtyHelper::roundReceivingTan($qtyTan);
+        $remainingTan = QtyHelper::roundTan($qtyTan);
         $preview = [];
 
         foreach (ProductRoll::fifoInStock($productId) as $roll) {
@@ -136,7 +199,7 @@ class ShipmentRollAllocator
         ShipmentRollAllocation::query()->create([
             'shipment_id' => $shipmentId,
             'product_roll_id' => $productRollId,
-            'consumed_tan_qty' => QtyHelper::roundReceivingTan($consumedTanQty),
+            'consumed_tan_qty' => QtyHelper::roundTan($consumedTanQty),
             'consumed_qty_m' => round($consumedQtyM, 2),
             'note' => $note,
         ]);

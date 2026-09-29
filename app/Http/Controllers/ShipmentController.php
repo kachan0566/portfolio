@@ -62,6 +62,14 @@ class ShipmentController extends Controller
         return view('shipments.create', compact('pending', 'selectedOrderId'));
     }
 
+    /**
+     * 出荷入力を検証し、0.25反刻みの出荷実績を登録する。
+     *
+     * m指定受注は従来どおり必要な在庫反をFIFOで選び、反数指定受注だけ丸め前の反数を検証する。
+     *
+     * @param  Request  $request  受注ID・出荷反数・分割反の実測mを含む入力
+     * @return RedirectResponse 登録成功時は出荷一覧、失敗時は出荷登録画面へ戻す
+     */
     public function store(Request $request): RedirectResponse
     {
         $orderId = (int) $request->input('order_id');
@@ -77,8 +85,14 @@ class ShipmentController extends Controller
             $qtyTan = QtyHelper::tanCountCeilForShipment(Order::remainingMetersFor($orderId), (int) $order->product_id);
             $qty = Order::remainingMetersFor($orderId);
         } else {
+            $rawQtyTan = (float) $request->input('qty_tan');
+            if (! QtyHelper::isValidTanStep($rawQtyTan)) {
+                return redirect()->route('shipments.create', ['order_id' => $orderId])
+                    ->with('error', '出荷反数は0.25反刻みで入力してください。');
+            }
+
             $resolved = FabricQuantity::resolve(
-                $request->input('qty_tan'),
+                $rawQtyTan,
                 null,
                 (int) $order->product_id,
                 false,
@@ -92,12 +106,7 @@ class ShipmentController extends Controller
         $shippable = StockAllocation::shippableQty($orderId);
         if ($qtyTan <= 0) {
             return redirect()->route('shipments.create', ['order_id' => $orderId])
-                ->with('error', '出荷数量は 1反 以上で入力してください。');
-        }
-
-        if (! QtyHelper::isIntegerTan($qtyTan) && ! $isMetersOrder) {
-            return redirect()->route('shipments.create', ['order_id' => $orderId])
-                ->with('error', '出荷反数は整数で入力してください。');
+                ->with('error', '出荷数量は0.25反以上で入力してください。');
         }
 
         if ($qty > $shippable && ! $isMetersOrder) {
@@ -114,6 +123,25 @@ class ShipmentController extends Controller
                 ->with('error', '現在庫（'.QtyHelper::format($effectiveStock, $order->product_id).'）を超える出荷はできません。');
         }
 
+        $partialActualMeters = null;
+        if (! $isMetersOrder) {
+            $partialInput = $request->input('partial_actual_qty_m');
+            if ($partialInput !== null && $partialInput !== '') {
+                $partialActualMeters = (float) $partialInput;
+                if ($partialActualMeters <= 0 || abs($partialActualMeters - round($partialActualMeters)) > 0.001) {
+                    return redirect()->route('shipments.create', ['order_id' => $orderId])
+                        ->with('error', '分割出荷の実測mは1m単位の正の整数で入力してください。');
+                }
+            }
+
+            if (ShipmentRollAllocator::requiresPartialActualMeters((int) $order->product_id, $qtyTan)) {
+                if ($partialActualMeters === null) {
+                    return redirect()->route('shipments.create', ['order_id' => $orderId])
+                        ->with('error', 'この出荷量では反を分割します。分割する反の出荷実測m（1m単位）を入力してください。');
+                }
+            }
+        }
+
         if (Schema::hasTable('shipments')) {
             $result = ShipmentRegistrar::register(
                 $orderId,
@@ -122,6 +150,7 @@ class ShipmentController extends Controller
                 BusinessDate::today(),
                 null,
                 null,
+                $partialActualMeters,
             );
 
             return redirect()->route('shipments.index')

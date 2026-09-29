@@ -18,7 +18,17 @@ class FabricQuantity
     public const CONTEXT_PO = 'po';
 
     /**
-     * @return object{qty_tan: float, qty_meters: int, meters_overridden: bool}
+     * 入力された反数またはm数を、用途ごとの正規化済み数量へ解決する。
+     *
+     * 反数入力は0.25反刻み、m指定は小数2桁を維持する。
+     *
+     * @param  float|int|null  $qtyTan  入力反数。反数指定時は事前に刻みを検証する
+     * @param  float|int|null  $qtyMeters  入力m数。m指定受注ではこの値を正とする
+     * @param  int|null  $productId  製品の標準m/反を取得するID
+     * @param  bool  $isGreige  生機数量の場合はtrue
+     * @param  string|null  $greigeSku  生機の標準m/反を取得するSKU
+     * @param  string  $context  受注・発注・入荷・出荷などの利用場面
+     * @return object{qty_tan: float, qty_meters: float, meters_overridden: bool} 解決済み数量
      */
     public static function resolve(
         float|int|null $qtyTan,
@@ -34,7 +44,7 @@ class FabricQuantity
             ? $roundTan($qtyTan)
             : 0.0;
 
-        $metersInput = $qtyMeters !== null ? (int) round((float) $qtyMeters) : 0;
+        $metersInput = $qtyMeters !== null ? round((float) $qtyMeters, 2) : 0.0;
         $nominalMeters = $tan > 0
             ? QtyHelper::metersFromTan($tan, $productId, $isGreige, $greigeSku)
             : 0;
@@ -59,45 +69,66 @@ class FabricQuantity
     }
 
     /**
-     * @return callable(float|int): float
+     * 利用場面ごとの反数丸め処理を返す。
+     *
+     * m指定用のdefaultだけは参考反数を小数2桁で保持し、反数入力の各工程は0.25刻みにする。
+     *
+     * @param  string  $context  数量を使用する場面
+     * @return callable(float|int): float 反数を正規化する関数
      */
     private static function roundTanForContext(string $context): callable
     {
         return match ($context) {
-            self::CONTEXT_ORDER, self::CONTEXT_PO, self::CONTEXT_SHIPMENT => fn (float|int $tan) => QtyHelper::roundIntegerTan($tan),
-            self::CONTEXT_RECEIVING => fn (float|int $tan) => QtyHelper::roundReceivingTan($tan),
-            default => fn (float|int $tan) => QtyHelper::roundTan($tan),
+            self::CONTEXT_ORDER,
+            self::CONTEXT_PO,
+            self::CONTEXT_RECEIVING,
+            self::CONTEXT_SHIPMENT => fn (float|int $tan) => QtyHelper::roundTan($tan),
+            default => fn (float|int $tan) => round((float) $tan, QtyHelper::TAN_DECIMALS),
         };
     }
 
+    /**
+     * 利用場面で許可する反数刻みを返す。
+     *
+     * @param  string  $context  数量を使用する場面
+     * @return float 全工程共通の0.25反
+     */
     public static function tanStepForContext(string $context): float
     {
-        return match ($context) {
-            self::CONTEXT_ORDER, self::CONTEXT_PO, self::CONTEXT_SHIPMENT => QtyHelper::ORDER_PO_TAN_STEP,
-            self::CONTEXT_RECEIVING => QtyHelper::RECEIVING_TAN_STEP,
-            default => QtyHelper::TAN_STEP,
-        };
+        return QtyHelper::TAN_STEP;
     }
 
+    /**
+     * 入力反数が利用場面共通の0.25反刻みかを判定する。
+     *
+     * @param  float|int  $tan  丸め前の入力反数
+     * @param  string  $context  数量を使用する場面
+     * @return bool 0.25の倍数ならtrue
+     */
     public static function isValidTanForContext(float|int $tan, string $context): bool
     {
-        return match ($context) {
-            self::CONTEXT_ORDER, self::CONTEXT_PO, self::CONTEXT_SHIPMENT => QtyHelper::isIntegerTan($tan),
-            self::CONTEXT_RECEIVING => QtyHelper::isValidReceivingTanStep($tan),
-            default => QtyHelper::isValidTanStep($tan),
-        };
+        return QtyHelper::isValidTanStep($tan);
     }
 
+    /**
+     * レコードに保存されたm数を優先し、なければ反数から小数2桁で換算する。
+     *
+     * @param  object|array<string, mixed>  $record  qty_meters・qty_tan・qtyを持つ数量レコード
+     * @param  int|null  $productId  製品の標準m/反を取得するID
+     * @param  bool  $isGreige  生機数量の場合はtrue
+     * @param  string|null  $greigeSku  生機の標準m/反を取得するSKU
+     * @return float 保存値または標準換算したm数（小数2桁）
+     */
     public static function metersFromRecord(
         object|array $record,
         ?int $productId = null,
         bool $isGreige = false,
         ?string $greigeSku = null,
-    ): int {
+    ): float {
         $row = (object) $record;
 
-        if (isset($row->qty_meters) && (int) $row->qty_meters > 0) {
-            return (int) $row->qty_meters;
+        if (isset($row->qty_meters) && (float) $row->qty_meters > 0) {
+            return round((float) $row->qty_meters, 2);
         }
 
         if (isset($row->qty_tan) && (float) $row->qty_tan > 0) {
@@ -109,7 +140,7 @@ class FabricQuantity
             );
         }
 
-        return (int) ($row->qty ?? 0);
+        return round((float) ($row->qty ?? 0), 2);
     }
 
     public static function tanFromRecord(

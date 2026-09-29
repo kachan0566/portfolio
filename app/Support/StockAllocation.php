@@ -31,7 +31,7 @@ class StockAllocation
     public const TYPE_PO = 'po';
 
     /**
-     * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>
+     * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>
      */
     public static function allLines(): array
     {
@@ -43,20 +43,20 @@ class StockAllocation
                 'order_id' => (int) $row->order_id,
                 'po_id' => (int) ($row->purchase_order_id ?? 0),
                 'qty_tan' => QtyHelper::roundTan((float) $row->qty_tan),
-                'qty' => (int) $row->qty_m,
+                'qty' => (float) $row->qty_m,
                 'type' => (string) $row->allocation_type,
             ])
             ->values()
             ->all();
     }
 
-    private static function inferType(int $poId, int $qty): string
+    private static function inferType(int $poId, float $qty): string
     {
         if ($poId <= 0) {
             return self::TYPE_STOCK;
         }
 
-        $received = (int) floor(PurchaseOrder::receivedQtyFor($poId));
+        $received = PurchaseOrder::receivedQtyFor($poId);
         $remaining = PurchaseOrder::remainingQtyFor($poId);
 
         if ($received > 0 && $remaining === 0) {
@@ -71,7 +71,7 @@ class StockAllocation
     }
 
     /**
-     * @return array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}
+     * @return array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}
      */
     private static function buildLine(int $productId, int $orderId, int $poId, float $qtyTan, string $type): array
     {
@@ -82,13 +82,33 @@ class StockAllocation
             'order_id' => $orderId,
             'po_id' => $poId,
             'qty_tan' => $qtyTan,
-            'qty' => QtyHelper::metersFromTan($qtyTan, $productId),
+            'qty' => self::allocationMetersFromTan($productId, $poId, $qtyTan, $type),
             'type' => $type,
         ];
     }
 
     /**
-     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: int, type: string}>  $lines
+     * 現在庫引当の m は反明細の実測平均（PO 単位の在庫反）。発注引当は品番換算 m。
+     */
+    private static function allocationMetersFromTan(int $productId, int $poId, float $qtyTan, string $type): float
+    {
+        if ($type === self::TYPE_PO || $qtyTan <= 0) {
+            return QtyHelper::metersFromTan($qtyTan, $productId);
+        }
+
+        $rolls = $poId > 0
+            ? ProductStock::inStockRollTotalsForPo($poId)
+            : ProductStock::inStockRollTotals($productId);
+
+        if ($rolls->tan > 0) {
+            return round($qtyTan * ($rolls->meters / $rolls->tan), 2);
+        }
+
+        return QtyHelper::metersFromTan($qtyTan, $productId);
+    }
+
+    /**
+     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $lines
      */
     private static function write(array $lines): void
     {
@@ -129,27 +149,27 @@ class StockAllocation
             ->values();
     }
 
-    public static function stockAllocatedForOrder(int $orderId): int
+    public static function stockAllocatedForOrder(int $orderId): float
     {
-        return (int) self::stockLinesForOrder($orderId)->sum('qty');
+        return round((float) self::stockLinesForOrder($orderId)->sum('qty'), 2);
     }
 
-    public static function poAllocatedForOrder(int $orderId): int
+    public static function poAllocatedForOrder(int $orderId): float
     {
-        return (int) self::poLinesForOrder($orderId)->sum('qty');
+        return round((float) self::poLinesForOrder($orderId)->sum('qty'), 2);
     }
 
-    public static function get(int $orderId): int
+    public static function get(int $orderId): float
     {
         return self::stockAllocatedForOrder($orderId) + self::poAllocatedForOrder($orderId);
     }
 
-    public static function shippableQty(int $orderId): int
+    public static function shippableQty(int $orderId): float
     {
         return max(0, self::stockAllocatedForOrder($orderId) - self::alreadyShippedFromStock($orderId));
     }
 
-    private static function alreadyShippedFromStock(int $orderId): int
+    private static function alreadyShippedFromStock(int $orderId): float
     {
         $shipped = Order::shippedMetersFor($orderId);
         $stockAlloc = self::stockAllocatedForOrder($orderId);
@@ -158,7 +178,7 @@ class StockAllocation
     }
 
     /**
-     * @return array<int, int> [po_id => qty]
+     * @return array<int, float> [po_id => qty]
      */
     public static function getPoMap(int $orderId, ?string $type = null): array
     {
@@ -175,9 +195,9 @@ class StockAllocation
     }
 
     /**
-     * 品番内の発注別・区分別引当合計。
+     * 品番内の発注別・区分別引当合計（m。発注引当・画面サマリ用）。
      *
-     * @return array{stock: array<int, int>, po: array<int, int>}
+     * @return array{stock: array<int, float>, po: array<int, float>}
      */
     public static function usageByPoAndType(int $productId): array
     {
@@ -191,7 +211,65 @@ class StockAllocation
         return $usage;
     }
 
-    /** @return array<int, int> */
+    /**
+     * 品番の現在庫引当反数合計。
+     */
+    public static function stockUsageTanForProduct(int $productId): float
+    {
+        return round((float) self::linesForProduct($productId)
+            ->filter(fn ($l) => $l->type === self::TYPE_STOCK)
+            ->sum('qty_tan'), 2);
+    }
+
+    /**
+     * 品番の現在庫引当m合計（引当行に保存された qty_m）。
+     */
+    public static function stockUsageMetersForProduct(int $productId): float
+    {
+        return round((float) self::linesForProduct($productId)
+            ->filter(fn ($l) => $l->type === self::TYPE_STOCK)
+            ->sum('qty'), 2);
+    }
+
+    /**
+     * 発注別の現在庫引当反数合計。
+     *
+     * @return array<int, float>
+     */
+    public static function stockUsageTanByPo(int $productId): array
+    {
+        $usage = [];
+
+        foreach (self::linesForProduct($productId) as $line) {
+            if ($line->type !== self::TYPE_STOCK) {
+                continue;
+            }
+            $usage[$line->po_id] = ($usage[$line->po_id] ?? 0) + (float) $line->qty_tan;
+        }
+
+        return $usage;
+    }
+
+    /**
+     * 発注別の現在庫引当m合計。
+     *
+     * @return array<int, float>
+     */
+    public static function stockUsageMetersByPo(int $productId): array
+    {
+        $usage = [];
+
+        foreach (self::linesForProduct($productId) as $line) {
+            if ($line->type !== self::TYPE_STOCK) {
+                continue;
+            }
+            $usage[$line->po_id] = ($usage[$line->po_id] ?? 0) + (float) $line->qty;
+        }
+
+        return $usage;
+    }
+
+    /** @return array<int, float> */
     public static function poUsageForProduct(int $productId): array
     {
         $usage = self::usageByPoAndType($productId);
@@ -214,11 +292,9 @@ class StockAllocation
         return $result;
     }
 
-    public static function stockUsageForProduct(int $productId): int
+    public static function stockUsageForProduct(int $productId): float
     {
-        return (int) self::linesForProduct($productId)
-            ->filter(fn ($l) => $l->type === self::TYPE_STOCK)
-            ->sum('qty');
+        return self::stockUsageMetersForProduct($productId);
     }
 
     /**
@@ -242,7 +318,7 @@ class StockAllocation
     }
 
     /**
-     * @param  list<array{order_id: int, po_id: int, qty: int, type: string}>  $lines
+     * @param  list<array{order_id: int, po_id: int, qty: float, type: string}>  $lines
      */
     public static function saveLinesForProduct(int $productId, array $lines): void
     {
@@ -251,7 +327,7 @@ class StockAllocation
         foreach ($lines as $line) {
             $qtyTan = QtyHelper::roundTan((float) ($line['qty_tan'] ?? $line['qty'] ?? 0));
             if ($qtyTan <= 0 && isset($line['qty'])) {
-                $qtyTan = QtyHelper::tanCount((int) $line['qty'], $productId);
+                $qtyTan = QtyHelper::tanCount((float) $line['qty'], $productId);
             }
             if ($qtyTan <= 0) {
                 continue;
@@ -277,7 +353,7 @@ class StockAllocation
     /**
      * フォーム形式 [order_id => [type => [po_id => qty]]] から行を保存する。
      *
-     * @param  array<int, array<string, array<int, int>>>  $orderTypePoMaps
+     * @param  array<int, array<string, array<int, float>>>  $orderTypePoMaps
      */
     public static function saveFromTypedMaps(int $productId, array $orderTypePoMaps): void
     {
@@ -357,7 +433,7 @@ class StockAllocation
     /**
      * フォーム入力を検証する。エラー時はメッセージ文字列、成功時は null。
      *
-     * @param  array<int, array<string, array<int|string, int>>>  $input  allocations[order_id][stock|po][po_id]
+     * @param  array<int, array<string, array<int|string, float>>>  $input  allocations[order_id][stock|po][po_id]
      */
     public static function validateSubmission(int $productId, array $input): ?string
     {
@@ -366,10 +442,10 @@ class StockAllocation
             ->where('product_id', $productId)
             ->keyBy('id');
 
-        $stockUsageByPo = [];
+        $stockUsageByPoTan = [];
         $poUsageByPo = [];
-        $totalStockAlloc = 0;
-        $effectiveStock = ProductStock::effectiveStock($productId);
+        $totalStockAllocTan = 0.0;
+        $stockRolls = ProductStock::inStockRollTotals($productId);
 
         foreach ($input as $orderId => $typeMaps) {
             $orderId = (int) $orderId;
@@ -398,8 +474,8 @@ class StockAllocation
                         continue;
                     }
 
-                    if (! QtyHelper::isIntegerTan($qtyTan)) {
-                        return "受注 {$order->code} の引当反数は整数で入力してください。";
+                    if (! QtyHelper::isValidTanStep($qtyTan)) {
+                        return "受注 {$order->code} の引当反数は0.25反刻みで入力してください。";
                     }
 
                     $qty = QtyHelper::metersFromTan($qtyTan, $productId);
@@ -419,15 +495,19 @@ class StockAllocation
                             return "発注 {$po->code} は未入荷のため、現在庫引当の対象にできません。";
                         }
 
-                        $received = (int) floor(PurchaseOrder::receivedQtyFor($poId));
-                        $usedFromPo = ($stockUsageByPo[$poId] ?? 0) + $qty;
-                        if ($usedFromPo > $received) {
-                            return "発注 {$po->code} の入荷済み数量（".QtyHelper::format($received, $productId).'）を超える現在庫引当（'.QtyHelper::format($usedFromPo, $productId).'）はできません。';
+                        $rollForPo = ProductStock::inStockRollTotalsForPo($poId);
+                        $usedTanFromPo = ($stockUsageByPoTan[$poId] ?? 0) + $qtyTan;
+                        if ($usedTanFromPo > $rollForPo->tan + 0.0001) {
+                            return "発注 {$po->code} の在庫反（"
+                                .QtyHelper::formatAggregate($rollForPo->meters, $rollForPo->tan)
+                                .'）を超える現在庫引当（'
+                                .QtyHelper::formatFromTan($usedTanFromPo, $productId)
+                                .'）はできません。';
                         }
 
-                        $stockUsageByPo[$poId] = $usedFromPo;
+                        $stockUsageByPoTan[$poId] = $usedTanFromPo;
                         $orderStockTotal += $qty;
-                        $totalStockAlloc += $qty;
+                        $totalStockAllocTan += $qtyTan;
                     } else {
                         $poRemaining = PurchaseOrder::remainingQtyFor($poId);
                         if ($poRemaining <= 0) {
@@ -450,8 +530,12 @@ class StockAllocation
             }
         }
 
-        if ($totalStockAlloc > $effectiveStock) {
-            return '現在庫引当合計（'.QtyHelper::format($totalStockAlloc, $productId).'）が現在庫（'.QtyHelper::format($effectiveStock, $productId).'）を超えています。数量を調整してください。';
+        if ($totalStockAllocTan > $stockRolls->tan + 0.0001) {
+            return '現在庫引当合計（'
+                .QtyHelper::formatFromTan($totalStockAllocTan, $productId)
+                .'）が現在庫（'
+                .QtyHelper::formatAggregate($stockRolls->meters, $stockRolls->tan)
+                .'）を超えています。数量を調整してください。';
         }
 
         return null;
@@ -460,8 +544,8 @@ class StockAllocation
     /**
      * 検証済み入力を保存用マップに変換する。
      *
-     * @param  array<int, array<string, array<int|string, int>>>  $input
-     * @return array<int, array<string, array<int, int>>>
+     * @param  array<int, array<string, array<int|string, float>>>  $input
+     * @return array<int, array<string, array<int, float>>>
      */
     public static function parseSubmission(int $productId, array $input): array
     {
@@ -515,9 +599,9 @@ class StockAllocation
     /**
      * 入荷時: 発注引当を納期順に現在庫引当へ変換する。
      *
-     * @return list<array{order_id: int, qty: int}>
+     * @return list<array{order_id: int, qty: float}>
      */
-    public static function convertOnReceiving(int $poId, int $receivedQty, string $receivingCode): array
+    public static function convertOnReceiving(int $poId, float $receivedQty, string $receivingCode): array
     {
         if ($receivedQty <= 0) {
             return [];
@@ -558,7 +642,7 @@ class StockAllocation
             }
 
             $orderId = (int) $order->id;
-            $poAllocQty = (int) $poLines->where('order_id', $orderId)->sum('qty');
+            $poAllocQty = round((float) $poLines->where('order_id', $orderId)->sum('qty'), 2);
             if ($poAllocQty <= 0) {
                 continue;
             }
@@ -604,14 +688,14 @@ class StockAllocation
     }
 
     /**
-     * @param  list<array{product_id: int, order_id: int, po_id: int, qty: int, type: string}>  $all
+     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $all
      */
     private static function addLineToArray(
         array &$all,
         int $productId,
         int $orderId,
         int $poId,
-        int $qty,
+        float $qty,
         string $type = self::TYPE_STOCK
     ): void {
         if ($qty <= 0) {
@@ -623,24 +707,29 @@ class StockAllocation
                 && $line['order_id'] === $orderId
                 && $line['po_id'] === $poId
                 && $line['type'] === $type) {
-                $line['qty'] += $qty;
+                $addTan = QtyHelper::roundTan(QtyHelper::tanCount($qty, $productId));
+                $line['qty_tan'] = QtyHelper::roundTan((float) $line['qty_tan'] + $addTan);
+                $line['qty'] = round((float) $line['qty'] + $qty, 2);
 
                 return;
             }
         }
         unset($line);
 
-        $all[] = self::buildLine($productId, $orderId, $poId, $qty, $type);
+        $qtyTan = QtyHelper::roundTan(QtyHelper::tanCount($qty, $productId));
+        $built = self::buildLine($productId, $orderId, $poId, $qtyTan, $type);
+        $built['qty'] = round($qty, 2);
+        $all[] = $built;
     }
 
     /**
      * @return array{
      *     allocations: Collection,
-     *     allocatedTotal: int,
-     *     stockAllocatedTotal: int,
-     *     poAllocatedTotal: int,
-     *     unallocatedStock: int,
-     *     allocationShortage: int,
+     *     allocatedTotal: float,
+     *     stockAllocatedTotal: float,
+     *     poAllocatedTotal: float,
+     *     unallocatedStock: float,
+     *     allocationShortage: float,
      *     isRecorded: bool,
      * }
      */
@@ -657,13 +746,12 @@ class StockAllocation
 
         $isRecorded = self::hasForProduct($product->id);
         $savedLines = self::forProduct($product->id);
-        $effectiveStock = ProductStock::effectiveStock($product->id);
 
         $allocations = $pending->map(function ($order) use ($isRecorded, $savedLines) {
             if ($isRecorded) {
                 $lines = $savedLines->get($order->id, collect());
-                $stockAlloc = (int) $lines->where('type', self::TYPE_STOCK)->sum('qty');
-                $poAlloc = (int) $lines->where('type', self::TYPE_PO)->sum('qty');
+                $stockAlloc = round((float) $lines->where('type', self::TYPE_STOCK)->sum('qty'), 2);
+                $poAlloc = round((float) $lines->where('type', self::TYPE_PO)->sum('qty'), 2);
                 $allocated = $stockAlloc + $poAlloc;
             } else {
                 $lines = collect();
@@ -696,7 +784,7 @@ class StockAllocation
 
         $stockAllocatedTotal = $isRecorded ? self::stockUsageForProduct($product->id) : 0;
         $poAllocatedTotal = $isRecorded
-            ? (int) self::linesForProduct($product->id)->where('type', self::TYPE_PO)->sum('qty')
+            ? round((float) self::linesForProduct($product->id)->where('type', self::TYPE_PO)->sum('qty'), 2)
             : 0;
 
         return [
@@ -704,8 +792,8 @@ class StockAllocation
             'allocatedTotal' => $stockAllocatedTotal + $poAllocatedTotal,
             'stockAllocatedTotal' => $stockAllocatedTotal,
             'poAllocatedTotal' => $poAllocatedTotal,
-            'unallocatedStock' => max(0, $effectiveStock - $stockAllocatedTotal),
-            'allocationShortage' => (int) $allocations->sum('unallocated'),
+            'unallocatedStock' => self::unallocatedStockForProduct($product->id),
+            'allocationShortage' => round((float) $allocations->sum('unallocated'), 2),
             'isRecorded' => $isRecorded,
         ];
     }
@@ -716,10 +804,10 @@ class StockAllocation
      *     badge_class: ?string,
      *     shippable_status: ?string,
      *     shippable_badge: ?string,
-     *     allocated: int,
-     *     stock_allocated: int,
-     *     po_allocated: int,
-     *     remaining: int,
+     *     allocated: float,
+     *     stock_allocated: float,
+     *     po_allocated: float,
+     *     remaining: float,
      *     shippable: bool,
      * }
      */
@@ -762,7 +850,7 @@ class StockAllocation
     /**
      * @return array{status: string, badge_class: string, shippable_status: ?string, shippable_badge: ?string, shippable: bool}
      */
-    private static function buildStatus(int $stockAllocated, int $poAllocated, int $remaining): array
+    private static function buildStatus(float $stockAllocated, float $poAllocated, float $remaining): array
     {
         $total = $stockAllocated + $poAllocated;
         $shippable = $stockAllocated >= $remaining;
@@ -807,25 +895,43 @@ class StockAllocation
     }
 
     /**
-     * 発注ごとの未割当（現在庫引当用）。入荷済み − 既引当を、品番の未割当在庫で上限。
+     * 発注ごとの未割当（現在庫引当用）。在庫反明細 − 既引当（反・m）を品番全体の未割当で上限。
+     *
+     * @return float 引当UIの上限用（実測m）。JS連携は後続ステップで反上限へ移行予定。
      */
-    public static function unallocatedStockFromPo(int $productId, int $poId): int
+    public static function unallocatedStockFromPo(int $productId, int $poId): float
+    {
+        return self::unallocatedStockQuantityFromPo($productId, $poId)->meters;
+    }
+
+    /**
+     * 品番×発注の未割当在庫（反明細ベース）。
+     *
+     * @return object{tan: float, meters: float}
+     */
+    public static function unallocatedStockQuantityFromPo(int $productId, int $poId): object
     {
         if (! PurchaseOrder::hasReceivedFor($poId)) {
-            return 0;
+            return (object) ['tan' => 0.0, 'meters' => 0.0];
         }
 
-        $stockUsed = self::usageByPoAndType($productId)['stock'][$poId] ?? 0;
-        $perPo = max(0, (int) floor(PurchaseOrder::receivedQtyFor($poId)) - $stockUsed);
-        $globalRoom = self::unallocatedStockForProduct($productId);
+        $rolls = ProductStock::inStockRollTotalsForPo($poId);
+        $usedTan = self::stockUsageTanByPo($productId)[$poId] ?? 0.0;
+        $usedM = self::stockUsageMetersByPo($productId)[$poId] ?? 0.0;
+        $perPoTan = max(0.0, $rolls->tan - $usedTan);
+        $perPoM = max(0.0, $rolls->meters - $usedM);
+        $global = self::unallocatedStockQuantityForProduct($productId);
 
-        return min($perPo, $globalRoom);
+        return (object) [
+            'tan' => min($perPoTan, $global->tan),
+            'meters' => min($perPoM, $global->meters),
+        ];
     }
 
     /**
      * 発注ごとの未割当（発注引当用）。発注残 − 既引当。
      */
-    public static function unallocatedPoFromPo(int $productId, int $poId): int
+    public static function unallocatedPoFromPo(int $productId, int $poId): float
     {
         if (! PurchaseOrder::hasRemainingFor($poId)) {
             return 0;
@@ -857,14 +963,17 @@ class StockAllocation
         $stockOptions = $purchases
             ->filter(fn ($po) => PurchaseOrder::hasReceivedFor((int) $po->id, $po))
             ->map(function ($po) use ($productId) {
-                $unallocated = self::unallocatedStockFromPo($productId, $po->id);
+                $unallocated = self::unallocatedStockQuantityFromPo($productId, $po->id);
 
                 return (object) [
                     'id' => $po->id,
                     'code' => $po->code,
-                    'qty' => $unallocated,
+                    'qty' => $unallocated->meters,
+                    'qty_tan' => $unallocated->tan,
                     'stage' => $po->stage,
-                    'label' => $po->code.'（未割当 '.QtyHelper::format($unallocated, $productId).' / '.$po->stage.'）',
+                    'label' => $po->code.'（未割当 '
+                        .QtyHelper::formatAggregate($unallocated->meters, $unallocated->tan)
+                        .' / '.$po->stage.'）',
                 ];
             })
             ->values();
@@ -873,11 +982,13 @@ class StockAllocation
             ->filter(fn ($po) => PurchaseOrder::hasRemainingFor((int) $po->id, $po))
             ->map(function ($po) use ($productId) {
                 $unallocated = self::unallocatedPoFromPo($productId, $po->id);
+                $unallocatedTan = QtyHelper::tanCount($unallocated, $productId);
 
                 return (object) [
                     'id' => $po->id,
                     'code' => $po->code,
                     'qty' => $unallocated,
+                    'qty_tan' => $unallocatedTan,
                     'stage' => $po->stage,
                     'label' => $po->code.'（未割当 '.QtyHelper::format($unallocated, $productId).' / '.$po->stage.'）',
                 ];
@@ -887,14 +998,35 @@ class StockAllocation
         return ['stock' => $stockOptions, 'po' => $poOptions];
     }
 
-    /** 品番の未割当在庫（現在庫 − 現在庫引当合計） */
-    public static function unallocatedStockForProduct(int $productId): int
+    /** 品番の未割当在庫m（反明細の実測m − 現在庫引当m）。 */
+    public static function unallocatedStockForProduct(int $productId): float
     {
-        return max(0, ProductStock::effectiveStock($productId) - self::stockUsageForProduct($productId));
+        return self::unallocatedStockQuantityForProduct($productId)->meters;
+    }
+
+    /**
+     * 品番の未割当在庫（反明細 − 現在庫引当）。
+     *
+     * @return object{tan: float, meters: float}
+     */
+    public static function unallocatedStockQuantityForProduct(int $productId): object
+    {
+        $rolls = ProductStock::inStockRollTotals($productId);
+
+        return (object) [
+            'tan' => max(0.0, round($rolls->tan - self::stockUsageTanForProduct($productId), 2)),
+            'meters' => max(0.0, round($rolls->meters - self::stockUsageMetersForProduct($productId), 2)),
+        ];
+    }
+
+    /** 品番の未割当在庫反数。 */
+    public static function unallocatedStockTanForProduct(int $productId): float
+    {
+        return self::unallocatedStockQuantityForProduct($productId)->tan;
     }
 
     /** 品番の未引当の発注残（各発注の発注残 − 発注引当合計の合計） */
-    public static function unallocatedPoRemainingForProduct(int $productId): int
+    public static function unallocatedPoRemainingForProduct(int $productId): float
     {
         $poUsage = self::usageByPoAndType($productId)['po'];
         $total = 0;
@@ -912,7 +1044,7 @@ class StockAllocation
      * 供給ベースの不足量（受注残 − 未割当在庫 − 未引当の発注残）。
      * 他受注との取り合いは考慮しない。
      */
-    public static function supplyShortageForOrder(int $orderId): int
+    public static function supplyShortageForOrder(int $orderId): float
     {
         $order = DemoData::orders()->firstWhere('id', $orderId);
         if (! $order) {

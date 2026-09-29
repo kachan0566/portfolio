@@ -99,7 +99,7 @@ class Receiving extends Model
             $row['greige_sku'] = $greige?->sku ?? '—';
             $row['sku'] = $row['greige_sku'];
             $row['unit'] = '反';
-            $row['qty_meters'] = (int) ($line->qty_m ?? 0);
+            $row['qty_meters'] = (float) ($line->qty_m ?? 0);
             $row['qty_tan'] = (float) ($line->qty_tan ?? 0);
             $row['qty'] = $row['qty_meters'];
         } else {
@@ -107,7 +107,7 @@ class Receiving extends Model
             $row['product_id'] = $poLine?->product_id;
             $row['sku'] = $product?->sku ?? '—';
             $row['unit'] = $product?->unit ?? '反';
-            $row['qty'] = (int) ($line->qty_m ?? 0);
+            $row['qty'] = (float) ($line->qty_m ?? 0);
             $row['qty_tan'] = (float) ($line->qty_tan ?? 0);
         }
 

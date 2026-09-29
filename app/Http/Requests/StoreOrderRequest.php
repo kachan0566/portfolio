@@ -30,7 +30,7 @@ class StoreOrderRequest extends FormRequest
                 Rule::exists('products', 'id'),
             ],
             'order_qty_mode' => ['required', Rule::in(['tan', 'meters'])],
-            'qty_tan' => ['nullable', 'numeric', 'min:1', 'max:99999'],
+            'qty_tan' => ['nullable', 'numeric', 'min:0.25', 'max:99999'],
             'qty_meters' => ['nullable', 'integer', 'min:1', 'max:9999999'],
             'order_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:order_date'],
@@ -55,6 +55,14 @@ class StoreOrderRequest extends FormRequest
         ];
     }
 
+    /**
+     * 反数指定は丸め前の入力が0.25反刻みかを追加検証する。
+     *
+     * m指定受注は例外として整数m入力を正とし、0.25反検証を適用しない。
+     *
+     * @param  Validator  $validator  基本ルール適用後の検証器
+     * @return void 検証エラーを同じ検証器へ追加するため戻り値は使わない
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
@@ -65,8 +73,8 @@ class StoreOrderRequest extends FormRequest
                 $tan = (float) $this->input('qty_tan');
                 if ($tan <= 0) {
                     $validator->errors()->add('qty_tan', '受注反数を入力してください。');
-                } elseif (! QtyHelper::isIntegerTan($tan)) {
-                    $validator->errors()->add('qty_tan', '受注反数は整数で入力してください。');
+                } elseif (! QtyHelper::isValidTanStep($tan)) {
+                    $validator->errors()->add('qty_tan', '受注反数は0.25反刻みで入力してください。');
                 }
             } else {
                 $meters = (int) $this->input('qty_meters');

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Order;
 use App\Models\ProductRoll;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
@@ -17,6 +18,7 @@ use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
 use App\Support\QtyHelper;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 class ShipmentSeeder extends Seeder
 {
@@ -34,8 +36,16 @@ class ShipmentSeeder extends Seeder
             ->values();
 
         foreach ($rows as $row) {
-            $qtyM = (int) $row['qty_m'];
+            $qtyM = (float) $row['qty_m'];
             $productId = (int) $row['product_id'];
+            $qtyTan = QtyHelper::tanCount($qtyM, $productId);
+            $order = Order::query()->find($row['order_id']);
+            $isMetersOrder = ($order?->order_qty_mode ?? 'tan') === 'meters';
+
+            if (! Order::query()->whereKey($row['order_id'])->exists()
+                || (! $isMetersOrder && ! QtyHelper::isValidTanStep($qtyTan))) {
+                continue;
+            }
 
             $shipment = Shipment::query()->updateOrCreate(
                 ['id' => $row['id']],
@@ -43,7 +53,7 @@ class ShipmentSeeder extends Seeder
                     'code' => $row['code'],
                     'order_id' => $row['order_id'],
                     'product_id' => $productId,
-                    'qty_tan' => QtyHelper::tanCount($qtyM, $productId),
+                    'qty_tan' => $qtyTan,
                     'qty_m' => $qtyM,
                     'shipped_date' => $row['shipped_date'],
                     'ship_to_name' => $row['ship_to_name'] ?? null,
@@ -53,11 +63,11 @@ class ShipmentSeeder extends Seeder
                 ],
             );
 
-            ShipmentRegistrar::replayDemoShipment($shipment->fresh(), $qtyM);
+            ShipmentRegistrar::replayDemoShipment($shipment->fresh(), (int) round($qtyM));
         }
     }
 
-    private function seedOpeningStockForProduct2(\Illuminate\Support\Carbon $now): void
+    private function seedOpeningStockForProduct2(Carbon $now): void
     {
         if (ProductRoll::query()->where('product_id', 2)->exists()) {
             return;

@@ -21,14 +21,37 @@ class ProductStock
         return 0.0;
     }
 
-    public static function effectiveStock(int $productId): int
+    public static function effectiveStock(int $productId): float
     {
-        $rollM = ProductRoll::stockMetersForProduct($productId);
-        if ($rollM > 0) {
-            return (int) round($rollM);
-        }
+        return self::inStockRollTotals($productId)->meters;
+    }
 
-        return QtyHelper::metersFromTan(self::effectiveStockTan($productId), $productId);
+    /**
+     * 在庫反明細（in_stock）の反数・実測m合計。在庫数量の正は反明細の足し算。
+     *
+     * @return object{tan: float, meters: float}
+     */
+    public static function inStockRollTotals(int $productId): object
+    {
+        return (object) [
+            'tan' => ProductRoll::stockTanForProduct($productId),
+            'meters' => ProductRoll::stockMetersForProduct($productId),
+        ];
+    }
+
+    /**
+     * 指定発注に紐づく在庫反明細（in_stock）の合計。
+     *
+     * @return object{tan: float, meters: float}
+     */
+    public static function inStockRollTotalsForPo(int $poId): object
+    {
+        $rolls = ProductRoll::forPo($poId, ProductRoll::STATUS_IN_STOCK);
+
+        return (object) [
+            'tan' => round((float) $rolls->sum('tan_qty'), 2),
+            'meters' => round((float) $rolls->sum('actual_qty_m'), 2),
+        ];
     }
 
     /**
@@ -38,7 +61,7 @@ class ProductStock
      *     date: string,
      *     product_id: int,
      *     type: string,
-     *     qty: int,
+     *     qty: float,
      *     note: string,
      *     product: string,
      *     sku: string,
@@ -85,7 +108,7 @@ class ProductStock
                     return null;
                 }
 
-                $qtyM = (int) ($line->qty_m ?? 0);
+                $qtyM = (float) ($line->qty_m ?? 0);
                 if ($qtyM <= 0) {
                     return null;
                 }
@@ -124,7 +147,7 @@ class ProductStock
                     return null;
                 }
 
-                $qtyM = (int) $shipment->qty_m;
+                $qtyM = (float) $shipment->qty_m;
                 if ($qtyM <= 0) {
                     return null;
                 }

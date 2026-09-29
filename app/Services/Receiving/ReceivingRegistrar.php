@@ -10,6 +10,7 @@ use App\Services\Fabric\TanRollRecorder;
 use App\Services\Yarn\YarnStockMovementRecorder;
 use App\Support\DemoData;
 use App\Support\PurchaseOrderType;
+use App\Support\QtyHelper;
 use App\Support\StockAllocation;
 use Illuminate\Support\Facades\DB;
 
@@ -139,7 +140,7 @@ class ReceivingRegistrar
                         $receivingLine->id,
                     );
                     ReceivingLineTotals::sync($receivingLine->fresh());
-                    $totalProductMeters += (int) ($receivingLine->fresh()->qty_m ?? 0);
+                    $totalProductMeters += (float) ($receivingLine->fresh()->qty_m ?? 0);
                 }
 
                 PurchaseOrderLineReceiver::syncFromReceivingLine($receivingLine->fresh());
@@ -166,8 +167,8 @@ class ReceivingRegistrar
             } elseif ($poType === PurchaseOrderType::GREIGE) {
                 $lines = ReceivingLine::query()->where('receiving_id', $receiving->id)->get();
                 $tan = (float) $lines->sum(fn ($row) => (float) $row->qty_tan);
-                $meters = (int) $lines->sum(fn ($row) => (int) $row->qty_m);
-                $message = "入荷 {$code} を登録し、染工場の生機在庫を {$tan}反（実測 {$meters}m）増加しました。（明細 {$lineNo} 行）";
+                $meters = round((float) $lines->sum(fn ($row) => (float) $row->qty_m), 2);
+                $message = "入荷 {$code} を登録し、染工場の生機在庫を {$tan}反（実測 ".QtyHelper::formatMeters($meters)."m）増加しました。（明細 {$lineNo} 行）";
             }
 
             return [

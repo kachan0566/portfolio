@@ -24,6 +24,7 @@ use App\Support\PurchaseOrderLineDisplay;
 use App\Support\PurchaseOrderStages;
 use App\Support\PurchaseOrderStatus;
 use App\Support\PurchaseOrderType;
+use App\Support\QtyHelper;
 use App\Support\YarnInventory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,6 +32,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * 糸・生機・製品の発注登録、表示、更新、削除を処理する。
+ */
 class PurchaseOrderController extends Controller
 {
     public function index(Request $request): View
@@ -74,7 +78,7 @@ class PurchaseOrderController extends Controller
         if ($purchase->type === PurchaseOrderType::PRODUCT) {
             $greigeShortage = GreigeSupply::shortageMessage(
                 (int) $purchase->product_id,
-                (int) $purchase->qty_meters,
+                (float) $purchase->qty_meters,
                 (int) $purchase->id
             );
         }
@@ -168,6 +172,12 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
+    /**
+     * 検証済み発注明細を0.25反・小数mを維持して登録する。
+     *
+     * @param  StorePurchaseOrderRequest  $request  発注種別と検証済み明細
+     * @return RedirectResponse 登録した発注の詳細画面へ移動する
+     */
     public function store(StorePurchaseOrderRequest $request): RedirectResponse
     {
         $type = (string) $request->input('type');
@@ -178,10 +188,10 @@ class PurchaseOrderController extends Controller
         $lines = $request->normalizedLines();
 
         if ($type === PurchaseOrderType::GREIGE) {
-            $totalMeters = (int) collect($lines)->sum(fn ($line) => (int) ($line['qty_meters'] ?? 0));
+            $totalMeters = round((float) collect($lines)->sum(fn ($line) => (float) ($line['qty_meters'] ?? 0)), 2);
             $requirements = [];
             foreach ($lines as $line) {
-                foreach (DemoData::greigeYarnRequirements($line['greige_sku'], (int) $line['qty_meters']) as $req) {
+                foreach (DemoData::greigeYarnRequirements($line['greige_sku'], (float) $line['qty_meters']) as $req) {
                     $requirements[] = $req;
                 }
             }
@@ -197,7 +207,7 @@ class PurchaseOrderController extends Controller
             foreach ($lines as $index => $line) {
                 $msg = GreigeSupply::shortageMessage(
                     (int) $line['product_id'],
-                    (int) $line['qty_meters'],
+                    (float) $line['qty_meters'],
                     null
                 );
                 if ($msg !== null) {
@@ -235,7 +245,7 @@ class PurchaseOrderController extends Controller
                         'purchase_order_id' => $po->id,
                         'line_no' => $lineNo,
                         'greige_id' => $greige->id,
-                        'qty_tan' => (int) round((float) $line['qty_tan']),
+                        'qty_tan' => QtyHelper::roundTan((float) $line['qty_tan']),
                         'meters_per_tan' => $line['meters_per_tan'],
                         'qty_meters' => $line['qty_meters'],
                         'received_qty_tan' => 0,
@@ -247,7 +257,7 @@ class PurchaseOrderController extends Controller
                         'purchase_order_id' => $po->id,
                         'line_no' => $lineNo,
                         'product_id' => $line['product_id'],
-                        'qty_tan' => (int) $line['qty_tan'],
+                        'qty_tan' => QtyHelper::roundTan((float) $line['qty_tan']),
                         'qty_meters' => $line['qty_meters'],
                         'received_qty_tan' => 0,
                         'received_qty_m' => 0,
@@ -261,7 +271,7 @@ class PurchaseOrderController extends Controller
         if ($type === PurchaseOrderType::GREIGE) {
             $requirements = [];
             foreach ($lines as $line) {
-                foreach (DemoData::greigeYarnRequirements($line['greige_sku'], (int) $line['qty_meters']) as $req) {
+                foreach (DemoData::greigeYarnRequirements($line['greige_sku'], (float) $line['qty_meters']) as $req) {
                     $requirements[] = $req;
                 }
             }
@@ -331,7 +341,7 @@ class PurchaseOrderController extends Controller
         if ($type === PurchaseOrderType::GREIGE) {
             $requirements = DemoData::greigeYarnRequirements(
                 $target->greige_sku ?? $target->sku,
-                (int) ($target->qty_meters ?? $target->qty)
+                (float) ($target->qty_meters ?? $target->qty)
             );
             if (in_array($newStatus, [PurchaseOrderStatus::DRAFT, PurchaseOrderStatus::ORDERED], true)
                 && ! YarnInventory::canFulfill($requirements, $purchase)) {
@@ -353,7 +363,7 @@ class PurchaseOrderController extends Controller
             && in_array($newStatus, [PurchaseOrderStatus::ORDERED, PurchaseOrderStatus::PARTIAL], true)) {
             $msg = GreigeSupply::shortageMessage(
                 (int) $target->product_id,
-                (int) ($target->qty_meters ?? $target->qty),
+                (float) ($target->qty_meters ?? $target->qty),
                 $purchase
             );
             if ($msg !== null) {
@@ -493,7 +503,7 @@ class PurchaseOrderController extends Controller
             ),
             PurchaseOrderType::PRODUCT => ! GreigeSupply::canFulfillProductMeters(
                 (int) ($po->product_id ?? 0),
-                (int) ($po->qty_meters ?? $po->qty ?? 0),
+                (float) ($po->qty_meters ?? $po->qty ?? 0),
                 (int) $po->id
             ),
             default => false,
@@ -511,7 +521,7 @@ class PurchaseOrderController extends Controller
             ),
             PurchaseOrderType::PRODUCT => ! GreigeSupply::canFulfillProductMeters(
                 (int) ($po->product_id ?? 0),
-                (int) ($po->qty_meters ?? $po->qty ?? 0),
+                (float) ($po->qty_meters ?? $po->qty ?? 0),
                 (int) $po->id
             ),
             default => false,

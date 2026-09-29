@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use App\Support\PurchaseOrderType;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
@@ -139,6 +140,55 @@ class PurchaseOrderTest extends TestCase
         $index = $this->get(route('purchases.index'));
         $index->assertSee('PO-G-');
         $index->assertSee('下書き');
+    }
+
+    /**
+     * 0.25反の生機発注を保存し、発注明細に小数反数が残ることを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_store_greige_accepts_quarter_tan(): void
+    {
+        $response = $this->post(route('purchases.store'), [
+            'type' => PurchaseOrderType::GREIGE,
+            'supplier_id' => 4,
+            'ship_to_id' => 2,
+            'greige_sku' => 'KB-A',
+            'qty_tan' => 0.25,
+            'order_date' => '2026-06-25',
+            'due_date' => '2026-07-01',
+            'save_action' => 'draft',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $line = PurchaseOrderLine::query()->latest('id')->firstOrFail();
+        $this->assertSame(0.25, (float) $line->qty_tan);
+        $this->assertSame(25.0, (float) $line->qty_meters);
+    }
+
+    /**
+     * 0.25の倍数ではない0.3反を生機発注として保存しないことを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_store_greige_rejects_tan_outside_quarter_step(): void
+    {
+        $before = PurchaseOrder::query()->count();
+
+        $response = $this->post(route('purchases.store'), [
+            'type' => PurchaseOrderType::GREIGE,
+            'supplier_id' => 4,
+            'ship_to_id' => 2,
+            'greige_sku' => 'KB-A',
+            'qty_tan' => 0.3,
+            'order_date' => '2026-06-25',
+            'due_date' => '2026-07-01',
+            'save_action' => 'draft',
+        ]);
+
+        $response->assertSessionHasErrors('lines.0.qty_tan');
+        $this->assertSame($before, PurchaseOrder::query()->count());
     }
 
     public function test_update_greige_persists_finish_date_separately_from_due_date(): void
