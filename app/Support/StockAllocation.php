@@ -26,11 +26,15 @@ use Illuminate\Support\Collection;
  */
 class StockAllocation
 {
+    /** 引当区分: 現在庫引当 */
     public const TYPE_STOCK = 'stock';
 
+    /** 引当区分: 発注引当 */
     public const TYPE_PO = 'po';
 
     /**
+     * order_allocations 全行を引当行配列として返す。
+     *
      * @return list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>
      */
     public static function allLines(): array
@@ -50,6 +54,13 @@ class StockAllocation
             ->all();
     }
 
+    /**
+     * 発注の入荷状況と数量から引当区分（stock / po）を推定する。
+     *
+     * @param  int  $poId  発注 ID。0 以下は現在庫扱い
+     * @param  float  $qty  引当メートル数（発注残との比較用）
+     * @return string  self::TYPE_STOCK または self::TYPE_PO
+     */
     private static function inferType(int $poId, float $qty): string
     {
         if ($poId <= 0) {
@@ -71,6 +82,13 @@ class StockAllocation
     }
 
     /**
+     * 1 行分の引当データ（反数・換算 m・区分）を組み立てる。
+     *
+     * @param  int  $productId  品番 ID
+     * @param  int  $orderId  受注 ID
+     * @param  int  $poId  割当元発注 ID
+     * @param  float  $qtyTan  引当反数
+     * @param  string  $type  引当区分（stock / po）
      * @return array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}
      */
     private static function buildLine(int $productId, int $orderId, int $poId, float $qtyTan, string $type): array
@@ -88,7 +106,13 @@ class StockAllocation
     }
 
     /**
-     * 現在庫引当の m は反明細の実測平均（PO 単位の在庫反）。発注引当は品番換算 m。
+     * 引当反数から保存用のメートル数（qty）を算出する。
+     *
+     * @param  int  $productId  品番 ID（標準換算用）
+     * @param  int  $poId  発注 ID（在庫反の実測平均用。0 は品番全体）
+     * @param  float  $qtyTan  引当反数
+     * @param  string  $type  引当区分（stock は実測平均、po は標準換算）
+     * @return float  メートル数（m）
      */
     private static function allocationMetersFromTan(int $productId, int $poId, float $qtyTan, string $type): float
     {
@@ -108,14 +132,22 @@ class StockAllocation
     }
 
     /**
-     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $lines
+     * 引当行配列を order_allocations に全件同期する。
+     *
+     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $lines  保存する引当行
+     * @return void
      */
     private static function write(array $lines): void
     {
         OrderAllocation::syncAll(array_values($lines));
     }
 
-    /** @return Collection<int, object> */
+    /**
+     * 品番に紐づく引当行をオブジェクトのコレクションで返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return Collection<int, object>
+     */
     public static function linesForProduct(int $productId): Collection
     {
         return collect(self::allLines())
@@ -124,7 +156,12 @@ class StockAllocation
             ->values();
     }
 
-    /** @return Collection<int, object> */
+    /**
+     * 受注に紐づく引当行をオブジェクトのコレクションで返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return Collection<int, object>
+     */
     public static function linesForOrder(int $orderId): Collection
     {
         return collect(self::allLines())
@@ -133,7 +170,12 @@ class StockAllocation
             ->values();
     }
 
-    /** @return Collection<int, object> */
+    /**
+     * 受注の現在庫引当行のみを返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return Collection<int, object>
+     */
     public static function stockLinesForOrder(int $orderId): Collection
     {
         return self::linesForOrder($orderId)
@@ -141,7 +183,12 @@ class StockAllocation
             ->values();
     }
 
-    /** @return Collection<int, object> */
+    /**
+     * 受注の発注引当行のみを返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return Collection<int, object>
+     */
     public static function poLinesForOrder(int $orderId): Collection
     {
         return self::linesForOrder($orderId)
@@ -149,26 +196,56 @@ class StockAllocation
             ->values();
     }
 
+    /**
+     * 受注の現在庫引当メートル合計を返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return float  メートル数（m）
+     */
     public static function stockAllocatedForOrder(int $orderId): float
     {
         return round((float) self::stockLinesForOrder($orderId)->sum('qty'), 2);
     }
 
+    /**
+     * 受注の発注引当メートル合計を返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return float  メートル数（m）
+     */
     public static function poAllocatedForOrder(int $orderId): float
     {
         return round((float) self::poLinesForOrder($orderId)->sum('qty'), 2);
     }
 
+    /**
+     * 受注の引当メートル合計（現在庫＋発注）を返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return float  メートル数（m）
+     */
     public static function get(int $orderId): float
     {
         return self::stockAllocatedForOrder($orderId) + self::poAllocatedForOrder($orderId);
     }
 
+    /**
+     * 受注から出荷可能な現在庫ベースの数量（m）を返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return float  出荷可能 m（0 未満は 0）
+     */
     public static function shippableQty(int $orderId): float
     {
         return max(0, self::stockAllocatedForOrder($orderId) - self::alreadyShippedFromStock($orderId));
     }
 
+    /**
+     * 現在庫引当のうち、既出荷分として扱うメートル数を返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return float  メートル数（m）。出荷済みと現在庫引当の小さい方
+     */
     private static function alreadyShippedFromStock(int $orderId): float
     {
         $shipped = Order::shippedMetersFor($orderId);
@@ -178,7 +255,11 @@ class StockAllocation
     }
 
     /**
-     * @return array<int, float> [po_id => qty]
+     * 受注の引当を発注 ID ごとのメートル合計マップで返す。
+     *
+     * @param  int  $orderId  受注 ID
+     * @param  string|null  $type  区分で絞る場合は stock / po。null は全区分
+     * @return array<int, float>  po_id => qty（m）
      */
     public static function getPoMap(int $orderId, ?string $type = null): array
     {
@@ -195,8 +276,9 @@ class StockAllocation
     }
 
     /**
-     * 品番内の発注別・区分別引当合計（m。発注引当・画面サマリ用）。
+     * 品番内の発注別・区分別引当メートル合計を返す。
      *
+     * @param  int  $productId  品番 ID
      * @return array{stock: array<int, float>, po: array<int, float>}
      */
     public static function usageByPoAndType(int $productId): array
@@ -212,7 +294,10 @@ class StockAllocation
     }
 
     /**
-     * 品番の現在庫引当反数合計。
+     * 品番の現在庫引当反数合計を返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return float  反数
      */
     public static function stockUsageTanForProduct(int $productId): float
     {
@@ -222,7 +307,10 @@ class StockAllocation
     }
 
     /**
-     * 品番の現在庫引当m合計（引当行に保存された qty_m）。
+     * 品番の現在庫引当メートル合計（保存済み qty）を返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return float  メートル数（m）
      */
     public static function stockUsageMetersForProduct(int $productId): float
     {
@@ -232,9 +320,10 @@ class StockAllocation
     }
 
     /**
-     * 発注別の現在庫引当反数合計。
+     * 品番の発注別現在庫引当反数合計を返す。
      *
-     * @return array<int, float>
+     * @param  int  $productId  品番 ID
+     * @return array<int, float>  po_id => 反数
      */
     public static function stockUsageTanByPo(int $productId): array
     {
@@ -251,9 +340,10 @@ class StockAllocation
     }
 
     /**
-     * 発注別の現在庫引当m合計。
+     * 品番の発注別現在庫引当メートル合計を返す。
      *
-     * @return array<int, float>
+     * @param  int  $productId  品番 ID
+     * @return array<int, float>  po_id => m
      */
     public static function stockUsageMetersByPo(int $productId): array
     {
@@ -269,7 +359,12 @@ class StockAllocation
         return $usage;
     }
 
-    /** @return array<int, float> */
+    /**
+     * 品番の発注別引当メートル合計（現在庫＋発注区分の合算）を返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return array<int, float>  po_id => m
+     */
     public static function poUsageForProduct(int $productId): array
     {
         $usage = self::usageByPoAndType($productId);
@@ -292,12 +387,21 @@ class StockAllocation
         return $result;
     }
 
+    /**
+     * 品番の現在庫引当メートル合計を返す（stockUsageMetersForProduct のエイリアス）。
+     *
+     * @param  int  $productId  品番 ID
+     * @return float  メートル数（m）
+     */
     public static function stockUsageForProduct(int $productId): float
     {
         return self::stockUsageMetersForProduct($productId);
     }
 
     /**
+     * 品番の引当行を受注 ID ごとにグループ化して返す。
+     *
+     * @param  int  $productId  品番 ID
      * @return Collection<int, Collection<int, object>>
      */
     public static function forProduct(int $productId): Collection
@@ -312,13 +416,23 @@ class StockAllocation
             ->map(fn ($group) => $group->values());
     }
 
+    /**
+     * 品番に保存済み引当があるかどうかを返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return bool
+     */
     public static function hasForProduct(int $productId): bool
     {
         return self::linesForProduct($productId)->isNotEmpty();
     }
 
     /**
-     * @param  list<array{order_id: int, po_id: int, qty: float, type: string}>  $lines
+     * 品番の引当行を一括で置き換え保存する。
+     *
+     * @param  int  $productId  品番 ID
+     * @param  list<array{order_id: int, po_id: int, qty?: float, qty_tan?: float, type: string}>  $lines  保存する行（反数・区分）
+     * @return void
      */
     public static function saveLinesForProduct(int $productId, array $lines): void
     {
@@ -351,9 +465,11 @@ class StockAllocation
     }
 
     /**
-     * フォーム形式 [order_id => [type => [po_id => qty]]] から行を保存する。
+     * 受注×区分×発注のネスト配列から引当行を保存する。
      *
-     * @param  array<int, array<string, array<int, float>>>  $orderTypePoMaps
+     * @param  int  $productId  品番 ID
+     * @param  array<int, array<string, array<int, float>>>  $orderTypePoMaps  order_id => [stock|po => [po_id => 反数]]
+     * @return void
      */
     public static function saveFromTypedMaps(int $productId, array $orderTypePoMaps): void
     {
@@ -389,7 +505,14 @@ class StockAllocation
         self::saveLinesForProduct($productId, $lines);
     }
 
-    /** @deprecated saveFromTypedMaps を使用 */
+    /**
+     * 旧形式の受注×発注マップから現在庫引当のみ保存する。
+     *
+     * @deprecated  saveFromTypedMaps を使用
+     * @param  int  $productId  品番 ID
+     * @param  array<int, array<int, float>>  $orderPoMaps  order_id => [po_id => 反数]
+     * @return void
+     */
     public static function saveFromOrderPoMaps(int $productId, array $orderPoMaps): void
     {
         $typed = [];
@@ -399,6 +522,16 @@ class StockAllocation
         self::saveFromTypedMaps($productId, $typed);
     }
 
+    /**
+     * 引当行を 1 件追加または既存行に加算する。
+     *
+     * @param  int  $productId  品番 ID
+     * @param  int  $orderId  受注 ID
+     * @param  int  $poId  発注 ID
+     * @param  float  $qtyTan  追加反数
+     * @param  string  $type  引当区分（既定: 現在庫）
+     * @return void
+     */
     public static function addLine(int $productId, int $orderId, int $poId, float $qtyTan, string $type = self::TYPE_STOCK): void
     {
         $qtyTan = QtyHelper::roundTan($qtyTan);
@@ -409,17 +542,38 @@ class StockAllocation
         OrderAllocation::upsertLine(self::buildLine($productId, $orderId, $poId, $qtyTan, $type));
     }
 
+    /**
+     * 受注に紐づく引当行をすべて削除する。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return void
+     */
     public static function clearForOrder(int $orderId): void
     {
         OrderAllocation::deleteForOrder($orderId);
     }
 
+    /**
+     * 受注の指定発注・区分の引当行を削除する。
+     *
+     * @param  int  $orderId  受注 ID
+     * @param  int  $poId  発注 ID
+     * @param  string  $type  引当区分（stock / po）
+     * @return void
+     */
     public static function removeLineFromOrder(int $orderId, int $poId, string $type): void
     {
         OrderAllocation::deleteLine($orderId, $poId, $type);
     }
 
-    /** @deprecated removeLineFromOrder を使用 */
+    /**
+     * 受注から指定発注の引当行をすべて削除する（区分を問わない旧 API）。
+     *
+     * @deprecated  removeLineFromOrder を使用
+     * @param  int  $orderId  受注 ID
+     * @param  int  $poId  発注 ID
+     * @return void
+     */
     public static function removePoFromOrder(int $orderId, int $poId): void
     {
         $all = collect(self::allLines())
@@ -431,9 +585,11 @@ class StockAllocation
     }
 
     /**
-     * フォーム入力を検証する。エラー時はメッセージ文字列、成功時は null。
+     * 引当フォーム入力の整合性を検証し、エラー時はメッセージを返す。
      *
+     * @param  int  $productId  品番 ID
      * @param  array<int, array<string, array<int|string, float>>>  $input  allocations[order_id][stock|po][po_id]
+     * @return string|null  エラーメッセージ。問題なければ null
      */
     public static function validateSubmission(int $productId, array $input): ?string
     {
@@ -542,10 +698,11 @@ class StockAllocation
     }
 
     /**
-     * 検証済み入力を保存用マップに変換する。
+     * フォーム入力を saveFromTypedMaps 用のネスト配列に正規化する。
      *
-     * @param  array<int, array<string, array<int|string, float>>>  $input
-     * @return array<int, array<string, array<int, float>>>
+     * @param  int  $productId  品番 ID
+     * @param  array<int, array<string, array<int|string, float>>>  $input  フォームの allocations
+     * @return array<int, array<string, array<int, float>>>  order_id => [stock|po => [po_id => 反数]]
      */
     public static function parseSubmission(int $productId, array $input): array
     {
@@ -585,6 +742,12 @@ class StockAllocation
         return $toSave;
     }
 
+    /**
+     * フォームの発注キーを正の発注 ID に変換する。
+     *
+     * @param  mixed  $key  フォーム値（空・__NEW__ は無効）
+     * @return int|null  有効な発注 ID。無効時は null
+     */
     public static function parsePoId(mixed $key): ?int
     {
         if ($key === '' || $key === '__NEW__') {
@@ -597,9 +760,12 @@ class StockAllocation
     }
 
     /**
-     * 入荷時: 発注引当を納期順に現在庫引当へ変換する。
+     * 入荷数量に応じて発注引当を納期順に現在庫引当へ変換する。
      *
-     * @return list<array{order_id: int, qty: float}>
+     * @param  int  $poId  入荷した発注 ID
+     * @param  float  $receivedQty  入荷メートル数
+     * @param  string  $receivingCode  入荷伝票コード（変換履歴用）
+     * @return list<array{order_id: int, qty: float}>  変換した受注と数量
      */
     public static function convertOnReceiving(int $poId, float $receivedQty, string $receivingCode): array
     {
@@ -688,7 +854,15 @@ class StockAllocation
     }
 
     /**
-     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $all
+     * 引当行配列にメートル数量を加算する（同一キーはマージ、なければ新規行）。
+     *
+     * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $all  更新対象の引当行配列
+     * @param  int  $productId  品番 ID
+     * @param  int  $orderId  受注 ID
+     * @param  int  $poId  発注 ID
+     * @param  float  $qty  加算メートル数
+     * @param  string  $type  引当区分
+     * @return void
      */
     private static function addLineToArray(
         array &$all,
@@ -723,6 +897,11 @@ class StockAllocation
     }
 
     /**
+     * 品番の引当画面用に受注ごとの引当サマリと合計値を組み立てる。
+     *
+     * @param  object  $product  品番（id 等）
+     * @param  Collection  $orders  当該品番の受注コレクション
+     * @param  Collection  $purchases  当該品番の発注コレクション（将来拡張用）
      * @return array{
      *     allocations: Collection,
      *     allocatedTotal: float,
@@ -799,6 +978,9 @@ class StockAllocation
     }
 
     /**
+     * 受注の引当状況ラベルと数量サマリを返す。
+     *
+     * @param  object  $order  受注（id 等）
      * @return array{
      *     status: ?string,
      *     badge_class: ?string,
@@ -848,6 +1030,11 @@ class StockAllocation
     }
 
     /**
+     * 引当メートル数と受注残から表示用ステータスとバッジクラスを決定する。
+     *
+     * @param  float  $stockAllocated  現在庫引当 m
+     * @param  float  $poAllocated  発注引当 m
+     * @param  float  $remaining  受注残 m
      * @return array{status: string, badge_class: string, shippable_status: ?string, shippable_badge: ?string, shippable: bool}
      */
     private static function buildStatus(float $stockAllocated, float $poAllocated, float $remaining): array
@@ -895,9 +1082,11 @@ class StockAllocation
     }
 
     /**
-     * 発注ごとの未割当（現在庫引当用）。在庫反明細 − 既引当（反・m）を品番全体の未割当で上限。
+     * 発注単位の未割当在庫メートル数（現在庫引当の上限用）を返す。
      *
-     * @return float 引当UIの上限用（実測m）。JS連携は後続ステップで反上限へ移行予定。
+     * @param  int  $productId  品番 ID
+     * @param  int  $poId  発注 ID
+     * @return float  未割当 m
      */
     public static function unallocatedStockFromPo(int $productId, int $poId): float
     {
@@ -905,8 +1094,10 @@ class StockAllocation
     }
 
     /**
-     * 品番×発注の未割当在庫（反明細ベース）。
+     * 品番×発注の未割当在庫（反明細 − 既引当、品番全体で上限）を返す。
      *
+     * @param  int  $productId  品番 ID
+     * @param  int  $poId  発注 ID
      * @return object{tan: float, meters: float}
      */
     public static function unallocatedStockQuantityFromPo(int $productId, int $poId): object
@@ -929,7 +1120,11 @@ class StockAllocation
     }
 
     /**
-     * 発注ごとの未割当（発注引当用）。発注残 − 既引当。
+     * 発注単位の未割当発注残メートル数（発注引当の上限用）を返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @param  int  $poId  発注 ID
+     * @return float  未割当 m
      */
     public static function unallocatedPoFromPo(int $productId, int $poId): float
     {
@@ -943,8 +1138,9 @@ class StockAllocation
     }
 
     /**
-     * 引当可能な発注オプションを区分別に返す。
+     * 品番の引当 UI 用に、区分別の発注選択肢を返す。
      *
+     * @param  int  $productId  品番 ID
      * @return array{stock: Collection, po: Collection}
      */
     public static function poOptionsForProduct(int $productId): array
@@ -956,6 +1152,10 @@ class StockAllocation
     }
 
     /**
+     * 発注コレクションから区分別の引当選択肢ラベルを組み立てる。
+     *
+     * @param  Collection  $purchases  発注一覧
+     * @param  int  $productId  品番 ID（未割当計算用）
      * @return array{stock: Collection, po: Collection}
      */
     public static function poOptionsFromPurchases(Collection $purchases, int $productId): array
@@ -998,15 +1198,21 @@ class StockAllocation
         return ['stock' => $stockOptions, 'po' => $poOptions];
     }
 
-    /** 品番の未割当在庫m（反明細の実測m − 現在庫引当m）。 */
+    /**
+     * 品番全体の未割当在庫メートル数を返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return float  未割当 m
+     */
     public static function unallocatedStockForProduct(int $productId): float
     {
         return self::unallocatedStockQuantityForProduct($productId)->meters;
     }
 
     /**
-     * 品番の未割当在庫（反明細 − 現在庫引当）。
+     * 品番全体の未割当在庫（反明細 − 現在庫引当）を反数・m で返す。
      *
+     * @param  int  $productId  品番 ID
      * @return object{tan: float, meters: float}
      */
     public static function unallocatedStockQuantityForProduct(int $productId): object
@@ -1019,13 +1225,23 @@ class StockAllocation
         ];
     }
 
-    /** 品番の未割当在庫反数。 */
+    /**
+     * 品番全体の未割当在庫反数を返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return float  未割当反数
+     */
     public static function unallocatedStockTanForProduct(int $productId): float
     {
         return self::unallocatedStockQuantityForProduct($productId)->tan;
     }
 
-    /** 品番の未引当の発注残（各発注の発注残 − 発注引当合計の合計） */
+    /**
+     * 品番の未引当発注残メートル合計（各 PO の残 − 発注引当）を返す。
+     *
+     * @param  int  $productId  品番 ID
+     * @return float  未引当発注残 m の合計
+     */
     public static function unallocatedPoRemainingForProduct(int $productId): float
     {
         $poUsage = self::usageByPoAndType($productId)['po'];
@@ -1041,8 +1257,10 @@ class StockAllocation
     }
 
     /**
-     * 供給ベースの不足量（受注残 − 未割当在庫 − 未引当の発注残）。
-     * 他受注との取り合いは考慮しない。
+     * 受注残に対する供給ベースの不足メートル数を返す（他受注との取り合いは除外）。
+     *
+     * @param  int  $orderId  受注 ID
+     * @return float  不足 m（供給が足りる場合は 0）
      */
     public static function supplyShortageForOrder(int $orderId): float
     {

@@ -17,8 +17,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
+/**
+ * 出荷実績の一覧表示と受注に対する出荷登録を処理する。
+ */
 class ShipmentController extends Controller
 {
+    /**
+     * 出荷一覧を検索・絞り込みして表示する。
+     *
+     * @param  Request  $request  一覧の検索クエリ
+     * @return View  shipments.index
+     */
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
@@ -32,6 +41,12 @@ class ShipmentController extends Controller
         ]);
     }
 
+    /**
+     * 出荷可能な受注一覧と出荷登録フォームを表示する。
+     *
+     * @param  Request  $request  order_id で初期選択受注を指定可能
+     * @return View  shipments.create
+     */
     public function create(Request $request): View
     {
         $pending = DemoData::orders()
@@ -63,12 +78,10 @@ class ShipmentController extends Controller
     }
 
     /**
-     * 出荷入力を検証し、0.25反刻みの出荷実績を登録する。
+     * 出荷入力を検証し、ShipmentRegistrar で出荷実績を登録する。
      *
-     * m指定受注は従来どおり必要な在庫反をFIFOで選び、反数指定受注だけ丸め前の反数を検証する。
-     *
-     * @param  Request  $request  受注ID・出荷反数・分割反の実測mを含む入力
-     * @return RedirectResponse 登録成功時は出荷一覧、失敗時は出荷登録画面へ戻す
+     * @param  Request  $request  order_id・出荷反数・分割出荷の実測 m
+     * @return RedirectResponse  shipments.index または create（エラー時）
      */
     public function store(Request $request): RedirectResponse
     {

@@ -10,8 +10,17 @@ use App\Support\MasterCatalog;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * 月次売上実績と売上予測の一覧・KPI を表示する。
+ */
 class SalesController extends Controller
 {
+    /**
+     * 実績／予測タブに応じた売上データを検索付きで表示する。
+     *
+     * @param  Request  $request  ym・tab・product_id・検索クエリ
+     * @return View  sales.index
+     */
     public function index(Request $request): View
     {
         $ym = $this->resolveYm($request);
@@ -92,6 +101,12 @@ class SalesController extends Controller
         ]);
     }
 
+    /**
+     * 売上一覧の対象年月をクエリから解決する。
+     *
+     * @param  Request  $request  ym クエリ
+     * @return string  YYYY-MM（無効時は当月）
+     */
     private function resolveYm(Request $request): string
     {
         $currentYm = BusinessDate::currentYm();

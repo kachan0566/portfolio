@@ -23,8 +23,17 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * 在庫一覧（製品・生機・糸・予測タブ）と品番別在庫・引当を処理する。
+ */
 class InventoryController extends Controller
 {
+    /**
+     * タブに応じた在庫・予測・長期在庫などを検索付きで一覧表示する。
+     *
+     * @param  Request  $request  tab・ym・検索クエリ
+     * @return View  inventory.index
+     */
     public function index(Request $request): View
     {
         $ym = BusinessDate::currentYm();
@@ -200,6 +209,12 @@ class InventoryController extends Controller
         ]);
     }
 
+    /**
+     * 予測タブ用の対象年月をクエリから解決する。
+     *
+     * @param  Request  $request  ym クエリ
+     * @return string  YYYY-MM（無効時は当月）
+     */
     private function resolveForecastYm(Request $request): string
     {
         $currentYm = BusinessDate::currentYm();
@@ -208,6 +223,12 @@ class InventoryController extends Controller
         return DemoData::isValidForecastMonth($ym) ? $ym : $currentYm;
     }
 
+    /**
+     * 品番別の在庫・受注残・引当・入出庫履歴を表示する。
+     *
+     * @param  int  $product  製品の内部 ID
+     * @return View  inventory.show
+     */
     public function show(int $product): View
     {
         $ym = BusinessDate::currentYm();
@@ -288,6 +309,13 @@ class InventoryController extends Controller
         ]);
     }
 
+    /**
+     * 品番単位の引当フォームを検証し、保存する。
+     *
+     * @param  Request  $request  allocations キーを含む POST
+     * @param  int  $product  製品 ID
+     * @return RedirectResponse  inventory.show
+     */
     public function allocate(Request $request, int $product): RedirectResponse
     {
         $target = MasterCatalog::findProductOrFail($product);

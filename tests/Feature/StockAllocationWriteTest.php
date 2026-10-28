@@ -24,7 +24,7 @@ class StockAllocationWriteTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * 引当なしの受注・発注までを DB に投入する（引当シードは含めない）。
+     * 引当なしの受注・発注を DB に投入する（引当シードは含めない）。
      *
      * 処理の流れ:
      * 1. マスタ基盤 → 品番カタログ → 受注 → 発注の順に Seeder を実行する
