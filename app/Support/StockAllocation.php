@@ -1103,7 +1103,7 @@ class StockAllocation
     public static function unallocatedStockQuantityFromPo(int $productId, int $poId): object
     {
         if (! PurchaseOrder::hasReceivedFor($poId)) {
-            return (object) ['tan' => 0.0, 'meters' => 0.0];
+            return (object) ['tan' => 0.0, 'meters' => 0.0, 'stock_roll_totals' => (object) ['tan' => 0.0, 'meters' => 0.0]];
         }
 
         $rolls = ProductStock::inStockRollTotalsForPo($poId);
@@ -1116,6 +1116,7 @@ class StockAllocation
         return (object) [
             'tan' => min($perPoTan, $global->tan),
             'meters' => min($perPoM, $global->meters),
+            'stock_roll_totals' => $rolls,
         ];
     }
 
@@ -1126,15 +1127,16 @@ class StockAllocation
      * @param  int  $poId  発注 ID
      * @return float  未割当 m
      */
-    public static function unallocatedPoFromPo(int $productId, int $poId): float
-    {
-        if (! PurchaseOrder::hasRemainingFor($poId)) {
-            return 0;
+    public static function unallocatedPoFromPo(int $productId, int $poId,?float $remainingMeters = null
+    ): float {
+        $remainingMeters ??= PurchaseOrder::remainingQtyFor($poId);
+        if ($remainingMeters <= 0) {
+        return 0.0;
         }
 
         $poUsed = self::usageByPoAndType($productId)['po'][$poId] ?? 0;
 
-        return max(0, PurchaseOrder::remainingQtyFor($poId) - $poUsed);
+        return max(0.0, $remainingMeters - $poUsed);
     }
 
     /**
@@ -1168,6 +1170,7 @@ class StockAllocation
                 return (object) [
                     'id' => $po->id,
                     'code' => $po->code,
+                    'stock_roll_totals' => $unallocated->stock_roll_totals,
                     'qty' => $unallocated->meters,
                     'qty_tan' => $unallocated->tan,
                     'stage' => $po->stage,
@@ -1179,20 +1182,22 @@ class StockAllocation
             ->values();
 
         $poOptions = $purchases
-            ->filter(fn ($po) => PurchaseOrder::hasRemainingFor((int) $po->id, $po))
             ->map(function ($po) use ($productId) {
-                $unallocated = self::unallocatedPoFromPo($productId, $po->id);
+                $poRemainingMeters = PurchaseOrder::remainingQtyFor($po->id, $po);
+                $unallocated = self::unallocatedPoFromPo($productId, $po->id, $poRemainingMeters);
                 $unallocatedTan = QtyHelper::tanCount($unallocated, $productId);
-
+                
                 return (object) [
                     'id' => $po->id,
                     'code' => $po->code,
+                    'po_remaining_meters' => $poRemainingMeters,
                     'qty' => $unallocated,
                     'qty_tan' => $unallocatedTan,
                     'stage' => $po->stage,
                     'label' => $po->code.'（未割当 '.QtyHelper::format($unallocated, $productId).' / '.$po->stage.'）',
                 ];
             })
+            ->filter(fn ($option) => $option->po_remaining_meters > 0)
             ->values();
 
         return ['stock' => $stockOptions, 'po' => $poOptions];
