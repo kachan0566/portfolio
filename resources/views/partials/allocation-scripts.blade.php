@@ -20,14 +20,12 @@
 
     const stockTanById = Object.fromEntries(stockOptions.map(po => [
         String(po.id),
-        typeof po.qty_tan === 'number' ? po.qty_tan : QtyUnit.metersToTan(po.qty || 0, metersPerTan),
+        typeof po.stock_roll_totals?.tan === 'number' ? po.stock_roll_totals.tan : 0,
     ]));
     const stockCodeById = Object.fromEntries(stockOptions.map(po => [String(po.id), po.code]));
-    const poTanById = Object.fromEntries(poOptions.map(po => [
-        String(po.id),
-        typeof po.qty_tan === 'number' ? po.qty_tan : QtyUnit.metersToTan(po.qty || 0, metersPerTan),
-    ]));
-    const poQtyById = Object.fromEntries(poOptions.map(po => [String(po.id), po.qty || 0]));
+    const poTanById = Object.fromEntries(poOptions.map(po => [String(po.id), typeof po.po_remaining_meters === 'number' ? QtyUnit.metersToTan(po.po_remaining_meters, metersPerTan)
+    : 0]));
+    const poQtyById = Object.fromEntries(poOptions.map(po => [String(po.id), po.po_remaining_meters ?? 0]));
     const poCodeById = Object.fromEntries(poOptions.map(po => [String(po.id), po.code]));
 
     const allocationForm = document.getElementById('allocation-form');
