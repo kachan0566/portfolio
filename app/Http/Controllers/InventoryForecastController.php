@@ -19,8 +19,18 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * 月末予測の詳細・手動調整・提出版保存・CSV 出力を処理する。
+ */
 class InventoryForecastController extends Controller
 {
+    /**
+     * 製品の月末予測1行と未出荷受注を詳細表示する。
+     *
+     * @param  Request  $request  ym クエリ
+     * @param  int  $product  製品 ID
+     * @return View  inventory.forecast-detail
+     */
     public function showProduct(Request $request, int $product): View
     {
         $target = MasterCatalog::findProductOrFail($product);
@@ -42,6 +52,12 @@ class InventoryForecastController extends Controller
         ]);
     }
 
+    /**
+     * 製品月末予測の手動調整を登録する。
+     *
+     * @param  Request  $request  product_id・target_ym・数量・方向・理由
+     * @return RedirectResponse  詳細または在庫予測タブ
+     */
     public function storeAdjustment(Request $request): RedirectResponse
     {
         $request->validate([
@@ -87,6 +103,12 @@ class InventoryForecastController extends Controller
             ->with('success', '手動調整を登録しました。');
     }
 
+    /**
+     * 製品月末予測の提出版スナップショットを保存する。
+     *
+     * @param  Request  $request  ym（クエリまたは入力）
+     * @return RedirectResponse  inventory.index（forecast タブ）
+     */
     public function storeSnapshot(Request $request): RedirectResponse
     {
         $ym = $this->resolveYm($request);
@@ -122,6 +144,12 @@ class InventoryForecastController extends Controller
             ->with('success', "提出版 Ver.{$snapshot->version} を保存しました。");
     }
 
+    /**
+     * 生機月末予測の手動調整を登録する。
+     *
+     * @param  Request  $request  greige_sku・target_ym・数量・方向・理由
+     * @return RedirectResponse  inventory.index（greige_forecast タブ）
+     */
     public function storeGreigeAdjustment(Request $request): RedirectResponse
     {
         $request->validate([
@@ -151,6 +179,12 @@ class InventoryForecastController extends Controller
             ->with('success', '手動調整を登録しました。');
     }
 
+    /**
+     * 生機月末予測の提出版スナップショットを保存する。
+     *
+     * @param  Request  $request  ym
+     * @return RedirectResponse  inventory.index（greige_forecast タブ）
+     */
     public function storeGreigeSnapshot(Request $request): RedirectResponse
     {
         $ym = $this->resolveYm($request);
@@ -185,6 +219,12 @@ class InventoryForecastController extends Controller
             ->with('success', "提出版 Ver.{$snapshot->version} を保存しました。");
     }
 
+    /**
+     * 製品・生機・合算の統一提出版を保存する。
+     *
+     * @param  Request  $request  ym
+     * @return RedirectResponse  inventory.index（forecast_combined タブ）
+     */
     public function storeCombinedSnapshot(Request $request): RedirectResponse
     {
         $ym = $this->resolveYm($request);
@@ -195,6 +235,12 @@ class InventoryForecastController extends Controller
             ->with('success', "提出版 Ver.{$result->version} を保存しました（製品・生機・合算）。");
     }
 
+    /**
+     * 生機月末予測を CSV でダウンロードする。
+     *
+     * @param  Request  $request  ym
+     * @return StreamedResponse  UTF-8 BOM 付き CSV
+     */
     public function exportGreigeCsv(Request $request): StreamedResponse
     {
         $ym = $this->resolveYm($request);
@@ -266,6 +312,12 @@ class InventoryForecastController extends Controller
         ]);
     }
 
+    /**
+     * 製品月末予測を CSV でダウンロードする。
+     *
+     * @param  Request  $request  ym
+     * @return StreamedResponse  UTF-8 BOM 付き CSV
+     */
     public function exportCsv(Request $request): StreamedResponse
     {
         $ym = $this->resolveYm($request);
@@ -340,6 +392,12 @@ class InventoryForecastController extends Controller
         ]);
     }
 
+    /**
+     * 12か月以上在庫の品番別詳細を表示する。
+     *
+     * @param  int  $product  製品 ID
+     * @return View  inventory.long-term-detail
+     */
     public function longTermDetail(int $product): View
     {
         $target = MasterCatalog::findProductOrFail($product);
@@ -357,6 +415,12 @@ class InventoryForecastController extends Controller
         ]);
     }
 
+    /**
+     * 予測関連の対象年月をクエリ／入力から解決する。
+     *
+     * @param  Request  $request  ym
+     * @return string  YYYY-MM（無効時は当月）
+     */
     private function resolveYm(Request $request): string
     {
         $currentYm = BusinessDate::currentYm();

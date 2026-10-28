@@ -20,8 +20,17 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * 受注の一覧・詳細・登録・更新・引当・発注紐づけを処理する。
+ */
 class OrderController extends Controller
 {
+    /**
+     * 受注一覧を検索・ソートし、引当状況を付与して表示する。
+     *
+     * @param  Request  $request  一覧の検索クエリ
+     * @return View  orders.index
+     */
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
@@ -46,6 +55,12 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * 受注詳細と同一品番の在庫・引当・発注・出荷情報を表示する。
+     *
+     * @param  int  $order  受注の内部 ID（orders.id）
+     * @return View  orders.show
+     */
     public function show(int $order): View
     {
         $target = $this->orderOrFail($order);
@@ -184,6 +199,11 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * 受注新規登録フォームを表示する。
+     *
+     * @return View  orders.create
+     */
     public function create(): View
     {
         return view('orders.create', [
@@ -192,6 +212,12 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * 検証済み入力で受注を作成し、詳細画面へリダイレクトする。
+     *
+     * @param  StoreOrderRequest  $request  受注入力（反数または m）
+     * @return RedirectResponse  orders.show（just_created 付き）
+     */
     public function store(StoreOrderRequest $request): RedirectResponse
     {
         $attributes = $this->attributesFromRequest($request);
@@ -207,6 +233,12 @@ class OrderController extends Controller
             ->with('success', '受注を登録しました。在庫状況を確認してください。');
     }
 
+    /**
+     * 受注編集フォームを表示する。
+     *
+     * @param  int  $order  受注の内部 ID
+     * @return View  orders.edit
+     */
     public function edit(int $order): View
     {
         $target = $this->orderOrFail($order);
@@ -218,6 +250,13 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * 検証済み入力で受注を更新し、詳細画面へリダイレクトする。
+     *
+     * @param  StoreOrderRequest  $request  受注入力
+     * @param  int  $order  更新対象の受注 ID
+     * @return RedirectResponse  orders.show
+     */
     public function update(StoreOrderRequest $request, int $order): RedirectResponse
     {
         Order::query()->findOrFail($order)->update($this->attributesFromRequest($request));
@@ -226,12 +265,25 @@ class OrderController extends Controller
             ->with('success', '受注を更新しました。');
     }
 
+    /**
+     * 受注削除の操作を受け付ける（デモのため DB は変更しない）。
+     *
+     * @param  int  $order  受注の内部 ID（未使用・ルート整合用）
+     * @return RedirectResponse  orders.index
+     */
     public function destroy(int $order): RedirectResponse
     {
         return redirect()->route('orders.index')
             ->with('success', '受注を削除しました。（テストデータのため保存はされません）');
     }
 
+    /**
+     * 未紐づけ発注を受注に紐づけ、条件を満たすとき自動引当を行う。
+     *
+     * @param  int  $order  受注の内部 ID
+     * @param  int  $purchase  発注の内部 ID
+     * @return RedirectResponse  orders.show（success または error）
+     */
     public function linkPurchase(int $order, int $purchase): RedirectResponse
     {
         $target = $this->orderOrFail($order);
@@ -302,6 +354,12 @@ class OrderController extends Controller
         return redirect()->route('orders.show', $order)->with('success', $message);
     }
 
+    /**
+     * 受注に登録された引当をすべて解除する（発注紐づけは維持）。
+     *
+     * @param  int  $order  受注の内部 ID
+     * @return RedirectResponse  orders.show
+     */
     public function clearAllocation(int $order): RedirectResponse
     {
         $target = $this->orderOrFail($order);
@@ -317,6 +375,22 @@ class OrderController extends Controller
             ->with('success', "受注 {$target->code} の引当をすべて解除しました。（発注の紐づけはそのままです）");
     }
 
+    /**
+     * 受注詳細画面から送られた引当フォームを検証し、同一品番の引当をまとめて保存する。
+     *
+     * 処理の流れ:
+     * 1. $order で受注を取得する（存在しなければ 404）
+     * 2. リクエストの allocations を StockAllocation で検証する（在庫超過・受注残超過など）
+     * 3. 検証エラー時は受注詳細へ戻し、flash の error にメッセージを載せる
+     * 4. 成功時は保存用マップに変換し、order_allocations を品番単位で置き換え保存する
+     *
+     * フォームの allocations は [受注ID][stock|po][発注ID] => 反数 の形。
+     * URL の受注は画面の起点だが、保存対象はその品番に属するフォーム内の全受注行。
+     *
+     * @param  Request  $request  POST 本文。allocations キー（省略時は空配列）を読む
+     * @param  int  $order  受注の内部 ID（orders.show へリダイレクト先の特定に使う）
+     * @return RedirectResponse  常に orders.show へ。success または error の flash を付与
+     */
     public function saveAllocation(Request $request, int $order): RedirectResponse
     {
         $target = $this->orderOrFail($order);
@@ -334,6 +408,14 @@ class OrderController extends Controller
             ->with('success', '引当を更新しました。');
     }
 
+    /**
+     * 受注の指定発注・種別（在庫／発注引当）の引当行を1件解除する。
+     *
+     * @param  Request  $request  クエリ type（stock|po、省略時 stock）
+     * @param  int  $order  受注の内部 ID
+     * @param  int  $purchase  発注の内部 ID
+     * @return RedirectResponse  orders.show
+     */
     public function removeAllocation(Request $request, int $order, int $purchase): RedirectResponse
     {
         $type = $request->query('type', StockAllocation::TYPE_STOCK);
@@ -363,6 +445,13 @@ class OrderController extends Controller
             ->with('success', "{$label} の{$typeLabel}を解除しました。");
     }
 
+    /**
+     * 発注の紐づけ先受注を別受注へ付け替える（品番一致時のみ）。
+     *
+     * @param  Request  $request  new_order_id を含む入力
+     * @param  int  $purchase  発注の内部 ID
+     * @return RedirectResponse  直前の画面へ戻る
+     */
     public function relinkPurchase(Request $request, int $purchase): RedirectResponse
     {
         $poModel = PurchaseOrder::query()->with('lines')->find($purchase) ?? abort(404);
@@ -381,6 +470,12 @@ class OrderController extends Controller
             ->with('success', "発注 {$poModel->code} の紐づけ先を {$newOrder->code} に変更しました。（在庫引当の来歴はそのままです）");
     }
 
+    /**
+     * 内部 ID で表示用受注を取得し、無ければ 404 にする。
+     *
+     * @param  int  $orderId  orders.id
+     * @return object  Order::findForDisplay の表示行
+     */
     private function orderOrFail(int $orderId): object
     {
         return Order::findForDisplay($orderId) ?? abort(404);
@@ -424,7 +519,10 @@ class OrderController extends Controller
     }
 
     /**
-     * 欠番がある場合も既存の最大番号より後ろの受注番号を生成する。
+     * 受注日に基づき SO-YYMM-連番形式の受注番号を採番する。
+     *
+     * @param  string  $orderDate  受注日（YYMM 算出用）
+     * @return string  新規受注番号
      */
     private function generateOrderCode(string $orderDate): string
     {
@@ -438,6 +536,13 @@ class OrderController extends Controller
         return 'SO-'.$ym.'-'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * 表示用受注に引当サマリ（残数・出荷可など）を付与する。
+     *
+     * @param  object  $order  表示用受注行
+     * @param  bool  $withPrice  true のとき単価を付与
+     * @return object  引当フィールドを追加した $order
+     */
     private function enrichWithAllocation(object $order, bool $withPrice = false): object
     {
         $allocation = StockAllocation::statusForOrder($order);

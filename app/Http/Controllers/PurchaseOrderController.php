@@ -37,6 +37,12 @@ use Illuminate\View\View;
  */
 class PurchaseOrderController extends Controller
 {
+    /**
+     * 発注一覧を検索・絞り込みし、不足フラグを付与して表示する。
+     *
+     * @param  Request  $request  一覧の検索クエリ
+     * @return View  purchases.index
+     */
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
@@ -61,6 +67,12 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
+    /**
+     * 発注詳細（明細・入荷・糸／生機不足）を表示する。
+     *
+     * @param  int  $purchase  発注の内部 ID
+     * @return View  purchases.show
+     */
     public function show(int $purchase): View
     {
         $purchase = $this->enrichPurchase($this->findPurchase($purchase));
@@ -122,6 +134,12 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
+    /**
+     * 種別・受注起点などに応じた発注新規登録フォームを表示する。
+     *
+     * @param  Request  $request  type・order_id・qty などのクエリ
+     * @return View  purchases.create
+     */
     public function create(Request $request): View
     {
         $type = (string) $request->query('type', PurchaseOrderType::PRODUCT);
@@ -173,10 +191,10 @@ class PurchaseOrderController extends Controller
     }
 
     /**
-     * 検証済み発注明細を0.25反・小数mを維持して登録する。
+     * 検証済み発注明細を登録し、詳細画面へリダイレクトする。
      *
-     * @param  StorePurchaseOrderRequest  $request  発注種別と検証済み明細
-     * @return RedirectResponse 登録した発注の詳細画面へ移動する
+     * @param  StorePurchaseOrderRequest  $request  発注種別・明細・下書き／発注の保存区分
+     * @return RedirectResponse  purchases.show
      */
     public function store(StorePurchaseOrderRequest $request): RedirectResponse
     {
@@ -288,6 +306,12 @@ class PurchaseOrderController extends Controller
             ->with('success', "発注 {$purchase->code} を{$label}で登録しました。（明細 {$lineCount} 行）");
     }
 
+    /**
+     * 発注編集フォーム（状態・工程・明細行）を表示する。
+     *
+     * @param  int  $purchase  発注の内部 ID
+     * @return View  purchases.edit
+     */
     public function edit(int $purchase): View
     {
         $purchase = $this->enrichPurchase($this->findPurchase($purchase));
@@ -328,6 +352,13 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
+    /**
+     * 発注ヘッダ・状態・工程を更新し、詳細画面へリダイレクトする。
+     *
+     * @param  UpdatePurchaseOrderRequest  $request  編集済み発注入力
+     * @param  int  $purchase  更新対象の発注 ID
+     * @return RedirectResponse  purchases.show（検証エラー時は戻る）
+     */
     public function update(UpdatePurchaseOrderRequest $request, int $purchase): RedirectResponse
     {
         $target = $this->findPurchase($purchase);
@@ -423,6 +454,13 @@ class PurchaseOrderController extends Controller
             ->with('success', '発注を更新しました。');
     }
 
+    /**
+     * 一覧から入荷予定日・メモを部分更新し、一覧へ戻る。
+     *
+     * @param  Request  $request  expected_arrival_date・arrival_memo・検索クエリの維持用パラメータ
+     * @param  int  $purchase  発注の内部 ID
+     * @return RedirectResponse  purchases.index
+     */
     public function patchArrival(Request $request, int $purchase): RedirectResponse
     {
         $target = $this->findPurchase($purchase);
@@ -458,6 +496,12 @@ class PurchaseOrderController extends Controller
             ->with('success', "発注 {$target->code} の入荷予定を更新しました。");
     }
 
+    /**
+     * 発注をキャンセル状態にし、種別に応じた在庫・染投入を戻す。
+     *
+     * @param  int  $purchase  発注の内部 ID
+     * @return RedirectResponse  purchases.index
+     */
     public function destroy(int $purchase): RedirectResponse
     {
         $target = $this->findPurchase($purchase);
@@ -476,11 +520,23 @@ class PurchaseOrderController extends Controller
             ->with('success', '発注をキャンセルしました。');
     }
 
+    /**
+     * デモデータから発注行を取得し、無ければ 404 にする。
+     *
+     * @param  int  $id  発注の内部 ID
+     * @return object  一覧・詳細用の発注表示行
+     */
     private function findPurchase(int $id): object
     {
         return DemoData::purchaseOrders()->firstWhere('id', $id) ?? abort(404);
     }
 
+    /**
+     * 発注種別に応じた PO コード（年月＋連番）を採番する。
+     *
+     * @param  string  $type  PurchaseOrderType の値
+     * @return string  新規発注コード
+     */
     private function generateCode(string $type): string
     {
         $prefix = match ($type) {
@@ -494,6 +550,12 @@ class PurchaseOrderController extends Controller
         return $prefix.$ym.'-'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * 詳細用発注に糸／生機の material_shortage フラグを付与する。
+     *
+     * @param  object  $po  発注表示行
+     * @return object  material_shortage を追加した $po
+     */
     private function enrichPurchase(object $po): object
     {
         $po->material_shortage = match ($po->type ?? '') {
@@ -512,6 +574,12 @@ class PurchaseOrderController extends Controller
         return $po;
     }
 
+    /**
+     * 一覧行用発注に material_shortage フラグを付与する。
+     *
+     * @param  object  $po  一覧の発注行
+     * @return object  material_shortage を追加した $po
+     */
     private function enrichPurchaseLine(object $po): object
     {
         $po->material_shortage = match ($po->type ?? '') {
@@ -530,6 +598,16 @@ class PurchaseOrderController extends Controller
         return $po;
     }
 
+    /**
+     * リクエストの line_stages を編集可能な明細行へ反映する。
+     *
+     * @param  PurchaseOrder  $model  更新対象の発注
+     * @param  Request  $request  line_stages 配列
+     * @param  string  $type  発注種別（生機／製品で処理が分岐）
+     * @return void
+     *
+     * @throws ValidationException  製品明細の工程変更が拒否されたとき
+     */
     private function syncLineStages(PurchaseOrder $model, Request $request, string $type): void
     {
         $lineStages = $request->input('line_stages', []);

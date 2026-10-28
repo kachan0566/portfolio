@@ -17,8 +17,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
+/**
+ * 入荷実績の一覧表示と発注に対する入荷登録を処理する。
+ */
 class ReceivingController extends Controller
 {
+    /**
+     * 入荷一覧を検索・絞り込みして表示する。
+     *
+     * @param  Request  $request  一覧の検索クエリ
+     * @return View  receivings.index
+     */
     public function index(Request $request): View
     {
         $search = ListSearch::params($request);
@@ -33,6 +42,12 @@ class ReceivingController extends Controller
         ]);
     }
 
+    /**
+     * 種別ごとの未入荷残がある発注から入荷登録フォームを表示する。
+     *
+     * @param  Request  $request  type クエリ（糸／生機／製品）
+     * @return View  receivings.create
+     */
     public function create(Request $request): View
     {
         $type = (string) $request->query('type', PurchaseOrderType::PRODUCT);
@@ -55,6 +70,12 @@ class ReceivingController extends Controller
         ]);
     }
 
+    /**
+     * 入荷入力を正規化し、ReceivingRegistrar で登録する。
+     *
+     * @param  Request  $request  po_id・日付・明細 entries（または旧形式）
+     * @return RedirectResponse  receivings.index または create（エラー時）
+     */
     public function store(Request $request): RedirectResponse
     {
         $poId = (int) $request->input('po_id');
@@ -80,6 +101,11 @@ class ReceivingController extends Controller
     }
 
     /**
+     * リクエストを ReceivingRegistrar 向けの入荷明細配列に正規化する。
+     *
+     * @param  Request  $request  entries または旧単一行形式
+     * @param  string  $poType  発注種別
+     * @param  int  $poId  発注 ID
      * @return list<array{
      *   purchase_order_line_id: int,
      *   qty_kg?: float,
@@ -99,7 +125,12 @@ class ReceivingController extends Controller
     }
 
     /**
-     * @param  array<int, mixed>  $rawEntries
+     * 複数明細の entries 配列を検証・正規化する。
+     *
+     * @param  Request  $request  フォーム全体（反ロール等）
+     * @param  string  $poType  発注種別
+     * @param  int  $poId  発注 ID
+     * @param  array<int, mixed>  $rawEntries  entries の生配列
      * @return list<array<string, mixed>>
      */
     private function normalizeMultiLineEntries(Request $request, string $poType, int $poId, array $rawEntries): array
@@ -179,6 +210,11 @@ class ReceivingController extends Controller
     }
 
     /**
+     * 旧形式（単一数量・rolls）の入荷入力を1明細に正規化する。
+     *
+     * @param  Request  $request  qty／qty_tan・rolls など
+     * @param  string  $poType  発注種別
+     * @param  int  $poId  発注 ID
      * @return list<array<string, mixed>>
      */
     private function normalizeLegacySingleEntry(Request $request, string $poType, int $poId): array
@@ -240,6 +276,12 @@ class ReceivingController extends Controller
         ]];
     }
 
+    /**
+     * 旧形式入荷用に発注の先頭明細行 ID を返す。
+     *
+     * @param  int  $poId  発注 ID
+     * @return int  purchase_order_lines.id（無ければ 0）
+     */
     private function resolveLegacyPoLineId(int $poId): int
     {
         $line = PurchaseOrder::query()->with('lines')->find($poId)?->lines->sortBy('line_no')->first();
@@ -248,12 +290,12 @@ class ReceivingController extends Controller
     }
 
     /**
-     * 入荷反明細を丸め前に検証し、0.25反刻みの行だけを正規化する。
+     * 反ロール入力行を検証し、0.25反刻みの roll_lines に正規化する。
      *
-     * @param  mixed  $rollsInput  反数と実測mを持つ入力行の配列
-     * @param  float  $headerTan  入荷明細全体の反数
-     * @param  float  $totalMeters  入荷明細全体の実測m
-     * @return list<array{tan_qty: float, actual_qty_m: float}> 検証済みの反明細
+     * @param  mixed  $rollsInput  反数・実測m の入力行配列
+     * @param  float  $headerTan  明細ヘッダの反数
+     * @param  float  $totalMeters  明細ヘッダの実測 m
+     * @return list<array{tan_qty: float, actual_qty_m: float}>
      */
     private function normalizeRollLines(mixed $rollsInput, float $headerTan, float $totalMeters): array
     {
@@ -294,7 +336,11 @@ class ReceivingController extends Controller
     }
 
     /**
-     * @param  Collection<int, object>  $pending
+     * 入荷候補発注ごとの残明細メタを JSON 文字列で返す。
+     *
+     * @param  string  $type  発注種別
+     * @param  Collection<int, object>  $pending  未入荷残のある発注行
+     * @return string  po_id => 明細メタ配列 の JSON
      */
     private function pendingPoLinesJson(string $type, $pending): string
     {

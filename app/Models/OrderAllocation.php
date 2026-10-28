@@ -41,25 +41,42 @@ class OrderAllocation extends Model
         ];
     }
 
-    /** @return BelongsTo<Order, $this> */
+    /**
+     * 引当の受注。
+     *
+     * @return BelongsTo<Order, $this>
+     */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
-    /** @return BelongsTo<Product, $this> */
+    /**
+     * 引当の製品。
+     *
+     * @return BelongsTo<Product, $this>
+     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    /** @return BelongsTo<PurchaseOrder, $this> */
+    /**
+     * 発注引当の元発注（在庫引当は null）。
+     *
+     * @return BelongsTo<PurchaseOrder, $this>
+     */
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
     }
 
-    /** @return Collection<int, object> */
+    /**
+     * 品番の引当行を StockAllocation 用オブジェクトのコレクションで返す。
+     *
+     * @param  int  $productId  products.id
+     * @return Collection<int, object>
+     */
     public static function linesForProduct(int $productId): Collection
     {
         return self::query()
@@ -71,7 +88,10 @@ class OrderAllocation extends Model
     }
 
     /**
+     * 全引当行を削除し、引数の行で全体を置き換える。
+     *
      * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $lines
+     * @return void
      */
     public static function syncAll(array $lines): void
     {
@@ -80,7 +100,11 @@ class OrderAllocation extends Model
     }
 
     /**
+     * 指定品番の引当行を削除し、引数の行で置き換える。
+     *
+     * @param  int  $productId  products.id
      * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $lines
+     * @return void
      */
     public static function replaceForProduct(int $productId, array $lines): void
     {
@@ -88,11 +112,25 @@ class OrderAllocation extends Model
         self::insertLines($lines);
     }
 
+    /**
+     * 受注に紐づく引当行をすべて削除する。
+     *
+     * @param  int  $orderId  orders.id
+     * @return void
+     */
     public static function deleteForOrder(int $orderId): void
     {
         self::query()->where('order_id', $orderId)->delete();
     }
 
+    /**
+     * 受注・発注・区分に一致する引当行を削除する。
+     *
+     * @param  int  $orderId  orders.id
+     * @param  int  $poId  発注 ID（在庫引当は 0）
+     * @param  string  $type  TYPE_STOCK または TYPE_PO
+     * @return void
+     */
     public static function deleteLine(int $orderId, int $poId, string $type): void
     {
         $query = self::query()
@@ -112,7 +150,7 @@ class OrderAllocation extends Model
      * 同じ受注・品番・発注元・区分の引当へ0.25反数量を加算する。
      *
      * @param  array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}  $line
-     * @return void DBへ保存するため戻り値は使わない
+     * @return void
      */
     public static function upsertLine(array $line): void
     {
@@ -167,7 +205,7 @@ class OrderAllocation extends Model
      * 引当行を0.25反と小数mを維持してまとめて登録する。
      *
      * @param  list<array{product_id: int, order_id: int, po_id: int, qty_tan: float, qty: float, type: string}>  $lines
-     * @return void DBへ保存するため戻り値は使わない
+     * @return void
      */
     private static function insertLines(array $lines): void
     {
