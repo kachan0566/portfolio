@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Order;
 
-use App\Models\OrderAllocation;
+use App\Models\Order\OrderAllocation;
 use App\Support\Core\DemoData;
 use App\Support\Inventory\StockAllocation;
 use Database\Seeders\MasterCatalogSeeder;

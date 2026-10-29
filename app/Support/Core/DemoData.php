@@ -2,15 +2,15 @@
 
 namespace App\Support\Core;
 
-use App\Models\GreigeRecipe;
-use App\Models\Material;
-use App\Models\MaterialPrice;
-use App\Models\Order;
-use App\Models\OrderAllocation;
-use App\Models\ProductRecipe;
-use App\Models\PurchaseOrder;
-use App\Models\Receiving;
-use App\Models\Shipment;
+use App\Models\Recipe\GreigeRecipe;
+use App\Models\Master\Material;
+use App\Models\Master\MaterialPrice;
+use App\Models\Order\Order;
+use App\Models\Order\OrderAllocation;
+use App\Models\Recipe\ProductRecipe;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Receiving\Receiving;
+use App\Models\Shipment\Shipment;
 use Illuminate\Support\Collection;
 
 /**

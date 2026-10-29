@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Models\Order;
+use App\Models\Order\Order;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;

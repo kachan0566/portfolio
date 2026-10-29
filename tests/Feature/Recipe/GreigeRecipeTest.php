@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Recipe;
 
-use App\Models\GreigeRecipe;
+use App\Models\Recipe\GreigeRecipe;
 use App\Support\Core\DemoData;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;

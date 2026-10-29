@@ -2,10 +2,10 @@
 
 namespace App\Support\Inventory;
 
-use App\Models\AllocationConversion;
-use App\Models\Order;
-use App\Models\OrderAllocation;
-use App\Models\PurchaseOrder;
+use App\Models\Order\AllocationConversion;
+use App\Models\Order\Order;
+use App\Models\Order\OrderAllocation;
+use App\Models\Purchase\PurchaseOrder;
 use Illuminate\Support\Collection;
 
 /**

@@ -2,12 +2,12 @@
 
 namespace Tests\Feature\Receiving;
 
-use App\Models\GreigeRoll;
-use App\Models\ProductRoll;
-use App\Models\ReceivingLine;
-use App\Models\ReceivingRollAmendment;
-use App\Models\Shipment;
-use App\Models\ShipmentRollAllocation;
+use App\Models\Inventory\GreigeRoll;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Receiving\ReceivingLine;
+use App\Models\Receiving\ReceivingRollAmendment;
+use App\Models\Shipment\Shipment;
+use App\Models\Shipment\ShipmentRollAllocation;
 use App\Services\Receiving\ReceivingLineTotals;
 use App\Services\Receiving\RollAmendmentService;
 use App\Support\Purchase\PurchaseOrderType;

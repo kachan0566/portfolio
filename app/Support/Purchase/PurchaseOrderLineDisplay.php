@@ -2,9 +2,8 @@
 
 namespace App\Support\Purchase;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
 /**
  * 発注明細行ごとの工程ラベル（入荷有無は自動、染機投入済などは手動）。
  */

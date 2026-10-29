@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Inventory;
 
-use App\Models\Greige;
-use App\Models\GreigeForecastManualAdjustment;
+use App\Models\Master\Greige;
+use App\Models\Inventory\GreigeForecastManualAdjustment;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;

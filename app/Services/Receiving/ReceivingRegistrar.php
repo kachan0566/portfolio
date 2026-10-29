@@ -2,10 +2,10 @@
 
 namespace App\Services\Receiving;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-use App\Models\Receiving;
-use App\Models\ReceivingLine;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\Receiving;
+use App\Models\Receiving\ReceivingLine;
 use App\Services\Fabric\TanRollRecorder;
 use App\Services\Yarn\YarnStockMovementRecorder;
 use App\Support\Core\DemoData;

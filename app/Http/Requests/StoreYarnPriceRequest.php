@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\MaterialPrice;
+use App\Models\Master\MaterialPrice;
 use App\Support\Master\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Schema;

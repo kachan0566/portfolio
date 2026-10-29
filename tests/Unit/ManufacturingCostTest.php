@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Models\MaterialPrice;
+use App\Models\Master\MaterialPrice;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;
 use App\Support\Inventory\ProductStock;

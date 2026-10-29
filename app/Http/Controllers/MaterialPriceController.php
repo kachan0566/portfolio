@@ -6,7 +6,7 @@ use App\Support\Master\MasterCatalog;
 
 use App\Http\Requests\StoreYarnPriceRequest;
 use App\Http\Requests\UpdateYarnPriceRequest;
-use App\Models\MaterialPrice;
+use App\Models\Master\MaterialPrice;
 use App\Support\Core\DemoData;
 use App\Support\Master\ListSearch;
 use Illuminate\Http\RedirectResponse;

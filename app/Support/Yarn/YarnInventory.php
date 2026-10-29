@@ -4,11 +4,10 @@ namespace App\Support\Yarn;
 
 use App\Support\Master\MasterCatalog;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-use App\Models\YarnAllocation;
-use App\Models\YarnStockMovement;
-
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Yarn\YarnAllocation;
+use App\Models\Yarn\YarnStockMovement;
 /**
  * 糸の在庫・発注残・引当。
  */

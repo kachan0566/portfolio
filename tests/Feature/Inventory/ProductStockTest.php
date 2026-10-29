@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Inventory;
 
-use App\Models\Shipment;
+use App\Models\Shipment\Shipment;
 use App\Support\Inventory\ProductStock;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

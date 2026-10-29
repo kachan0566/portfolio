@@ -2,15 +2,15 @@
 
 namespace Database\Seeders;
 
-use App\Models\Order;
-use App\Models\ProductRoll;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-use App\Models\Receiving;
-use App\Models\ReceivingLine;
-use App\Models\Shipment;
-use App\Models\ShipTo;
-use App\Models\Supplier;
+use App\Models\Order\Order;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\Receiving;
+use App\Models\Receiving\ReceivingLine;
+use App\Models\Shipment\Shipment;
+use App\Models\Master\ShipTo;
+use App\Models\Master\Supplier;
 use App\Services\Fabric\TanRollRecorder;
 use App\Services\Shipment\ShipmentRegistrar;
 use App\Support\Core\DemoData;

@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Order;
 
-use App\Models\Customer;
-use App\Models\Order;
-use App\Models\Product;
+use App\Models\Master\Customer;
+use App\Models\Order\Order;
+use App\Models\Master\Product;
 use App\Support\Core\DemoData;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

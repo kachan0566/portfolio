@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Master;
 
-use App\Models\Greige;
-use App\Models\Material;
-use App\Models\Product;
+use App\Models\Master\Greige;
+use App\Models\Master\Material;
+use App\Models\Master\Product;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;
 use App\Support\Inventory\ProductStock;

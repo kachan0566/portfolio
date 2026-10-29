@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Shipment;
 
-use App\Models\ShipmentPlanRecord;
+use App\Models\Shipment\ShipmentPlanRecord;
 use App\Support\Shipment\ShipmentPlan;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

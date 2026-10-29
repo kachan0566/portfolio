@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Models\Receiving;
+
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Inventory\GreigeRoll;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+/**
+ * 入荷伝票の明細合計を、発注明細との関連とともに保持する。
+ */
+#[Fillable([
+    'receiving_id',
+    'purchase_order_line_id',
+    'line_no',
+    'qty_tan',
+    'qty_m',
+    'qty_kg',
+])]
+class ReceivingLine extends Model
+{
+    /**
+     * 0.25反と小数mを失わず読み書きする型変換を定義する。
+     *
+     * @return array<string, string> Eloquentの列別キャスト
+     */
+    protected function casts(): array
+    {
+        return [
+            'receiving_id' => 'integer',
+            'purchase_order_line_id' => 'integer',
+            'line_no' => 'integer',
+            'qty_tan' => 'decimal:2',
+            'qty_m' => 'decimal:2',
+            'qty_kg' => 'decimal:3',
+        ];
+    }
+
+    /** @return BelongsTo<Receiving, $this> */
+    public function receiving(): BelongsTo
+    {
+        return $this->belongsTo(Receiving::class);
+    }
+
+    /** @return BelongsTo<PurchaseOrderLine, $this> */
+    public function purchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class);
+    }
+
+    /** @return HasMany<GreigeRoll, $this> */
+    public function greigeRolls(): HasMany
+    {
+        return $this->hasMany(GreigeRoll::class);
+    }
+
+    /** @return HasMany<ProductRoll, $this> */
+    public function productRolls(): HasMany
+    {
+        return $this->hasMany(ProductRoll::class);
+    }
+
+    /** @return HasMany<ReceivingRollAmendment, $this> */
+    public function rollAmendments(): HasMany
+    {
+        return $this->hasMany(ReceivingRollAmendment::class)->orderByDesc('changed_at');
+    }
+}

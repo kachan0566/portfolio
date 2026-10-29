@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Shipment;
 
-use App\Models\Order;
-use App\Models\ProductRoll;
-use App\Models\Shipment;
+use App\Models\Order\Order;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Shipment\Shipment;
 use App\Support\Inventory\StockAllocation;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

@@ -2,9 +2,9 @@
 
 namespace App\Services\Inventory;
 
-use App\Models\CombinedMonthEndForecast;
-use App\Models\GreigeMonthEndForecast;
-use App\Models\MonthEndForecast;
+use App\Models\Inventory\CombinedMonthEndForecast;
+use App\Models\Inventory\GreigeMonthEndForecast;
+use App\Models\Inventory\MonthEndForecast;
 use App\Support\Master\MasterCatalog;
 
 /**

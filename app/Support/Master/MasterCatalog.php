@@ -2,11 +2,11 @@
 
 namespace App\Support\Master;
 
-use App\Models\Greige;
-use App\Models\Material;
-use App\Models\Product;
-use App\Models\ShipTo;
-use App\Models\Supplier;
+use App\Models\Master\Greige;
+use App\Models\Master\Material;
+use App\Models\Master\Product;
+use App\Models\Master\ShipTo;
+use App\Models\Master\Supplier;
 use Illuminate\Support\Collection;
 
 /**

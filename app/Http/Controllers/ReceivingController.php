@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
 use App\Services\Fabric\TanRollRecorder;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\Core\DemoData;

@@ -2,11 +2,11 @@
 
 namespace App\Services\Receiving;
 
-use App\Models\GreigeRoll;
-use App\Models\ProductRoll;
-use App\Models\ReceivingLine;
-use App\Models\ReceivingRollAmendment;
-use App\Models\ShipmentRollAllocation;
+use App\Models\Inventory\GreigeRoll;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Receiving\ReceivingLine;
+use App\Models\Receiving\ReceivingRollAmendment;
+use App\Models\Shipment\ShipmentRollAllocation;
 use App\Support\Qty\QtyHelper;
 use Illuminate\Support\Facades\DB;
 

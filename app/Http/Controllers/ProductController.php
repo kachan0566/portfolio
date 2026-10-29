@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Support\Master\MasterCatalog;
 
-use App\Models\Greige;
-use App\Models\Product;
+use App\Models\Master\Greige;
+use App\Models\Master\Product;
 use App\Support\Master\ListSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

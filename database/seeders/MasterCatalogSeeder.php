@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Greige;
-use App\Models\Material;
-use App\Models\Product;
+use App\Models\Master\Greige;
+use App\Models\Master\Material;
+use App\Models\Master\Product;
 use App\Support\Core\DemoData;
 use Illuminate\Database\Seeder;
 

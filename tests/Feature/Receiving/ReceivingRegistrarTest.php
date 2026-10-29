@@ -2,15 +2,15 @@
 
 namespace Tests\Feature\Receiving;
 
-use App\Models\ProductRoll;
-use App\Models\PurchaseOrderLine;
-use App\Models\Receiving;
-use App\Models\ReceivingLine;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\Receiving;
+use App\Models\Receiving\ReceivingLine;
 use App\Services\Inventory\ShipmentRollAllocator;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\Core\DemoData;
 use App\Support\Inventory\ProductStock;
-use App\Models\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrder;
 use App\Support\Purchase\PurchaseOrderType;
 use App\Support\Qty\QtyHelper;
 use Database\Seeders\MasterCatalogSeeder;

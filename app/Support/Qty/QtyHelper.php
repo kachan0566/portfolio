@@ -2,9 +2,8 @@
 
 namespace App\Support\Qty;
 
-use App\Models\Greige;
-use App\Models\Product;
-
+use App\Models\Master\Greige;
+use App\Models\Master\Product;
 /**
  * 数量の表示・換算ヘルパー。
  *

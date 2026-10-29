@@ -2,8 +2,7 @@
 
 namespace App\Support\Inventory;
 
-use App\Models\PurchaseOrder;
-
+use App\Models\Purchase\PurchaseOrder;
 /**
  * 製品発注向け：生機の供給量（染工場仕掛 + 生機発注残）の判定。
  */

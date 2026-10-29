@@ -2,10 +2,10 @@
 
 namespace App\Support\Inventory;
 
-use App\Models\Greige;
-use App\Models\GreigeRoll as GreigeRollModel;
-use App\Models\PurchaseOrderLine;
-use App\Models\ReceivingLine;
+use App\Models\Master\Greige;
+use App\Models\Inventory\GreigeRoll as GreigeRollModel;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\ReceivingLine;
 use Illuminate\Support\Collection;
 
 /**

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Shipment;
 
-use App\Models\Shipment;
+use App\Models\Shipment\Shipment;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;

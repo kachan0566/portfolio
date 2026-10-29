@@ -133,8 +133,8 @@
                     @foreach ($purchases as $po)
                         @php
                             $poUsed = $poUsageByPo[$po->id] ?? 0;
-                            $received = (int) floor(\App\Models\PurchaseOrder::receivedQtyFor((int) $po->id, $po));
-                            $poRem = \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po);
+                            $received = (int) floor(\App\Models\Purchase\PurchaseOrder::receivedQtyFor((int) $po->id, $po));
+                            $poRem = \App\Models\Purchase\PurchaseOrder::remainingQtyFor((int) $po->id, $po);
                             $stockUsedTan = \App\Support\Inventory\StockAllocation::stockUsageTanByPo($product->id)[$po->id] ?? 0.0;
                             $stockUsedM = $stockUsageByPo[$po->id] ?? 0;
                         @endphp

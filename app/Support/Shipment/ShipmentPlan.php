@@ -2,7 +2,7 @@
 
 namespace App\Support\Shipment;
 
-use App\Models\ShipmentPlanRecord;
+use App\Models\Shipment\ShipmentPlanRecord;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 

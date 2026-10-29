@@ -2,9 +2,9 @@
 
 namespace App\Services\Receiving;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-use App\Models\ReceivingLine;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\ReceivingLine;
 use App\Support\Purchase\PurchaseOrderStatus;
 use App\Support\Purchase\PurchaseOrderType;
 use App\Support\Qty\QtyHelper;

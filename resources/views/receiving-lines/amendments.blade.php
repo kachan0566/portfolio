@@ -49,7 +49,7 @@
                                         {{ $amendment->changed_at?->format('Y-m-d H:i') }}
                                     </td>
                                     <td class="code-cell mono">{{ $amendment->roll_code }}</td>
-                                    <td>{{ \App\Models\ReceivingRollAmendment::fieldLabel($amendment->field) }}</td>
+                                    <td>{{ \App\Models\Receiving\ReceivingRollAmendment::fieldLabel($amendment->field) }}</td>
                                     <td class="num mono">{{ number_format((float) $amendment->old_value, 3) }}</td>
                                     <td class="num mono">{{ number_format((float) $amendment->new_value, 3) }}</td>
                                     <td class="num mono t-muted">

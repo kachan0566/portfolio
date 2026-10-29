@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Purchase;
 
-use App\Models\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrder;
 use App\Support\Core\DemoData;
 use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\CostFoundationSeeder;

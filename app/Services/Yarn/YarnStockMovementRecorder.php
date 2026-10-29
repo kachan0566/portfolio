@@ -2,8 +2,8 @@
 
 namespace App\Services\Yarn;
 
-use App\Models\ReceivingLine;
-use App\Models\YarnStockMovement;
+use App\Models\Receiving\ReceivingLine;
+use App\Models\Yarn\YarnStockMovement;
 use App\Support\Yarn\YarnMovementReference;
 use App\Support\Yarn\YarnMovementType;
 

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Order;
 
-use App\Models\AllocationConversion;
-use App\Models\PurchaseOrder;
+use App\Models\Order\AllocationConversion;
+use App\Models\Purchase\PurchaseOrder;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\Purchase\PurchaseOrderType;
 use App\Support\Qty\QtyHelper;

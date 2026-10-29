@@ -2,7 +2,7 @@
 
 namespace App\Support\Purchase;
 
-use App\Models\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrder;
 use Illuminate\Support\Facades\Schema;
 
 /**

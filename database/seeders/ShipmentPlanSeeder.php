@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Order;
-use App\Models\ShipmentPlanRecord;
-use App\Models\User;
+use App\Models\Order\Order;
+use App\Models\Shipment\ShipmentPlanRecord;
+use App\Models\Master\User;
 use App\Support\Qty\QtyHelper;
 use App\Support\Shipment\ShipmentPlan;
 use Illuminate\Database\Seeder;

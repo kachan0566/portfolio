@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Recipe;
 
-use App\Models\Product;
+use App\Models\Master\Product;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;
 use Database\Seeders\CostFoundationSeeder;

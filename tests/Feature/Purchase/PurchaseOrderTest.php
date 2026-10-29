@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Purchase;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
 use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;

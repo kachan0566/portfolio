@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SalesForecastLine;
+use App\Models\Sales\SalesForecastLine;
 use App\Services\Sales\SalesForecastEngine;
 use App\Services\Sales\SalesRecognition;
 use App\Support\Core\BusinessDate;

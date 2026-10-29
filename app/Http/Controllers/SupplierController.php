@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Supplier;
+use App\Models\Master\Supplier;
 use App\Support\Core\DemoData;
 use App\Support\Master\ListSearch;
 use Illuminate\Http\RedirectResponse;

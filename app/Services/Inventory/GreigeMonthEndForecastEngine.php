@@ -2,11 +2,11 @@
 
 namespace App\Services\Inventory;
 
-use App\Models\GreigeMonthEndForecast;
-use App\Models\PurchaseOrder;
+use App\Models\Inventory\GreigeMonthEndForecast;
+use App\Models\Purchase\PurchaseOrder;
 use App\Services\Sales\SalesRecognition;
 use App\Support\Core\DemoData;
-use App\Models\GreigeForecastManualAdjustment;
+use App\Models\Inventory\GreigeForecastManualAdjustment;
 use App\Support\Inventory\GreigeRoll;
 use App\Support\Inventory\GreigeSupply;
 use App\Support\Master\MasterCatalog;

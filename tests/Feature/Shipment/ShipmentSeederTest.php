@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Shipment;
 
-use App\Models\ProductRoll;
-use App\Models\Shipment;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Shipment\Shipment;
 use App\Support\Core\DemoData;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
