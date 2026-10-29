@@ -110,13 +110,13 @@
 
 - 入荷登録の本体処理は `ReceivingRegistrar`、出荷登録は `ShipmentRegistrar` に集約する。
 - 将来の工場向け API は、これら Registrar を **画面と同じ入口から呼ぶ**（ロジックの二重実装をしない）。
-- 工場向け JSON API の仕様書は OpenAPI または `memo/API/` 形式で **連携部分だけ** 書く（社内画面用仕様とは分ける）。
+- 工場向け JSON API の仕様書は OpenAPI または `docs/api/` 形式で **連携部分だけ** 書く（社内画面用仕様とは分ける）。
 
 ## 着手時の参照
 
-- 連携のチェックリスト・実装順: [`memo/integration/factory-receiving.md`](../memo/integration/factory-receiving.md)
-- DB ロードマップ（段階11）: [`memo/DB.md`](../memo/DB.md)
-- 反明細・実測 m の将来拡張: [`markdown/qty-tan-spec.md`](qty-tan-spec.md)
+- 連携のチェックリスト・実装順: [`docs/integration/factory-receiving.md`](integration/factory-receiving.md)
+- DB ロードマップ（段階11）: [`docs/db/DB.md`](db/DB.md)
+- 反明細・実測 m の将来拡張: [`docs/qty-tan-spec.md`](qty-tan-spec.md)
 
 ---
 
@@ -126,7 +126,7 @@
 | --- | --- |
 | [`requirements.md`](requirements.md) | 要件定義（業務フロー・機能範囲・計算ルール） |
 | [`qty-tan-spec.md`](qty-tan-spec.md) | 反数・数量の詳細仕様 |
-| [`memo/DB.md`](../memo/DB.md) | DB・テーブル定義 |
+| [`docs/db/DB.md`](db/DB.md) | DB・テーブル定義 |
 
 ---
 

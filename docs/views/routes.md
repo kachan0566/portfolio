@@ -600,7 +600,7 @@ DBがなくてもアプリを動かせるように、最初からサンプル発
 
 .all() で Laravel の Collection を普通の PHP 配列に変換しています（次の [] で追加しやすくするため）。
 
-##### PurchaseOrderOverlay::additions()（app/Support/PurchaseOrderOverlay.php）
+##### PurchaseOrderOverlay::additions()（app/Support/Purchase/PurchaseOrderOverlay.php）
 
 ```
 /** @return list<array<string, mixed>> */

@@ -92,7 +92,7 @@ Route::get('/products', [ProductController::class, 'index'])->name('products.ind
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
+use App\Models\Master\Product;
 use Illuminate\View\View;
 
 class ProductController extends Controller // Controller クラスを親クラスとして ProductController クラスを作成

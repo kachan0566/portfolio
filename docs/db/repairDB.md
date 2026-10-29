@@ -38,7 +38,7 @@
 | **ダッシュボードの売上推移（1〜5月）** | `dashboard()` 内の固定配列 | ダッシュボードのグラフ |
 | **ダッシュボードの在庫不足** | `dashboard()` → `products()` の `stock` 列 | 製品マスタの固定在庫数を使用（`product_rolls` ではない） |
 
-```1298:1324:app/Support/DemoData.php
+```1298:1324:app/Support/Core/DemoData.php
         $lowStock = self::products()->filter(fn ($p) => $p->stock < $p->stock_min)->values();
         ...
             'trend' => collect([
@@ -97,7 +97,7 @@
 
 レシピ・糸価格などはDBから読んでいますが、**製品名・生機名の解決に `DemoData::findProduct()` / `findGreige()` / `findMaterial()` を使っており、これらは固定配列** です。
 
-```95:113:app/Support/DemoData.php
+```95:113:app/Support/Core/DemoData.php
     public static function findProduct(int $id): ?object
     {
         return self::products()->firstWhere('id', $id);
@@ -120,7 +120,7 @@
 
 同様に `QtyHelper` もDB検索失敗時に `DemoData::greiges()` / `products()` にフォールバックします。
 
-```45:48:app/Support/QtyHelper.php
+```45:48:app/Support/Qty/QtyHelper.php
             if ($greigeSku !== null) {
                 $legacyGreige = DemoData::greiges()->firstWhere('sku', $greigeSku);
 ```
@@ -218,7 +218,7 @@
 
 | 対象 | 根拠 |
 |------|------|
-| `categories()`（生地・糸・製品の3種） | `memo/DB.md` にも **categories テーブルは無い**。種類が固定で、製品マスタの属性として足りるなら、専用テーブルは不要 |
+| `categories()`（生地・糸・製品の3種） | `docs/db/DB.md` にも **categories テーブルは無い**。種類が固定で、製品マスタの属性として足りるなら、専用テーブルは不要 |
 | `METERS_PER_TAN_PRODUCT` などの定数 | 製品・生機マスタに `meters_per_tan` がある。**マスタ未登録時の安全な初期値** としてコード定数で十分 |
 
 ---
@@ -316,7 +316,7 @@ DB化 **不要** と言えるのは、だいたい次の3つです。
 **やること:**
 - `categories` は PHP の定数・列挙型（enum）か、製品マスタの属性として扱う
 - `meters_per_tan` は **製品・生機マスタの列を正** とし、定数は「マスタ未登録時のフォールバック」だけ残す
-- `memo/DB.md` にも categories テーブルは無いので、この判断で問題なし
+- `docs/db/DB.md` にも categories テーブルは無いので、この判断で問題なし
 
 ---
 

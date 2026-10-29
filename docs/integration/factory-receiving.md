@@ -3,7 +3,7 @@
 織編・染工などの工場システムから入荷実績を受け取り、在庫を自動反映する機能の着手用メモ。  
 **実装はまだしない。** 連携開発を始める日に、このファイルを最初に開く。
 
-全体方針は [`markdown/portfolio.md`](../../markdown/portfolio.md) の「外部工場連携（将来方針）」を参照。
+全体方針は [`docs/portfolio.md`](../portfolio.md) の「外部工場連携（将来方針）」を参照。
 
 ---
 
@@ -45,7 +45,7 @@ Blade 入荷画面 → ReceivingController → ReceivingRegistrar → DB・在�
 
 - [ ] 工場（仕入先）ごとの連携要件を確認（JSON 形式・頻度・リアルタイムかバッチか）
 - [ ] 対象発注の特定方法を決める（`po_code` / `purchase_order_line_id` など）
-- [ ] 反明細（`roll_lines`）を送るか、数量のみかを決める → [`markdown/qty-tan-spec.md`](../../markdown/qty-tan-spec.md)
+- [ ] 反明細（`roll_lines`）を送るか、数量のみかを決める → [`docs/qty-tan-spec.md`](../qty-tan-spec.md)
 
 ### Laravel（API 入口）
 
@@ -74,8 +74,8 @@ Blade 入荷画面 → ReceivingController → ReceivingRegistrar → DB・在�
 
 ### 仕様書
 
-- [ ] 工場向けのみ OpenAPI または `memo/API/factory-receivings-api.md` を作成
-- [ ] 社内画面用仕様（フォーム・リダイレクト）とは分けて書く → [`memo/API/APIexplain.md`](../API/APIexplain.md)
+- [ ] 工場向けのみ OpenAPI または `docs/api/factory-receivings-api.md` を作成
+- [ ] 社内画面用仕様（フォーム・リダイレクト）とは分けて書く → [`docs/api/APIexplain.md`](../api/APIexplain.md)
 
 ---
 
@@ -155,10 +155,10 @@ API コントローラーは **ID の解決とバリデーションだけ** 行�
 
 | ファイル | 内容 |
 | --- | --- |
-| [`markdown/portfolio.md`](../../markdown/portfolio.md) | 全体方針・フェーズ1/2 |
-| [`memo/DB.md`](../DB.md) | 本線ロードマップ・段階11（将来） |
-| [`markdown/qty-tan-spec.md`](../../markdown/qty-tan-spec.md) | 反明細・工場からの実測 m |
-| [`memo/API/APIexplain.md`](../API/APIexplain.md) | 仕様書の書き方（社内画面 vs 工場 API） |
+| [`docs/portfolio.md`](../portfolio.md) | 全体方針・フェーズ1/2 |
+| [`docs/db/DB.md`](../db/DB.md) | 本線ロードマップ・段階11（将来） |
+| [`docs/qty-tan-spec.md`](../qty-tan-spec.md) | 反明細・工場からの実測 m |
+| [`docs/api/APIexplain.md`](../api/APIexplain.md) | 仕様書の書き方（社内画面 vs 工場 API） |
 
 ---
 

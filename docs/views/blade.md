@@ -163,7 +163,7 @@ resources/views/
     $greigeSku = $greigeSku ?? null;
     $prefix = $prefix ?? '';
 @endphp
-{{ $prefix }}{{ \App\Support\QtyHelper::format($qty, $productId, $isGreige, $greigeSku) }}
+{{ $prefix }}{{ \App\Support\Qty\QtyHelper::format($qty, $productId, $isGreige, $greigeSku) }}
 ```
 
 **小さな確認課題**

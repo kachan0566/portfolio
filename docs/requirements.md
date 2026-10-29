@@ -7,16 +7,16 @@
 | ---- | ----------------------------------------- |
 | 目的   | 開発中のスコープと業務ルールの「地図」を定める                   |
 | 読み手  | 自分（実装者）・将来のレビュアー                          |
-| 詳細の正 | 領域ごとの仕様書（`memo/`、`qty-tan-spec.md`）およびテスト |
+| 詳細の正 | 領域ごとの仕様書（`docs/`、`qty-tan-spec.md`）およびテスト |
 
 
 関連ドキュメント：
 
 - 面接用の説明 … `[portfolio.md](portfolio.md)`（アプリ完成後に仕上げる）
 - 数量・反数の詳細 … `[qty-tan-spec.md](qty-tan-spec.md)`
-- DB・テーブル定義 … `[memo/DB.md](../memo/DB.md)`
-- DB設計の地図 … `[memo/DBplan.md](../memo/DBplan.md)`
-- 外部工場連携（将来） … `[memo/integration/factory-receiving.md](../memo/integration/factory-receiving.md)`
+- DB・テーブル定義 … `[docs/db/DB.md](db/DB.md)`
+- DB設計の地図 … `[docs/db/DBplan.md](db/DBplan.md)`
+- 外部工場連携（将来） … `[docs/integration/factory-receiving.md](integration/factory-receiving.md)`
 
 ---
 
@@ -50,7 +50,7 @@
 ### 1.4 スコープ外（現時点）
 
 - ログイン・認証（将来検討）
-- 工場システムとの IT 連携（将来方針として設計のみ。詳細は `memo/integration/`）
+- 工場システムとの IT 連携（将来方針として設計のみ。詳細は `docs/integration/`）
 - 売上一覧・在庫一覧・受発注一覧 CSV（ボタンはあるが未実装）
 
 ---
@@ -215,7 +215,7 @@
 | 糸在庫  | kg（yarn_stock_movements） | 糸入荷で増、生機発注への引当等で減 |
 
 
-詳細 … `[qty-tan-spec.md](qty-tan-spec.md)`、`[memo/DB.md](../memo/DB.md)`
+詳細 … `[qty-tan-spec.md](qty-tan-spec.md)`、`[docs/db/DB.md](db/DB.md)`
 
 ---
 
@@ -348,10 +348,10 @@
 | トピック           | 参照先                                                                                 |
 | -------------- | ----------------------------------------------------------------------------------- |
 | 反数・数量・在庫の持ち方   | `[qty-tan-spec.md](qty-tan-spec.md)`                                                |
-| テーブル定義・列・FK    | `[memo/DB.md](../memo/DB.md)`                                                       |
-| DB 設計の全体像・移行方針 | `[memo/DBplan.md](../memo/DBplan.md)`                                               |
-| 外部工場連携（将来）     | `[memo/integration/factory-receiving.md](../memo/integration/factory-receiving.md)` |
-| API 仕様（一部）     | `[memo/API/](../memo/API/)`                                                         |
+| テーブル定義・列・FK    | `[docs/db/DB.md](db/DB.md)`                                                       |
+| DB 設計の全体像・移行方針 | `[docs/db/DBplan.md](db/DBplan.md)`                                               |
+| 外部工場連携（将来）     | `[docs/integration/factory-receiving.md](integration/factory-receiving.md)` |
+| API 仕様（一部）     | `[docs/api/](api/)`                                                         |
 | 面接・作品説明        | `[portfolio.md](portfolio.md)`                                                      |
 | 振る舞いの検証        | `tests/Feature/`                                                                    |
 
@@ -365,5 +365,5 @@
 - **本ファイルに書くこと**：業務フロー、機能の範囲、変わりにくい横断ルール、計算式
 - **本ファイルに書かないこと**：画面の列名、テーブル一覧の羅列、クラス名の詳細
 - 実装と矛盾したら、**業務ルールが変わった場合のみ** 本ファイルを更新する
-- UI や DB の変更は、まず `memo/DB.md` やテストを更新し、必要なら本ファイルのサマリーを見直す
+- UI や DB の変更は、まず `docs/db/DB.md` やテストを更新し、必要なら本ファイルのサマリーを見直す
 
