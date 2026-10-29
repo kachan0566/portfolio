@@ -10,7 +10,7 @@
             <p class="lead">「{{ $product->sku }}」（{{ $product->color }}）の染色加工料を編集します。</p>
         </div>
         <a href="{{ route('recipes.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -24,7 +24,7 @@
                     <p class="t-strong code-cell" style="margin:0;font-size:15px;">{{ $product->sku }}（{{ $product->color }}）</p>
                 </div>
 
-                @include('partials.product-recipe-form', [
+                @include('partials.recipe.product-recipe-form', [
                     'processingCost' => $processingCost,
                     'price' => $price,
                     'greigeSku' => $greigeSku,
@@ -36,7 +36,7 @@
                 ])
 
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 更新する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 更新する</button>
                     <a href="{{ route('recipes.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

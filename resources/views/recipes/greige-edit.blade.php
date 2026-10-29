@@ -10,7 +10,7 @@
             <p class="lead">「{{ $greige->sku }}」（{{ $greige->name }}）の糸使用量・ロス率・織賃を編集します。</p>
         </div>
         <a href="{{ route('recipes.index', ['tab' => 'greige']) }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -20,7 +20,7 @@
                 @csrf
                 @method('PUT')
 
-                @include('partials.greige-recipe-form', [
+                @include('partials.recipe.greige-recipe-form', [
                     'materials' => $materials,
                     'lines' => $lines,
                     'lossRate' => $lossRate,
@@ -28,7 +28,7 @@
                 ])
 
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 更新する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 更新する</button>
                     <a href="{{ route('recipes.index', ['tab' => 'greige']) }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

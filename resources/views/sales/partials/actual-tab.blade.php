@@ -13,16 +13,16 @@
     };
 @endphp
 
-@include('partials.cost-warning', ['warnings' => $costWarnings])
+@include('partials.ui.cost-warning', ['warnings' => $costWarnings])
 
 <div class="kpi-grid">
     <div class="kpi">
-        <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'yen'])</div>
+        <div class="kpi__icon tone-indigo">@include('partials.ui.icon', ['name' => 'yen'])</div>
         <div class="kpi__label">{{ $selectedProduct ? '選択品番 売上' : '対象月売上（実績）' }}</div>
         <div class="kpi__value">{{ number_format($totalSales) }}<span style="font-size:14px;font-weight:600;"> 円</span></div>
     </div>
     <div class="kpi">
-        <div class="kpi__icon tone-amber">@include('partials.icon', ['name' => 'layers'])</div>
+        <div class="kpi__icon tone-amber">@include('partials.ui.icon', ['name' => 'layers'])</div>
         <div class="kpi__label">製造コスト</div>
         <div class="kpi__value">
             {{ number_format($totalCost) }}<span style="font-size:14px;font-weight:600;"> 円</span>
@@ -32,7 +32,7 @@
         @endif
     </div>
     <div class="kpi">
-        <div class="kpi__icon tone-green">@include('partials.icon', ['name' => 'chart'])</div>
+        <div class="kpi__icon tone-green">@include('partials.ui.icon', ['name' => 'chart'])</div>
         <div class="kpi__label">粗利</div>
         <div class="kpi__value">
             {{ number_format($totalProfit) }}<span style="font-size:14px;font-weight:600;"> 円</span>
@@ -42,7 +42,7 @@
         @endif
     </div>
     <div class="kpi">
-        <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'chart'])</div>
+        <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'chart'])</div>
         <div class="kpi__label">粗利率</div>
         <div class="kpi__value">{{ $totalSales > 0 ? round($totalProfit / $totalSales * 100, 1) : 0 }}<span style="font-size:14px;font-weight:600;"> %</span></div>
         @if ($hasUncalculableCost)
@@ -72,7 +72,7 @@
             <a href="{{ route('sales.index', $queryBase) }}" class="btn btn-ghost btn-sm">選択を解除</a>
         @endif
     </div>
-    @include('partials.list-search', [
+    @include('partials.ui.list-search', [
         'params' => $search,
         'fields' => [
             'sku' => ['label' => '品番'],
@@ -103,10 +103,10 @@
                             <td class="code-cell">
                                 <a href="{{ route('recipes.edit', $row->product_id) }}" class="link-strong">{{ $row->sku }}</a>
                             </td>
-                            <td class="num mono">@include('partials.qty', ['qty' => $row->qty, 'productId' => $row->product_id])</td>
+                            <td class="num mono">@include('partials.qty.qty', ['qty' => $row->qty, 'productId' => $row->product_id])</td>
                             <td class="num mono t-muted">
                                 @if ($forecastRow && $forecastRow->forecast_remaining_qty > 0)
-                                    @include('partials.qty', ['qty' => $forecastRow->forecast_remaining_qty, 'productId' => $row->product_id])
+                                    @include('partials.qty.qty', ['qty' => $forecastRow->forecast_remaining_qty, 'productId' => $row->product_id])
                                 @else
                                     —
                                 @endif
@@ -136,8 +136,8 @@
                     <tfoot class="data-foot">
                         <tr>
                             <td>合計</td>
-                            <td class="num mono">@include('partials.qty-aggregate', ['lines' => $byProduct, 'qtyKey' => 'qty'])</td>
-                            <td class="num mono">@include('partials.qty-aggregate', [
+                            <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $byProduct, 'qtyKey' => 'qty'])</td>
+                            <td class="num mono">@include('partials.qty.qty-aggregate', [
                                 'lines' => ($selectedProduct ?? null)
                                     ? $forecast->lines->where('product_id', $selectedProduct->id)
                                     : $forecast->lines,

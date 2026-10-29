@@ -15,7 +15,7 @@
         </div>
         <div style="display:flex;gap:8px;">
             <a href="{{ route('receiving-lines.show', $line->id) }}" class="btn btn-secondary">
-                @include('partials.icon', ['name' => 'back']) 反修正に戻る
+                @include('partials.ui.icon', ['name' => 'back']) 反修正に戻る
             </a>
         </div>
     </div>

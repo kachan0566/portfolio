@@ -19,7 +19,7 @@
 
     @if (session('success'))
         <div class="alert alert-success" style="margin-bottom:16px;">
-            @include('partials.icon', ['name' => 'check'])
+            @include('partials.ui.icon', ['name' => 'check'])
             <span>{{ session('success') }}</span>
         </div>
     @endif
@@ -27,15 +27,15 @@
     <div class="kpi-grid" style="margin-bottom:16px;">
         <div class="kpi">
             <div class="kpi__label">出荷実績</div>
-            <div class="kpi__value" style="font-size:18px;">@include('partials.qty', ['qty' => $detail->actual_qty, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:18px;">@include('partials.qty.qty', ['qty' => $detail->actual_qty, 'productId' => $product->id])</div>
         </div>
         <div class="kpi">
             <div class="kpi__label">残り見通し出荷</div>
-            <div class="kpi__value" style="font-size:18px;">@include('partials.qty', ['qty' => $detail->forecast_remaining_qty, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:18px;">@include('partials.qty.qty', ['qty' => $detail->forecast_remaining_qty, 'productId' => $product->id])</div>
         </div>
         <div class="kpi">
             <div class="kpi__label">月末見込み出荷</div>
-            <div class="kpi__value" style="font-size:18px;">@include('partials.qty', ['qty' => $detail->total_qty, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:18px;">@include('partials.qty.qty', ['qty' => $detail->total_qty, 'productId' => $product->id])</div>
         </div>
         <div class="kpi">
             <div class="kpi__label">見通し売上（残り）</div>
@@ -43,7 +43,7 @@
         </div>
         <div class="kpi">
             <div class="kpi__label">現在庫</div>
-            <div class="kpi__value" style="font-size:18px;">@include('partials.qty', ['qty' => $detail->current_stock_qty, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:18px;">@include('partials.qty.qty', ['qty' => $detail->current_stock_qty, 'productId' => $product->id])</div>
         </div>
     </div>
 
@@ -54,23 +54,23 @@
             <div class="kpi-grid">
                 <div class="kpi">
                     <div class="kpi__label">入荷見通し</div>
-                    <div class="kpi__value" style="font-size:18px;">+@include('partials.qty', ['qty' => $impact->inbound_qty, 'productId' => $product->id])</div>
+                    <div class="kpi__value" style="font-size:18px;">+@include('partials.qty.qty', ['qty' => $impact->inbound_qty, 'productId' => $product->id])</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">出荷見通し</div>
-                    <div class="kpi__value" style="font-size:18px;">-@include('partials.qty', ['qty' => $impact->outbound_qty, 'productId' => $product->id])</div>
+                    <div class="kpi__value" style="font-size:18px;">-@include('partials.qty.qty', ['qty' => $impact->outbound_qty, 'productId' => $product->id])</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">手動調整</div>
                     <div class="kpi__value" style="font-size:18px;">
-                        {{ $impact->manual_adjustment_qty >= 0 ? '+' : '' }}@include('partials.qty', ['qty' => abs($impact->manual_adjustment_qty), 'productId' => $product->id])
+                        {{ $impact->manual_adjustment_qty >= 0 ? '+' : '' }}@include('partials.qty.qty', ['qty' => abs($impact->manual_adjustment_qty), 'productId' => $product->id])
                     </div>
                     <div class="kpi__sub t-muted">在庫予想画面で別途登録</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">月末予想在庫</div>
-                    <div class="kpi__value" style="font-size:18px;">@include('partials.qty', ['qty' => $impact->forecast_qty, 'productId' => $product->id])</div>
-                    <div class="kpi__sub t-muted">現在庫 @include('partials.qty', ['qty' => $impact->current_stock_qty, 'productId' => $product->id])</div>
+                    <div class="kpi__value" style="font-size:18px;">@include('partials.qty.qty', ['qty' => $impact->forecast_qty, 'productId' => $product->id])</div>
+                    <div class="kpi__sub t-muted">現在庫 @include('partials.qty.qty', ['qty' => $impact->current_stock_qty, 'productId' => $product->id])</div>
                 </div>
             </div>
         </div>
@@ -103,13 +103,13 @@
                                 </div>
                                 <div class="t-muted" style="font-size:12px;margin-bottom:4px;">{{ $pair->po->supplier ?? '' }}</div>
                                 <div class="t-muted" style="font-size:12px;margin-bottom:8px;">
-                                    発注 @include('partials.qty', ['qty' => $pair->po->qty_meters ?? 0, 'productId' => $product->id])
-                                    ／ 入荷済 @include('partials.qty', ['qty' => \App\Models\PurchaseOrder::receivedQtyFor((int) $pair->po_id), 'productId' => $product->id])
-                                    ／ 残 @include('partials.qty', ['qty' => $pair->po_remaining_qty, 'productId' => $product->id])
+                                    発注 @include('partials.qty.qty', ['qty' => $pair->po->qty_meters ?? 0, 'productId' => $product->id])
+                                    ／ 入荷済 @include('partials.qty.qty', ['qty' => \App\Models\PurchaseOrder::receivedQtyFor((int) $pair->po_id), 'productId' => $product->id])
+                                    ／ 残 @include('partials.qty.qty', ['qty' => $pair->po_remaining_qty, 'productId' => $product->id])
                                 </div>
                                 <div class="field" style="max-width:200px;">
                                     <label class="label" style="font-size:11px;">今月入荷見通し（反）</label>
-                                    @include('partials.qty-input', [
+                                    @include('partials.qty.qty-input', [
                                         'name' => 'inbound_'.$pair->po_id,
                                         'valueMeters' => $pair->effective_inbound_qty,
                                         'productId' => $product->id,
@@ -117,7 +117,7 @@
                                         'pageKey' => 'sales-forecast-detail',
                                         'compact' => true,
                                     ])
-                                    <p class="field-hint" style="font-size:11px;">デフォルト: @include('partials.qty', ['qty' => $pair->default_inbound_qty, 'productId' => $product->id])（発注残）</p>
+                                    <p class="field-hint" style="font-size:11px;">デフォルト: @include('partials.qty.qty', ['qty' => $pair->default_inbound_qty, 'productId' => $product->id])（発注残）</p>
                                 </div>
                             @else
                                 <span class="t-muted" style="font-size:12px;">紐づく発注なし</span>
@@ -141,13 +141,13 @@
                                     <span class="mono">{{ $pair->order->due_date }}</span>
                                 </div>
                                 <div class="t-muted" style="font-size:12px;margin-bottom:8px;">
-                                    受注 @include('partials.qty', ['qty' => $pair->order->qty, 'productId' => $product->id])
-                                    ／ 出荷済 @include('partials.qty', ['qty' => $pair->order->shipped, 'productId' => $product->id])
-                                    ／ 残 @include('partials.qty', ['qty' => $pair->order_remaining_qty, 'productId' => $product->id])
+                                    受注 @include('partials.qty.qty', ['qty' => $pair->order->qty, 'productId' => $product->id])
+                                    ／ 出荷済 @include('partials.qty.qty', ['qty' => $pair->order->shipped, 'productId' => $product->id])
+                                    ／ 残 @include('partials.qty.qty', ['qty' => $pair->order_remaining_qty, 'productId' => $product->id])
                                 </div>
                                 <div class="field" style="max-width:200px;">
                                     <label class="label" style="font-size:11px;">今月出荷見通し（反）</label>
-                                    @include('partials.qty-input', [
+                                    @include('partials.qty.qty-input', [
                                         'name' => 'outbound_'.$pair->order_id,
                                         'valueMeters' => $pair->effective_outbound_qty,
                                         'productId' => $product->id,
@@ -155,7 +155,7 @@
                                         'pageKey' => 'sales-forecast-detail',
                                         'compact' => true,
                                     ])
-                                    <p class="field-hint" style="font-size:11px;">デフォルト: @include('partials.qty', ['qty' => $pair->default_outbound_qty, 'productId' => $product->id])（{{ $pair->default_outbound_source }}）</p>
+                                    <p class="field-hint" style="font-size:11px;">デフォルト: @include('partials.qty.qty', ['qty' => $pair->default_outbound_qty, 'productId' => $product->id])（{{ $pair->default_outbound_source }}）</p>
                                 </div>
                             @else
                                 <span class="t-muted" style="font-size:12px;">紐づく受注なし</span>
@@ -206,7 +206,7 @@
                                     <td><span class="badge badge-indigo badge--plain">受注</span></td>
                                     <td class="code-cell"><a href="{{ route('orders.show', $order->id) }}" class="link-strong">{{ $order->code }}</a></td>
                                     <td>{{ $order->customer }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $order->remaining, 'productId' => $product->id])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $order->remaining, 'productId' => $product->id])</td>
                                     <td class="mono">{{ $order->planned_ship_date }}</td>
                                 </tr>
                             @endforeach
@@ -215,7 +215,7 @@
                                     <td><span class="badge badge-amber badge--plain">発注</span></td>
                                     <td class="code-cell"><a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a></td>
                                     <td>{{ $po->supplier }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po), 'productId' => $product->id])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po), 'productId' => $product->id])</td>
                                     <td class="mono">{{ \App\Support\DemoData::expectedArrivalDate($po) }}</td>
                                 </tr>
                             @endforeach
@@ -228,7 +228,7 @@
 @endsection
 
 @push('scripts')
-    @include('partials.qty-unit-loader')
+    @include('partials.qty.qty-unit-loader')
     <script>
         QtyUnit.initPage('sales-forecast-detail');
     </script>

@@ -10,7 +10,7 @@
             <p class="lead">得意先との「約束（いつまでに・何を・いくつ納めるか）」を登録する画面です。実際にモノを送った記録は「出荷処理」で行い、1件の受注を複数回に分けて出荷（分納）することもできます。</p>
         </div>
         <a href="{{ route('orders.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'plus']) 受注を登録
+            @include('partials.ui.icon', ['name' => 'plus']) 受注を登録
         </a>
     </div>
 
@@ -23,7 +23,7 @@
                 <span>出荷済み {{ $orders->where('status', '出荷済み')->count() }}</span>
             </div>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'code' => ['label' => '受注番号', 'placeholder' => 'SO-2606-001'],
@@ -74,7 +74,7 @@
                                     <a href="{{ route('inventory.show', $o->product_id) }}" class="link-strong code-cell" title="この品番の在庫を見る">{{ $o->sku }}</a>
                                     <div class="t-muted" style="font-size:11.5px;">{{ $o->color }}</div>
                                 </td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $o->qty, 'productId' => $o->product_id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $o->qty, 'productId' => $o->product_id])</td>
                                 <td class="num mono">¥{{ number_format($o->price) }}</td>
                                 <td>
                                     <div style="display:flex;align-items:center;gap:8px;">
@@ -82,8 +82,8 @@
                                             <div class="progress__bar {{ $rate >= 100 ? 'full' : ($rate === 0 ? 'none' : '') }}" style="width:{{ $rate }}%;"></div>
                                         </div>
                                         <span class="mono t-muted" style="font-size:11.5px;">
-                                            @include('partials.qty', ['qty' => $o->shipped, 'productId' => $o->product_id]) /
-                                            @include('partials.qty', ['qty' => $o->qty, 'productId' => $o->product_id])
+                                            @include('partials.qty.qty', ['qty' => $o->shipped, 'productId' => $o->product_id]) /
+                                            @include('partials.qty.qty', ['qty' => $o->qty, 'productId' => $o->product_id])
                                         </span>
                                     </div>
                                 </td>
@@ -105,7 +105,7 @@
                                 </td>
                                 <td class="mono">{{ $o->due_date }}</td>
                                 <td class="t-muted" style="font-size:12px;max-width:200px;">{{ $o->ship_memo }}</td>
-                                <td>@include('partials.status', ['status' => $o->status])</td>
+                                <td>@include('partials.ui.status', ['status' => $o->status])</td>
                                 <td>
                                     <div class="table-actions">
                                         <a href="{{ route('orders.edit', $o->id) }}" class="btn btn-secondary btn-sm">編集</a>

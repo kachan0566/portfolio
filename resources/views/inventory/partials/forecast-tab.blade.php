@@ -18,7 +18,7 @@
     @endif
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
         <a href="{{ route('inventory.forecast.csv', ['ym' => $forecastYm]) }}" class="btn btn-secondary btn-sm">
-            @include('partials.icon', ['name' => 'download']) CSV出力
+            @include('partials.ui.icon', ['name' => 'download']) CSV出力
         </a>
         <form method="POST" action="{{ route('inventory.forecast.snapshot') }}" onsubmit="return confirm('提出版として保存しますか？');">
             @csrf
@@ -30,7 +30,7 @@
 
 <div class="card" style="margin-bottom:16px;">
     <div class="card__head"><h2 class="card__title">検索</h2></div>
-    @include('partials.list-search', [
+    @include('partials.ui.list-search', [
         'hidden' => ['tab' => 'forecast', 'ym' => $forecastYm],
         'params' => $search,
         'fields' => [
@@ -91,16 +91,16 @@
                     @forelse ($forecastLines as $line)
                         <tr>
                             <td class="code-cell t-strong">{{ $line->sku }}</td>
-                            <td class="num mono">@include('partials.qty', ['qty' => $line->current_stock_qty, 'productId' => $line->product_id])</td>
-                            <td class="num mono t-muted">+@include('partials.qty', ['qty' => $line->inbound_scheduled_qty, 'productId' => $line->product_id])</td>
-                            <td class="num mono t-muted">-@include('partials.qty', ['qty' => $line->outbound_confirmed_qty, 'productId' => $line->product_id])</td>
-                            <td class="num mono">@include('partials.qty-display', ['qty' => abs($line->manual_adjustment_qty), 'productId' => $line->product_id, 'sign' => $line->manual_adjustment_qty >= 0 ? '+' : '-'])</td>
-                            <td class="num mono t-strong {{ $line->is_negative ? 't-danger' : '' }}">@include('partials.qty', ['qty' => $line->forecast_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono">@include('partials.qty.qty', ['qty' => $line->current_stock_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono t-muted">+@include('partials.qty.qty', ['qty' => $line->inbound_scheduled_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono t-muted">-@include('partials.qty.qty', ['qty' => $line->outbound_confirmed_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono">@include('partials.qty.qty-display', ['qty' => abs($line->manual_adjustment_qty), 'productId' => $line->product_id, 'sign' => $line->manual_adjustment_qty >= 0 ? '+' : '-'])</td>
+                            <td class="num mono t-strong {{ $line->is_negative ? 't-danger' : '' }}">@include('partials.qty.qty', ['qty' => $line->forecast_qty, 'productId' => $line->product_id])</td>
                             <td class="num mono">{{ $line->unit_cost !== null ? number_format($line->unit_cost).' 円/m' : '—' }}</td>
                             <td class="num mono">{{ number_format($line->forecast_value) }} 円</td>
                             <td class="mono t-muted">{{ $line->oldest_received_date ?? '—' }}</td>
                             <td class="num mono">{{ $line->oldest_age_months !== null ? $line->oldest_age_months.'か月' : '—' }}</td>
-                            <td class="num mono">@include('partials.qty', ['qty' => $line->long_term_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono">@include('partials.qty.qty', ['qty' => $line->long_term_qty, 'productId' => $line->product_id])</td>
                             <td>
                                 @if ($line->warning_text)
                                     <span class="badge badge-amber badge--plain" style="font-size:11px;">{{ $line->warning_text }}</span>

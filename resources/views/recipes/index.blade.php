@@ -12,11 +12,11 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
             @if ($tab === 'greige')
                 <a href="{{ route('recipes.greige.create') }}" class="btn btn-primary">
-                    @include('partials.icon', ['name' => 'plus']) 生機レシピを登録
+                    @include('partials.ui.icon', ['name' => 'plus']) 生機レシピを登録
                 </a>
             @else
                 <a href="{{ route('recipes.create') }}" class="btn btn-primary">
-                    @include('partials.icon', ['name' => 'plus']) 製品レシピを登録
+                    @include('partials.ui.icon', ['name' => 'plus']) 製品レシピを登録
                 </a>
             @endif
         </div>
@@ -30,9 +30,9 @@
     </div>
 
     @if ($tab === 'product')
-        @include('partials.cost-warning', ['warnings' => $costWarnings])
+        @include('partials.ui.cost-warning', ['warnings' => $costWarnings])
     @else
-        @include('partials.cost-warning', [
+        @include('partials.ui.cost-warning', [
             'warnings' => $greigeCostWarnings,
             'heading' => '生機単価を算出できない項目があります。',
         ])
@@ -40,7 +40,7 @@
 
     <div class="card" style="margin-bottom:16px;">
         <div class="card__head"><h2 class="card__title">検索</h2></div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'sku' => ['label' => '品番', 'placeholder' => $tab === 'greige' ? '生機品番' : '製品品番'],
@@ -214,7 +214,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        @include('partials.recipe-outcome-strip', ['profit' => $profit])
+                        @include('partials.recipe.recipe-outcome-strip', ['profit' => $profit])
                     </div>
                 </div>
             @endforeach

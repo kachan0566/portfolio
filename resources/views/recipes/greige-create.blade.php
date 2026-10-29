@@ -10,7 +10,7 @@
             <p class="lead">生機品番ごとに織りに必要な糸の使用量（kg/m）、ロス率、織賃（円/m）を登録します。</p>
         </div>
         <a href="{{ route('recipes.index', ['tab' => 'greige']) }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -30,10 +30,10 @@
                     @error('greige_sku')<p class="field-error">{{ $message }}</p>@enderror
                 </div>
 
-                @include('partials.greige-recipe-form', ['materials' => $materials])
+                @include('partials.recipe.greige-recipe-form', ['materials' => $materials])
 
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 登録する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 登録する</button>
                     <a href="{{ route('recipes.index', ['tab' => 'greige']) }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

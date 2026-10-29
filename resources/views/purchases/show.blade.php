@@ -16,14 +16,14 @@
         <div style="display:flex;gap:8px;">
             <a href="{{ route('purchases.edit', $purchase->id) }}" class="btn btn-secondary">編集</a>
             <a href="{{ route('purchases.index') }}" class="btn btn-secondary">
-                @include('partials.icon', ['name' => 'back']) 一覧に戻る
+                @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
             </a>
         </div>
     </div>
 
     @if (session('success'))
         <div class="alert alert-success" style="margin-bottom:16px;">
-            @include('partials.icon', ['name' => 'check'])
+            @include('partials.ui.icon', ['name' => 'check'])
             <span>{{ session('success') }}</span>
         </div>
     @endif
@@ -46,9 +46,9 @@
 
     <div class="kpi-grid" style="margin-bottom:16px;">
         <div class="kpi">
-            <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'cart'])</div>
+            <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'cart'])</div>
             <div class="kpi__label">発注数量</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.purchase-qty', ['purchase' => $purchase])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.purchase.purchase-qty', ['purchase' => $purchase])</div>
             @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
                 <div class="kpi__sub">標準反長 {{ $purchase->meters_per_tan }}m/反</div>
             @elseif ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT)
@@ -56,13 +56,13 @@
             @endif
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'archive'])</div>
+            <div class="kpi__icon tone-indigo">@include('partials.ui.icon', ['name' => 'archive'])</div>
             <div class="kpi__label">工程</div>
             <div class="kpi__value" style="font-size:18px;"><span class="badge badge-indigo badge--plain">{{ $purchase->stage }}</span></div>
             <div class="kpi__sub">発注日 {{ $purchase->order_date }}</div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon {{ $purchase->material_shortage ? 'tone-rose' : 'tone-green' }}">@include('partials.icon', ['name' => 'archive'])</div>
+            <div class="kpi__icon {{ $purchase->material_shortage ? 'tone-rose' : 'tone-green' }}">@include('partials.ui.icon', ['name' => 'archive'])</div>
             <div class="kpi__label">材料不足</div>
             <div class="kpi__value" style="font-size:18px;">
                 @if ($purchase->material_shortage)
@@ -172,7 +172,7 @@
                     </div>
                     <div class="stat-row__item">
                         <div class="stat-row__label">数量</div>
-                        <div class="stat-row__value mono">@include('partials.qty', ['qty' => $greigeStock->qty_meters, 'isGreige' => true, 'greigeSku' => $greigeStock->greige_sku])</div>
+                        <div class="stat-row__value mono">@include('partials.qty.qty', ['qty' => $greigeStock->qty_meters, 'isGreige' => true, 'greigeSku' => $greigeStock->greige_sku])</div>
                     </div>
                 </div>
             </div>

@@ -17,7 +17,7 @@
             <p class="lead">依頼先・出荷先・納期と数量を入力します。複数品目は明細行を追加してください。</p>
         </div>
         <a href="{{ route('purchases.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -126,7 +126,7 @@
                         下書き保存
                     </button>
                     <button type="submit" name="save_action" value="ordered" class="btn btn-primary">
-                        @include('partials.icon', ['name' => 'check']) 発注確定
+                        @include('partials.ui.icon', ['name' => 'check']) 発注確定
                     </button>
                     <a href="{{ route('purchases.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>

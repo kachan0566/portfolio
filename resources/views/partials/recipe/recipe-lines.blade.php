@@ -63,7 +63,7 @@
         </table>
     </div>
     <button type="button" class="btn btn-secondary btn-sm" data-recipe-line-add style="margin-top:8px;">
-        @include('partials.icon', ['name' => 'plus']) 行を追加
+        @include('partials.ui.icon', ['name' => 'plus']) 行を追加
     </button>
     @error('lines')<p class="field-error">{{ $message }}</p>@enderror
     <p class="field-hint">1mを作るのに必要な糸の量（kg/m）を入力します。</p>

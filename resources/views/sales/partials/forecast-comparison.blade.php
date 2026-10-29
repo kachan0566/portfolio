@@ -26,7 +26,7 @@
     @endif
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
         <a href="{{ route('sales.forecast.csv', ['ym' => $ym]) }}" class="btn btn-secondary btn-sm">
-            @include('partials.icon', ['name' => 'download']) CSV出力
+            @include('partials.ui.icon', ['name' => 'download']) CSV出力
         </a>
         <form method="POST" action="{{ route('sales.forecast.snapshot') }}" onsubmit="return confirm('提出版として保存しますか？');">
             @csrf
@@ -57,9 +57,9 @@
                                 <span class="t-muted" style="font-size:11px;display:block;">品番別反数の合計</span>
                             @endif
                         </td>
-                        <td class="num mono">@include('partials.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'actual_qty', 'productId' => $selectedProduct?->id])</td>
-                        <td class="num mono">@include('partials.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'forecast_remaining_qty', 'productId' => $selectedProduct?->id])</td>
-                        <td class="num mono t-strong">@include('partials.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</td>
+                        <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'actual_qty', 'productId' => $selectedProduct?->id])</td>
+                        <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'forecast_remaining_qty', 'productId' => $selectedProduct?->id])</td>
+                        <td class="num mono t-strong">@include('partials.qty.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</td>
                     </tr>
                     <tr>
                         <td>売上</td>
@@ -111,15 +111,15 @@
                                     <span class="t-muted" style="font-size:11px;display:block;">品番別反数の合計</span>
                                 @endif
                             </td>
-                            <td class="num mono">@include('partials.qty-aggregate', ['lines' => $snapshotQtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</td>
-                            <td class="num mono">@include('partials.qty-aggregate', ['lines' => $currentQtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</td>
+                            <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $snapshotQtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</td>
+                            <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $currentQtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</td>
                             <td class="num mono {{ $svc->diff_qty != 0 ? 't-strong' : 't-muted' }}">
                                 @if ($selectedProduct ?? null)
                                     @php
                                         $snapM = (int) \App\Support\QtyHelper::sumMetersFromLines($snapshotQtyLines, 'total_qty');
                                         $curM = (int) \App\Support\QtyHelper::sumMetersFromLines($currentQtyLines, 'total_qty');
                                     @endphp
-                                    @include('partials.qty-display', ['qty' => abs($curM - $snapM), 'productId' => $selectedProduct->id, 'sign' => $curM - $snapM >= 0 ? '+' : '-'])
+                                    @include('partials.qty.qty-display', ['qty' => abs($curM - $snapM), 'productId' => $selectedProduct->id, 'sign' => $curM - $snapM >= 0 ? '+' : '-'])
                                 @else
                                     {{ $diffTan >= 0 ? '+' : '' }}{{ \App\Support\QtyHelper::formatTanCount($diffTan) }}反
                                     ／ {{ $svc->diff_qty >= 0 ? '+' : '' }}{{ number_format($svc->diff_qty) }}m

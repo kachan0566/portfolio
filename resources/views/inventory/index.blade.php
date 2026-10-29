@@ -9,20 +9,20 @@
             <h1>在庫管理</h1>
             <p class="lead">製品・生機（染工場）・糸の在庫と入出庫履歴を確認します。</p>
         </div>
-        <button class="btn btn-secondary" disabled>@include('partials.icon', ['name' => 'download']) 在庫一覧CSV</button>
+        <button class="btn btn-secondary" disabled>@include('partials.ui.icon', ['name' => 'download']) 在庫一覧CSV</button>
     </div>
 
-    @include('partials.cost-warning', ['warnings' => $costWarnings])
+    @include('partials.ui.cost-warning', ['warnings' => $costWarnings])
 
     @if ($tab === 'product')
     <div class="kpi-grid">
         <div class="kpi">
-            <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'archive'])</div>
+            <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'archive'])</div>
             <div class="kpi__label">総在庫数</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.qty-aggregate', ['lines' => $products->map(fn ($p) => (object) ['product_id' => $p->id, 'qty' => $p->stock]), 'qtyKey' => 'qty'])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.qty.qty-aggregate', ['lines' => $products->map(fn ($p) => (object) ['product_id' => $p->id, 'qty' => $p->stock]), 'qtyKey' => 'qty'])</div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'yen'])</div>
+            <div class="kpi__icon tone-indigo">@include('partials.ui.icon', ['name' => 'yen'])</div>
             <div class="kpi__label">在庫金額（製造コストベース）</div>
             <div class="kpi__value">
                 {{ number_format($stockValue) }}<span style="font-size:14px;font-weight:600;"> 円</span>
@@ -35,7 +35,7 @@
             </div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-rose">@include('partials.icon', ['name' => 'alert'])</div>
+            <div class="kpi__icon tone-rose">@include('partials.ui.icon', ['name' => 'alert'])</div>
             <div class="kpi__label">在庫不足品番</div>
             <div class="kpi__value">{{ $lowStockCount }}<span style="font-size:14px;font-weight:600;"> 件</span></div>
         </div>
@@ -45,7 +45,7 @@
     @if (in_array($tab, ['product', 'greige', 'yarn'], true))
     <div class="card" style="margin-bottom:16px;">
         <div class="card__head"><h2 class="card__title">検索</h2></div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'code' => ['label' => '発注番号', 'placeholder' => 'PO-2606-001'],
@@ -121,7 +121,7 @@
     @elseif ($tab === 'yarn')
         <div class="kpi-grid" style="margin-bottom:16px;">
             <div class="kpi">
-                <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'archive'])</div>
+                <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'archive'])</div>
                 <div class="kpi__label">糸在庫合計</div>
                 <div class="kpi__value" style="font-size:22px;">{{ number_format($yarnTotalKg, 2) }}<span style="font-size:14px;font-weight:600;"> kg</span></div>
                 <div class="kpi__sub">{{ $yarnRows->count() }} 品種</div>
@@ -190,7 +190,7 @@
     @elseif ($tab === 'greige')
         <div class="kpi-grid" style="margin-bottom:16px;">
             <div class="kpi">
-                <div class="kpi__icon tone-amber">@include('partials.icon', ['name' => 'archive'])</div>
+                <div class="kpi__icon tone-amber">@include('partials.ui.icon', ['name' => 'archive'])</div>
                 <div class="kpi__label">染工場 生機在庫合計</div>
                 <div class="kpi__value" style="font-size:22px;">
                     @if ($greigeTotalMeters > 0)
@@ -224,7 +224,7 @@
                                 <tr>
                                     <td class="code-cell"><a href="{{ route('purchases.show', $g->po_id) }}" class="link-strong">{{ $g->po_code }}</a></td>
                                     <td class="code-cell t-strong">{{ $g->greige_sku }}<div class="t-muted" style="font-size:11px;">{{ $g->greige_name }}</div></td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $g->qty_meters, 'isGreige' => true, 'greigeSku' => $g->greige_sku])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $g->qty_meters, 'isGreige' => true, 'greigeSku' => $g->greige_sku])</td>
                                     <td class="num mono t-muted">{{ ($g->roll_count ?? 0) > 0 ? ($g->roll_count).'反' : '—' }}</td>
                                     <td>{{ $g->ship_to }}</td>
                                     <td class="mono">{{ $g->due_date }}</td>
@@ -254,8 +254,8 @@
                                     <td class="code-cell">
                                         <a href="{{ route('inventory.show', $p->id) }}" class="link-strong">{{ $p->sku }}</a>
                                     </td>
-                                    <td class="num mono">@include('partials.qty-roll-stock', ['tan' => $p->stock_tan ?? 0, 'meters' => $p->stock])</td>
-                                    <td class="num mono t-muted">@include('partials.qty', ['qty' => $p->stock_min, 'productId' => $p->id])</td>
+                                    <td class="num mono">@include('partials.qty.qty-roll-stock', ['tan' => $p->stock_tan ?? 0, 'meters' => $p->stock])</td>
+                                    <td class="num mono t-muted">@include('partials.qty.qty', ['qty' => $p->stock_min, 'productId' => $p->id])</td>
                                     <td>
                                         @if ($p->stock < $p->stock_min)
                                             <span class="badge badge-rose">在庫不足</span>
@@ -296,7 +296,7 @@
                                             <span class="badge badge-rose badge--plain">出庫</span>
                                         @endif
                                     </td>
-                                    <td class="num mono">{{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty', ['qty' => $m->qty, 'productId' => $m->product_id])</td>
+                                    <td class="num mono">{{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty.qty', ['qty' => $m->qty, 'productId' => $m->product_id])</td>
                                     <td class="t-muted" style="font-size:12px;">{{ $m->note }}</td>
                                 </tr>
                             @endforeach
@@ -322,7 +322,7 @@
                         @forelse ($inProduction as $po)
                             <tr>
                                 <td class="code-cell t-strong">{{ $po->sku }}</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $po->qty, 'productId' => $po->product_id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $po->qty, 'productId' => $po->product_id])</td>
                                 <td><span class="badge badge-indigo badge--plain">{{ $po->stage }}</span></td>
                                 <td class="mono">{{ $po->finish_date }}</td>
                                 <td><a href="{{ route('purchases.show', $po->id) }}" class="link-strong code-cell">{{ $po->code }}</a></td>

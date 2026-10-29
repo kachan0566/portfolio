@@ -10,12 +10,12 @@
             <p class="lead">現在庫引当済みの数量のみ出荷確定できます。発注引当のみの数量は入荷後に出荷可能になります。</p>
         </div>
         <a href="{{ route('shipments.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
     @if (session('error'))
-        <div class="alert alert-danger" style="margin-bottom:16px;">@include('partials.icon', ['name' => 'alert']) {{ session('error') }}</div>
+        <div class="alert alert-danger" style="margin-bottom:16px;">@include('partials.ui.icon', ['name' => 'alert']) {{ session('error') }}</div>
     @endif
 
     <div class="grid grid-2">
@@ -38,8 +38,8 @@
                                     <td class="code-cell"><a href="{{ route('orders.show', $o->id) }}" class="link-strong">{{ $o->code }}</a></td>
                                     <td>{{ $o->customer }}</td>
                                     <td class="code-cell t-strong">{{ $o->sku }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $o->shippable_qty, 'productId' => $o->product_id])</td>
-                                    <td class="num mono t-muted">@include('partials.qty', ['qty' => $o->po_allocated, 'productId' => $o->product_id])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $o->shippable_qty, 'productId' => $o->product_id])</td>
+                                    <td class="num mono t-muted">@include('partials.qty.qty', ['qty' => $o->po_allocated, 'productId' => $o->product_id])</td>
                                     <td>
                                         <span class="badge badge-indigo badge--plain" style="font-size:11px;">{{ $o->allocation_status }}</span>
                                         @if ($o->shippable_status)
@@ -86,7 +86,7 @@
                     <div class="form-row">
                         <div class="field">
                             <label class="label" for="qty-display">出荷数量<span class="req">*</span></label>
-                            @include('partials.qty-input', [
+                            @include('partials.qty.qty-input', [
                                 'tanName' => 'qty_tan',
                                 'metersName' => 'qty_meters',
                                 'id' => 'qty-display',
@@ -127,7 +127,7 @@
                     </div>
                     <p class="field-hint">登録すると対象品番の在庫が出荷数量だけ減少します（現在庫引当の範囲内のみ）。</p>
                     <div class="actions">
-                        <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 出荷を登録</button>
+                        <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 出荷を登録</button>
                         <a href="{{ route('shipments.index') }}" class="btn btn-secondary">キャンセル</a>
                     </div>
                 </form>
@@ -137,7 +137,7 @@
 @endsection
 
 @push('scripts')
-    @include('partials.qty-unit-loader')
+    @include('partials.qty.qty-unit-loader')
     <script>
     (function () {
         const orderSelect = document.getElementById('order');

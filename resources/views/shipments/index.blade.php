@@ -10,7 +10,7 @@
             <p class="lead">実際に送ったモノを1件ずつ記録する画面です。受注番号と紐付き、出荷すると在庫が減って売上に計上されます。1件の受注に対して複数回の出荷（分納）も記録できます。</p>
         </div>
         <a href="{{ route('shipments.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'arrow-up']) 出荷を登録
+            @include('partials.ui.icon', ['name' => 'arrow-up']) 出荷を登録
         </a>
     </div>
 
@@ -19,7 +19,7 @@
             <h2 class="card__title">出荷履歴（{{ $shipments->count() }} 件）</h2>
             <span class="badge badge-indigo badge--plain">出荷金額合計 {{ number_format($shipments->sum('amount')) }} 円</span>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'code' => ['label' => '受注番号', 'placeholder' => 'SO-2606-001'],
@@ -59,7 +59,7 @@
                                 </td>
                                 <td class="code-cell t-strong">{{ $s->sku }}</td>
                                 <td>{{ $s->color }}</td>
-                                <td class="num mono"><span class="badge badge-rose badge--plain">-@include('partials.qty', ['qty' => $s->qty, 'productId' => $s->product_id])</span></td>
+                                <td class="num mono"><span class="badge badge-rose badge--plain">-@include('partials.qty.qty', ['qty' => $s->qty, 'productId' => $s->product_id])</span></td>
                                 <td class="mono">{{ $s->due_date }}</td>
                                 <td class="mono t-muted">{{ $s->date }}</td>
                                 <td style="font-size:12.5px;">{{ $s->ship_to }}</td>

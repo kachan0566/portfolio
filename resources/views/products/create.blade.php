@@ -10,7 +10,7 @@
             <p class="lead">生機品番（親）に紐づく製品品番（子）を登録します。</p>
         </div>
         <a href="{{ route('products.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -59,7 +59,7 @@
                     <p class="field-hint">製品品番ごとの販売単価を入力します。売上計算に使用されます。</p>
                 </div>
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 登録する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 登録する</button>
                     <a href="{{ route('products.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

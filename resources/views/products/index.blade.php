@@ -10,7 +10,7 @@
             <p class="lead">生機品番（親）と製品品番（子）を管理します。販売価格は製品品番ごとに設定します。</p>
         </div>
         <a href="{{ route('products.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'plus']) 製品品番を登録
+            @include('partials.ui.icon', ['name' => 'plus']) 製品品番を登録
         </a>
     </div>
 
@@ -18,7 +18,7 @@
         <div class="card__head">
             <h2 class="card__title">検索</h2>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'sku' => ['label' => '品番', 'placeholder' => '製品品番・生機品番'],
@@ -66,7 +66,7 @@
                                     <td class="num mono">{{ number_format($product->price) }} 円</td>
                                     <td class="t-muted">{{ $product->unit }}</td>
                                     <td class="num mono">
-                                        @include('partials.qty', ['qty' => $product->stock, 'productId' => $product->id])
+                                        @include('partials.qty.qty', ['qty' => $product->stock, 'productId' => $product->id])
                                         @if ($product->stock < $product->stock_min)
                                             <span class="badge badge-rose" style="margin-left:6px;">不足</span>
                                         @endif

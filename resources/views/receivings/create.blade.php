@@ -16,7 +16,7 @@
             <p class="lead">{{ $typeLabel }}の入荷を登録します。1回の入荷で複数の発注明細行を選択できます。</p>
         </div>
         <a href="{{ route('receivings.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -53,7 +53,7 @@
                                         @if ($type === PurchaseOrderType::YARN)
                                             {{ number_format($rem, 2) }} kg
                                         @else
-                                            @include('partials.purchase-qty', ['purchase' => (object) ['type' => $type, 'qty_meters' => $rem, 'greige_sku' => $po->greige_sku ?? null, 'product_id' => $po->product_id ?? null]])
+                                            @include('partials.purchase.purchase-qty', ['purchase' => (object) ['type' => $type, 'qty_meters' => $rem, 'greige_sku' => $po->greige_sku ?? null, 'product_id' => $po->product_id ?? null]])
                                         @endif
                                     </td>
                                     <td><span class="badge badge-indigo badge--plain">{{ $po->status_label ?? $po->status }}</span></td>
@@ -121,7 +121,7 @@
                                                     : \App\Support\QtyHelper::metersPerTan((int) $firstPo->product_id);
                                             }
                                         @endphp
-                                        @include('partials.qty-input', [
+                                        @include('partials.qty.qty-input', [
                                             'tanName' => 'qty_tan',
                                             'metersName' => 'qty_meters',
                                             'id' => 'receiving-qty',
@@ -174,7 +174,7 @@
                         </p>
 
                         @if ($useMultiLine)
-                            @include('partials.qty-unit-loader')
+                            @include('partials.qty.qty-unit-loader')
                             <script src="{{ asset('js/receiving-rolls.js') }}"></script>
                             <script src="{{ asset('js/receiving-multi-lines.js') }}"></script>
                             <script>
@@ -187,7 +187,7 @@
                                 });
                             </script>
                         @elseif ($type !== PurchaseOrderType::YARN)
-                            @include('partials.qty-unit-loader')
+                            @include('partials.qty.qty-unit-loader')
                             <script src="{{ asset('js/receiving-rolls.js') }}"></script>
                             <script>
                                 QtyUnit.initPage('receiving-form');
@@ -202,7 +202,7 @@
                         @endif
 
                         <div class="actions">
-                            <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 入荷を登録</button>
+                            <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 入荷を登録</button>
                             <a href="{{ route('receivings.index') }}" class="btn btn-secondary">キャンセル</a>
                         </div>
                     </form>

@@ -66,27 +66,27 @@
                 <div class="kpi">
                     <div class="kpi__label">現在庫</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'current_stock_qty'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'current_stock_qty'])
                     </div>
                     <div class="kpi__sub">{{ number_format($ps['current_stock_value']) }} 円</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">月末予想</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'forecast_qty'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'forecast_qty'])
                     </div>
                     <div class="kpi__sub">{{ number_format($ps['forecast_value']) }} 円</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">入荷予定</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'inbound_scheduled_qty'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'inbound_scheduled_qty'])
                     </div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">出荷確定</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'outbound_confirmed_qty'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->product->lines, 'qtyKey' => 'outbound_confirmed_qty'])
                     </div>
                 </div>
             </div>
@@ -109,27 +109,27 @@
                 <div class="kpi">
                     <div class="kpi__label">現在庫</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'current_stock_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'current_stock_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
                     </div>
                     <div class="kpi__sub">{{ number_format($gs['current_stock_value']) }} 円</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">月末予想</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'forecast_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'forecast_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
                     </div>
                     <div class="kpi__sub">{{ number_format($gs['forecast_value']) }} 円</div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">入荷予定</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'inbound_scheduled_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'inbound_scheduled_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
                     </div>
                 </div>
                 <div class="kpi">
                     <div class="kpi__label">染機投入予定</div>
                     <div class="kpi__value" style="font-size:16px;">
-                        @include('partials.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'outbound_scheduled_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
+                        @include('partials.qty.qty-aggregate', ['lines' => $c->greige->lines, 'qtyKey' => 'outbound_scheduled_qty', 'isGreige' => true, 'greigeSkuKey' => 'greige_sku'])
                     </div>
                 </div>
             </div>

@@ -10,7 +10,7 @@
             <p class="lead">{{ $price->material }}（{{ $price->material_sku }}）の {{ $price->ym }} 単価を編集します。</p>
         </div>
         <a href="{{ route('prices.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -35,7 +35,7 @@
                     @error('price')<p class="field-error">{{ $message }}</p>@enderror
                 </div>
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 更新する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 更新する</button>
                     <a href="{{ route('prices.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

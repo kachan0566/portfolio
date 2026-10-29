@@ -13,9 +13,9 @@
         <div class="kpi__label">現在庫数量</div>
         <div class="kpi__value" style="font-size:18px;">
             @if ($singleProduct && isset($line))
-                @include('partials.qty', ['qty' => $f->current_stock_qty, 'productId' => $line->product_id])
+                @include('partials.qty.qty', ['qty' => $f->current_stock_qty, 'productId' => $line->product_id])
             @else
-                @include('partials.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'current_stock_qty'])
+                @include('partials.qty.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'current_stock_qty'])
             @endif
         </div>
     </div>
@@ -23,9 +23,9 @@
         <div class="kpi__label">入荷予定（月末まで）</div>
         <div class="kpi__value" style="font-size:18px;">
             @if ($singleProduct && isset($line))
-                @include('partials.qty', ['qty' => $f->inbound_scheduled_qty, 'productId' => $line->product_id])
+                @include('partials.qty.qty', ['qty' => $f->inbound_scheduled_qty, 'productId' => $line->product_id])
             @else
-                @include('partials.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'inbound_scheduled_qty'])
+                @include('partials.qty.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'inbound_scheduled_qty'])
             @endif
         </div>
         <div class="kpi__sub">{{ number_format($f->inbound_scheduled_value) }} 円</div>
@@ -34,9 +34,9 @@
         <div class="kpi__label">出荷確定（月末まで）</div>
         <div class="kpi__value" style="font-size:18px;">
             @if ($singleProduct && isset($line))
-                @include('partials.qty', ['qty' => $f->outbound_confirmed_qty, 'productId' => $line->product_id])
+                @include('partials.qty.qty', ['qty' => $f->outbound_confirmed_qty, 'productId' => $line->product_id])
             @else
-                @include('partials.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'outbound_confirmed_qty'])
+                @include('partials.qty.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'outbound_confirmed_qty'])
             @endif
         </div>
         <div class="kpi__sub">{{ number_format($f->outbound_confirmed_value) }} 円</div>
@@ -45,9 +45,9 @@
         <div class="kpi__label">月末予想在庫</div>
         <div class="kpi__value" style="font-size:18px;">
             @if ($singleProduct && isset($line))
-                @include('partials.qty', ['qty' => $f->forecast_qty, 'productId' => $line->product_id])
+                @include('partials.qty.qty', ['qty' => $f->forecast_qty, 'productId' => $line->product_id])
             @else
-                @include('partials.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'forecast_qty'])
+                @include('partials.qty.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'forecast_qty'])
             @endif
         </div>
         <div class="kpi__sub">{{ number_format($f->forecast_value) }} 円</div>
@@ -66,9 +66,9 @@
         <div class="kpi__label">長期在庫（月末予想）</div>
         <div class="kpi__value" style="font-size:18px;">
             @if ($singleProduct && isset($line))
-                @include('partials.qty', ['qty' => $f->long_term_qty, 'productId' => $line->product_id])
+                @include('partials.qty.qty', ['qty' => $f->long_term_qty, 'productId' => $line->product_id])
             @else
-                @include('partials.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'long_term_qty'])
+                @include('partials.qty.qty-aggregate', ['lines' => $inventoryLines, 'qtyKey' => 'long_term_qty'])
             @endif
         </div>
         <div class="kpi__sub">{{ number_format($f->long_term_value) }} 円</div>

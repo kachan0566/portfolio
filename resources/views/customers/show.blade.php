@@ -10,7 +10,7 @@
             <p class="lead">この得意先の受注履歴を確認します。</p>
         </div>
         <a href="{{ route('customers.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 得意先一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 得意先一覧に戻る
         </a>
     </div>
 
@@ -35,7 +35,7 @@
 
     <div class="card">
         <div class="card__head"><h2 class="card__title">受注履歴（{{ $orders->count() }} 件）</h2></div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'code' => ['label' => '受注番号', 'placeholder' => 'SO-2606-001'],
@@ -66,9 +66,9 @@
                                 <td class="code-cell">{{ $o->code }}</td>
                                 <td class="code-cell t-strong">{{ $o->sku }}</td>
                                 <td>{{ $o->color }}</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $o->qty, 'productId' => $o->product_id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $o->qty, 'productId' => $o->product_id])</td>
                                 <td class="mono">{{ $o->due_date }}</td>
-                                <td>@include('partials.status', ['status' => $o->status])</td>
+                                <td>@include('partials.ui.status', ['status' => $o->status])</td>
                             </tr>
                         @empty
                             <tr><td colspan="6" class="empty">受注履歴はありません。</td></tr>

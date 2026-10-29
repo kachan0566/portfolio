@@ -19,14 +19,14 @@
                 変更履歴（{{ $amendmentCount }}）
             </a>
             <a href="{{ route('receivings.index') }}" class="btn btn-secondary">
-                @include('partials.icon', ['name' => 'back']) 入荷一覧
+                @include('partials.ui.icon', ['name' => 'back']) 入荷一覧
             </a>
         </div>
     </div>
 
     @if (session('success'))
         <div class="alert alert-success" style="margin-bottom:16px;">
-            @include('partials.icon', ['name' => 'check'])
+            @include('partials.ui.icon', ['name' => 'check'])
             <span>{{ session('success') }}</span>
         </div>
     @endif

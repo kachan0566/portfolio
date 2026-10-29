@@ -44,10 +44,10 @@
                             <tr>
                                 <td class="code-cell"><a href="{{ route('purchases.show', $po->po_id) }}" class="link-strong">{{ $po->po_code }}</a></td>
                                 <td class="mono">{{ $po->finish_date }}</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $po->qty_meters, 'productId' => $product->id])</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $po->received_qty, 'productId' => $product->id])</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $po->remaining_qty, 'productId' => $product->id])</td>
-                                <td class="num mono t-strong">@include('partials.qty', ['qty' => $po->forecast_qty, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $po->qty_meters, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $po->received_qty, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $po->remaining_qty, 'productId' => $product->id])</td>
+                                <td class="num mono t-strong">@include('partials.qty.qty', ['qty' => $po->forecast_qty, 'productId' => $product->id])</td>
                             </tr>
                         @empty
                             <tr><td colspan="6" class="empty">対象の入荷予定はありません。</td></tr>
@@ -77,8 +77,8 @@
                                 <td class="code-cell"><a href="{{ route('orders.show', $order->order_id) }}" class="link-strong">{{ $order->order_code }}</a></td>
                                 <td>{{ $order->customer }}</td>
                                 <td class="mono">{{ $order->planned_ship_date }}</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $order->remaining_qty, 'productId' => $product->id])</td>
-                                <td class="num mono t-strong">@include('partials.qty', ['qty' => $order->forecast_qty, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $order->remaining_qty, 'productId' => $product->id])</td>
+                                <td class="num mono t-strong">@include('partials.qty.qty', ['qty' => $order->forecast_qty, 'productId' => $product->id])</td>
                             </tr>
                         @empty
                             <tr><td colspan="5" class="empty">対象の出荷見通しはありません。</td></tr>
@@ -116,12 +116,12 @@
                             <tr>
                                 <td class="code-cell"><a href="{{ route('orders.show', $order->id) }}" class="link-strong">{{ $order->code }}</a></td>
                                 <td>{{ $order->customer }}</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $order->qty, 'productId' => $product->id])</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $order->shipped, 'productId' => $product->id])</td>
-                                <td class="num mono t-strong">@include('partials.qty', ['qty' => $order->remaining, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $order->qty, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $order->shipped, 'productId' => $product->id])</td>
+                                <td class="num mono t-strong">@include('partials.qty.qty', ['qty' => $order->remaining, 'productId' => $product->id])</td>
                                 <td class="mono">{{ $order->due_date }}</td>
                                 <td class="t-muted" style="font-size:12px;">{{ $order->ship_memo }}</td>
-                                <td>@include('partials.status', ['status' => $order->status])</td>
+                                <td>@include('partials.ui.status', ['status' => $order->status])</td>
                             </tr>
                         @empty
                             <tr><td colspan="8" class="empty">未出荷の受注はありません。</td></tr>
@@ -147,7 +147,7 @@
                                     <tr>
                                         <td class="mono">{{ $lot->received_date }}</td>
                                         <td class="code-cell">{{ $lot->receiving_code ?? '—' }}</td>
-                                        <td class="num mono">@include('partials.qty', ['qty' => $lot->remaining_qty_m, 'productId' => $product->id])</td>
+                                        <td class="num mono">@include('partials.qty.qty', ['qty' => $lot->remaining_qty_m, 'productId' => $product->id])</td>
                                         <td class="t-muted" style="font-size:12px;">{{ $lot->source_type }}</td>
                                     </tr>
                                 @endif
@@ -178,7 +178,7 @@
                             @forelse ($line->manual_adjustments as $adj)
                                 <tr>
                                     <td class="mono t-muted" style="font-size:12px;">{{ \Illuminate\Support\Str::of($adj->updated_at)->replace('T', ' ')->before('+') }}</td>
-                                    <td class="num mono">@include('partials.qty-display', ['qty' => abs($adj->adjustment_qty_m), 'productId' => $product->id, 'sign' => $adj->adjustment_qty_m >= 0 ? '+' : '-'])</td>
+                                    <td class="num mono">@include('partials.qty.qty-display', ['qty' => abs($adj->adjustment_qty_m), 'productId' => $product->id, 'sign' => $adj->adjustment_qty_m >= 0 ? '+' : '-'])</td>
                                     <td>{{ $adj->reason }}</td>
                                     <td class="t-muted">{{ $adj->created_by }}</td>
                                 </tr>

@@ -10,7 +10,7 @@
             <p class="lead">糸ごとの年月別単価（円/kg）を管理します。製造コストの糸原価の計算根拠になります。</p>
         </div>
         <a href="{{ route('prices.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'plus']) 糸価格を登録
+            @include('partials.ui.icon', ['name' => 'plus']) 糸価格を登録
         </a>
     </div>
 
@@ -18,7 +18,7 @@
         <div class="card__head">
             <h2 class="card__title">検索</h2>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'sku' => ['label' => '糸品番', 'placeholder' => '糸品番・糸名称'],

@@ -25,7 +25,7 @@
             <p class="lead">製品品番ごとに染色加工料（円/m）と販売価格を登録します。糸・織賃は紐づく生機品番の生機レシピから参照されます。</p>
         </div>
         <a href="{{ route('recipes.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -54,7 +54,7 @@
                 </div>
 
                 <div id="greige-info">
-                    @include('partials.product-recipe-form', [
+                    @include('partials.recipe.product-recipe-form', [
                         'processingCost' => old('processing_cost', 0),
                         'price' => old('price', $selected->price ?? 0),
                         'greigeSku' => $selected->greige_sku ?? null,
@@ -67,7 +67,7 @@
                 </div>
 
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 登録する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 登録する</button>
                     <a href="{{ route('recipes.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

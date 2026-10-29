@@ -4,7 +4,7 @@
 
 ```12:14:resources/views/dashboard.blade.php
         <a href="{{ route('sales.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'chart']) 売上・粗利の詳細
+            @include('partials.ui.icon', ['name' => 'chart']) 売上・粗利の詳細
         </a>
 ```
 
@@ -157,7 +157,7 @@ Blade のこの部分:
 
 ```12:14:resources/views/orders/index.blade.php
         <a href="{{ route('orders.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'plus']) 受注を登録
+            @include('partials.ui.icon', ['name' => 'plus']) 受注を登録
         </a>
 ```
 
@@ -336,7 +336,7 @@ Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('ord
 
 <a href="{{ route($item['route']) }}"
                        class="nav-link {{ request()->routeIs(str_replace('.index', '', $item['route']) . '*') ? 'is-active' : '' }}">
-                        <span class="nav-link__icon">@include('partials.icon', ['name' => $item['icon']])</span>
+                        <span class="nav-link__icon">@include('partials.ui.icon', ['name' => $item['icon']])</span>
                         {{ $item['label'] }}
                     </a>
 ```
@@ -403,14 +403,14 @@ ordercontoroller
  <th style="min-width:140px;">入荷予定日</th>
 
  <td>
- @include('partials.purchase-arrival-date-inline-form', [
+ @include('partials.purchase.purchase-arrival-date-inline-form', [
     'purchase' => $po,
      'search' => $search,
   ])
  </td>
 ```
 
-## partials.purchase-arrival-date-inline-form
+## partials.purchase.purchase-arrival-date-inline-form
 
 ```
  <form method="POST" action="{{ route('purchases.patch-arrival', $purchase->id) }}" 

@@ -10,7 +10,7 @@
             <p class="lead">「{{ $product->sku }}」の情報を編集します。</p>
         </div>
         <a href="{{ route('products.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -59,7 +59,7 @@
                     </div>
                 </div>
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 更新する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 更新する</button>
                     <a href="{{ route('products.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

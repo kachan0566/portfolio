@@ -2,7 +2,7 @@
     $f = $forecast;
 @endphp
 
-@include('partials.cost-warning', ['warnings' => $costWarnings])
+@include('partials.ui.cost-warning', ['warnings' => $costWarnings])
 
 @include('sales.partials.forecast-comparison', [
     'forecast' => $forecast,
@@ -13,15 +13,15 @@
 
 <div class="kpi-grid">
     <div class="kpi">
-        <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'yen'])</div>
+        <div class="kpi__icon tone-indigo">@include('partials.ui.icon', ['name' => 'yen'])</div>
         <div class="kpi__label">{{ $selectedProduct ? '選択品番 見通し売上' : '見通し売上' }}</div>
         <div class="kpi__value">{{ number_format($f->total_sales) }}<span style="font-size:14px;font-weight:600;"> 円</span></div>
     </div>
     <div class="kpi">
-        <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'package'])</div>
+        <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'package'])</div>
         <div class="kpi__label">見通し出荷数量</div>
         <div class="kpi__value" style="font-size:22px;">
-            @include('partials.qty-aggregate', [
+            @include('partials.qty.qty-aggregate', [
                 'lines' => ($selectedProduct ?? null) ? $forecast->lines->where('product_id', $selectedProduct->id) : $forecast->lines,
                 'qtyKey' => 'total_qty',
                 'productId' => $selectedProduct?->id,
@@ -29,7 +29,7 @@
         </div>
     </div>
     <div class="kpi">
-        <div class="kpi__icon tone-green">@include('partials.icon', ['name' => 'chart'])</div>
+        <div class="kpi__icon tone-green">@include('partials.ui.icon', ['name' => 'chart'])</div>
         <div class="kpi__label">見通し粗利</div>
         <div class="kpi__value">
             {{ number_format($f->total_profit) }}<span style="font-size:14px;font-weight:600;"> 円</span>
@@ -39,7 +39,7 @@
         @endif
     </div>
     <div class="kpi">
-        <div class="kpi__icon tone-amber">@include('partials.icon', ['name' => 'chart'])</div>
+        <div class="kpi__icon tone-amber">@include('partials.ui.icon', ['name' => 'chart'])</div>
         <div class="kpi__label">見通し粗利率</div>
         <div class="kpi__value">
             {{ $f->total_sales > 0 ? round($f->total_profit / $f->total_sales * 100, 1) : 0 }}<span style="font-size:14px;font-weight:600;"> %</span>
@@ -69,7 +69,7 @@
     <div class="card__head">
         <h2 class="card__title">品番別 見通し（{{ $ym }}）</h2>
     </div>
-    @include('partials.list-search', [
+    @include('partials.ui.list-search', [
         'params' => $search,
         'fields' => [
             'sku' => ['label' => '品番'],
@@ -98,9 +98,9 @@
                             <td class="code-cell">
                                 <a href="{{ route('recipes.edit', $line->product_id) }}" class="link-strong">{{ $line->sku }}</a>
                             </td>
-                            <td class="num mono t-strong">@include('partials.qty', ['qty' => $line->total_qty, 'productId' => $line->product_id])</td>
-                            <td class="num mono">@include('partials.qty', ['qty' => $line->actual_qty, 'productId' => $line->product_id])</td>
-                            <td class="num mono t-muted">@include('partials.qty', ['qty' => $line->forecast_remaining_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono t-strong">@include('partials.qty.qty', ['qty' => $line->total_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono">@include('partials.qty.qty', ['qty' => $line->actual_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono t-muted">@include('partials.qty.qty', ['qty' => $line->forecast_remaining_qty, 'productId' => $line->product_id])</td>
                             <td class="num mono">{{ number_format($line->total_sales) }} 円</td>
                             <td class="num mono t-strong">
                                 @if ($line->cost_calculable)
@@ -133,9 +133,9 @@
                     <tfoot class="data-foot">
                         <tr>
                             <td>合計<span class="t-muted" style="font-size:11px;display:block;">品番別反数の合計</span></td>
-                            <td class="num mono">@include('partials.qty-aggregate', ['lines' => $forecastLines, 'qtyKey' => 'total_qty'])</td>
-                            <td class="num mono">@include('partials.qty-aggregate', ['lines' => $forecastLines, 'qtyKey' => 'actual_qty'])</td>
-                            <td class="num mono">@include('partials.qty-aggregate', ['lines' => $forecastLines, 'qtyKey' => 'forecast_remaining_qty'])</td>
+                            <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $forecastLines, 'qtyKey' => 'total_qty'])</td>
+                            <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $forecastLines, 'qtyKey' => 'actual_qty'])</td>
+                            <td class="num mono">@include('partials.qty.qty-aggregate', ['lines' => $forecastLines, 'qtyKey' => 'forecast_remaining_qty'])</td>
                             <td class="num mono">{{ number_format($forecastLines->sum('total_sales')) }} 円</td>
                             <td class="num mono">{{ number_format($forecastLines->where('cost_calculable', true)->sum('total_profit')) }} 円</td>
                             <td colspan="2"></td>

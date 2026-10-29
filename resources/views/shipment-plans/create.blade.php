@@ -7,7 +7,7 @@
     <div class="page-header">
         <div>
             <h1>出荷予定（出荷確定）登録</h1>
-            <p class="lead">{{ $order->code }} ／ {{ $order->customer }} ／ 受注残 @include('partials.qty', ['qty' => $remaining, 'productId' => $order->product_id])</p>
+            <p class="lead">{{ $order->code }} ／ {{ $order->customer }} ／ 受注残 @include('partials.qty.qty', ['qty' => $remaining, 'productId' => $order->product_id])</p>
         </div>
         <a href="{{ route('orders.show', $order->id) }}" class="btn btn-secondary">受注詳細に戻る</a>
     </div>
@@ -26,8 +26,8 @@
                                 <tr>
                                     <td class="code-cell">{{ $plan->code }}</td>
                                     <td class="mono">{{ $plan->planned_ship_date }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $plan->confirmed_qty_m, 'productId' => $order->product_id])</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $plan->unshipped_qty_m, 'productId' => $order->product_id])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $plan->confirmed_qty_m, 'productId' => $order->product_id])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $plan->unshipped_qty_m, 'productId' => $order->product_id])</td>
                                     <td>{{ $plan->status_label }}</td>
                                 </tr>
                             @endforeach
