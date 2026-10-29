@@ -10,7 +10,7 @@ use App\Models\Shipment;
 use App\Models\ShipmentRollAllocation;
 use App\Services\Receiving\ReceivingLineTotals;
 use App\Services\Receiving\RollAmendmentService;
-use App\Support\PurchaseOrderType;
+use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;

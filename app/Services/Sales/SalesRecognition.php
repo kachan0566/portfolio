@@ -2,7 +2,7 @@
 
 namespace App\Services\Sales;
 
-use App\Support\DemoData;
+use App\Support\Core\DemoData;
 
 /**
  * 売上計上月の判定（Phase 1: 出荷予定日ベース。将来は到着日を追加）。

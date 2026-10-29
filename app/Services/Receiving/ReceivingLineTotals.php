@@ -6,10 +6,10 @@ use App\Models\GreigeRoll;
 use App\Models\ProductRoll;
 use App\Models\ReceivingLine;
 use App\Models\YarnStockMovement;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
-use App\Support\YarnMovementReference;
-use App\Support\YarnMovementType;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
+use App\Support\Yarn\YarnMovementReference;
+use App\Support\Yarn\YarnMovementType;
 
 class ReceivingLineTotals
 {

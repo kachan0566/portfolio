@@ -3,10 +3,10 @@
 namespace Tests\Unit;
 
 use App\Services\Fabric\TanRollRecorder;
-use App\Support\FabricTanRoll;
-use App\Support\GreigeInventory;
-use App\Support\GreigeRoll;
-use App\Support\QtyHelper;
+use App\Support\Qty\FabricTanRoll;
+use App\Support\Inventory\GreigeInventory;
+use App\Support\Inventory\GreigeRoll;
+use App\Support\Qty\QtyHelper;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

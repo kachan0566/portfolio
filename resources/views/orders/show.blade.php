@@ -118,8 +118,8 @@
                     $stockTotalTan = $inStockRoll->tan;
                     $otherStockTan = round((float) $sameProductOrders
                         ->where('id', '!=', $order->id)
-                        ->sum(fn ($o) => \App\Support\StockAllocation::stockLinesForOrder($o->id)->sum('qty_tan')), 2);
-                    $thisStockTan = round((float) \App\Support\StockAllocation::stockLinesForOrder($order->id)->sum('qty_tan'), 2);
+                        ->sum(fn ($o) => \App\Support\Inventory\StockAllocation::stockLinesForOrder($o->id)->sum('qty_tan')), 2);
+                    $thisStockTan = round((float) \App\Support\Inventory\StockAllocation::stockLinesForOrder($order->id)->sum('qty_tan'), 2);
                     $freeStockTan = max(0.0, round($stockTotalTan - $otherStockTan - $thisStockTan, 2));
                     $otherPct = $stockTotalTan > 0 ? round($otherStockTan / $stockTotalTan * 100) : 0;
                     $thisPct = $stockTotalTan > 0 ? round($thisStockTan / $stockTotalTan * 100) : 0;
@@ -321,7 +321,7 @@
                     <a href="{{ route('purchases.create', $supplyShortage > 0 ? ['type' => 'product', 'order_id' => $order->id, 'qty' => $supplyShortage] : ['type' => 'product', 'order_id' => $order->id]) }}" class="btn btn-primary btn-sm">
                         @include('partials.ui.icon', ['name' => 'plus'])
                         @if ($supplyShortage > 0)
-                            生産発注を作成（{{ \App\Support\QtyHelper::format($supplyShortage, $product->id) }}）
+                            生産発注を作成（{{ \App\Support\Qty\QtyHelper::format($supplyShortage, $product->id) }}）
                         @else
                             生産発注を作成
                         @endif

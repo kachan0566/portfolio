@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use App\Support\DemoData;
-use App\Support\PurchaseOrderDisplay;
-use App\Support\PurchaseOrderLineDisplay;
-use App\Support\PurchaseOrderStages;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderDisplay;
+use App\Support\Purchase\PurchaseOrderLineDisplay;
+use App\Support\Purchase\PurchaseOrderStages;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

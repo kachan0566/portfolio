@@ -5,8 +5,8 @@ namespace Database\Seeders;
 use App\Models\Order;
 use App\Models\ShipmentPlanRecord;
 use App\Models\User;
-use App\Support\QtyHelper;
-use App\Support\ShipmentPlan;
+use App\Support\Qty\QtyHelper;
+use App\Support\Shipment\ShipmentPlan;
 use Illuminate\Database\Seeder;
 
 class ShipmentPlanSeeder extends Seeder

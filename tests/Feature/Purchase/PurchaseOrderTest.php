@@ -4,7 +4,7 @@ namespace Tests\Feature\Purchase;
 
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
-use App\Support\PurchaseOrderType;
+use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

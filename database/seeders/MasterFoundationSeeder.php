@@ -6,7 +6,7 @@ use App\Models\Customer;
 use App\Models\Greige;
 use App\Models\ShipTo;
 use App\Models\Supplier;
-use App\Support\DemoData;
+use App\Support\Core\DemoData;
 use Illuminate\Database\Seeder;
 
 class MasterFoundationSeeder extends Seeder

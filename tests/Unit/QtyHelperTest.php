@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Support\QtyHelper;
+use App\Support\Qty\QtyHelper;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;

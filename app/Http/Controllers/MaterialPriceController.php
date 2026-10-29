@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\MasterCatalog;
+use App\Support\Master\MasterCatalog;
 
 use App\Http\Requests\StoreYarnPriceRequest;
 use App\Http\Requests\UpdateYarnPriceRequest;
 use App\Models\MaterialPrice;
-use App\Support\DemoData;
-use App\Support\ListSearch;
+use App\Support\Core\DemoData;
+use App\Support\Master\ListSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

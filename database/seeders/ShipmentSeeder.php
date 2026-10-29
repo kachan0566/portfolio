@@ -13,10 +13,10 @@ use App\Models\ShipTo;
 use App\Models\Supplier;
 use App\Services\Fabric\TanRollRecorder;
 use App\Services\Shipment\ShipmentRegistrar;
-use App\Support\DemoData;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 

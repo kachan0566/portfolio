@@ -1,6 +1,6 @@
 @php
-    use App\Support\QtyHelper;
-    use App\Support\StockAllocation;
+    use App\Support\Qty\QtyHelper;
+    use App\Support\Inventory\StockAllocation;
     $stockType = StockAllocation::TYPE_STOCK;
     $poType = StockAllocation::TYPE_PO;
     $allocPageKey = $allocPageKey ?? 'allocation';
@@ -81,7 +81,7 @@
                                 'metersPerTan' => $allocMetersPerTan,
                                 'productId' => $productId,
                                 'pageKey' => $allocPageKey,
-                                'maxTan' => \App\Support\QtyHelper::tanCount($sOrder->remaining, $productId),
+                                'maxTan' => \App\Support\Qty\QtyHelper::tanCount($sOrder->remaining, $productId),
                                 'compact' => true,
                                 'fieldClass' => 'po-line__qty-field',
                                 'showMeterSwitch' => false,
@@ -121,7 +121,7 @@
                                 'metersPerTan' => $allocMetersPerTan,
                                 'productId' => $productId,
                                 'pageKey' => $allocPageKey,
-                                'maxTan' => \App\Support\QtyHelper::tanCount($sOrder->remaining, $productId),
+                                'maxTan' => \App\Support\Qty\QtyHelper::tanCount($sOrder->remaining, $productId),
                                 'compact' => true,
                                 'fieldClass' => 'po-line__qty-field',
                                 'showMeterSwitch' => false,

@@ -4,8 +4,8 @@ namespace App\Services\Inventory;
 
 use App\Models\ProductRoll as ProductRollModel;
 use App\Models\ShipmentRollAllocation;
-use App\Support\ProductRoll;
-use App\Support\QtyHelper;
+use App\Support\Inventory\ProductRoll;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 

@@ -6,9 +6,9 @@ use App\Models\ForecastManualAdjustment;
 use App\Models\MonthEndForecast;
 use App\Models\Order;
 use App\Services\Sales\SalesForecastEngine;
-use App\Support\DemoData;
-use App\Support\MasterCatalog;
-use App\Support\ProductStock;
+use App\Support\Core\DemoData;
+use App\Support\Master\MasterCatalog;
+use App\Support\Inventory\ProductStock;
 use Illuminate\Support\Collection;
 
 class MonthEndForecastEngine

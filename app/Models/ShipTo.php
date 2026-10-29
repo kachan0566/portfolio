@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\PurchaseOrderType;
+use App\Support\Purchase\PurchaseOrderType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;

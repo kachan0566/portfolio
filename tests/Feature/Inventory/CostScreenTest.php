@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Inventory;
 
-use App\Support\DemoData;
+use App\Support\Core\DemoData;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

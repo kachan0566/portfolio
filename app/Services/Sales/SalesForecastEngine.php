@@ -7,15 +7,15 @@ use App\Models\Order;
 use App\Models\PurchaseOrder;
 use App\Models\SalesForecast;
 use App\Models\SalesForecastLine;
-use App\Support\DemoData;
-use App\Support\FreightCalculator;
-use App\Support\MasterCatalog;
-use App\Support\ProductStock;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
-use App\Support\SalesForecastSourceType;
-use App\Support\ShipmentPlan;
-use App\Support\StockAllocation;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\FreightCalculator;
+use App\Support\Master\MasterCatalog;
+use App\Support\Inventory\ProductStock;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Sales\SalesForecastSourceType;
+use App\Support\Shipment\ShipmentPlan;
+use App\Support\Inventory\StockAllocation;
 use Illuminate\Support\Collection;
 
 class SalesForecastEngine

@@ -7,7 +7,7 @@ use App\Models\ProductRoll;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\ReceivingLine;
-use App\Support\PurchaseOrderType;
+use App\Support\Purchase\PurchaseOrderType;
 
 class PurchaseOrderShowData
 {

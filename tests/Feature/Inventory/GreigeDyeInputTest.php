@@ -4,9 +4,9 @@ namespace Tests\Feature\Inventory;
 
 use App\Models\PurchaseOrderLine;
 use App\Services\Inventory\GreigeDyeInput;
-use App\Support\GreigeInventory;
-use App\Support\GreigeRoll;
-use App\Support\PurchaseOrderStages;
+use App\Support\Inventory\GreigeInventory;
+use App\Support\Inventory\GreigeRoll;
+use App\Support\Purchase\PurchaseOrderStages;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;

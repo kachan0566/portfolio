@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Master;
 
-use App\Support\DemoData;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
-use App\Support\ShipToType;
-use App\Support\SupplierType;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Master\ShipToType;
+use App\Support\Master\SupplierType;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

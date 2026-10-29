@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Support\BusinessDate;
+use App\Support\Core\BusinessDate;
 use Tests\TestCase;
 
 class BusinessDateTest extends TestCase

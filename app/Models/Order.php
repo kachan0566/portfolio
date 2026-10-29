@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use App\Support\BusinessDate;
-use App\Support\DemoData;
-use App\Support\FabricQuantity;
-use App\Support\QtyHelper;
+use App\Support\Core\BusinessDate;
+use App\Support\Core\DemoData;
+use App\Support\Qty\FabricQuantity;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

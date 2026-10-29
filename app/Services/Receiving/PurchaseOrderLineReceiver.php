@@ -5,9 +5,9 @@ namespace App\Services\Receiving;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\ReceivingLine;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
 
 class PurchaseOrderLineReceiver
 {

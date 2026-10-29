@@ -4,9 +4,9 @@ namespace Database\Seeders;
 
 use App\Models\Customer;
 use App\Models\Order;
-use App\Support\DemoData;
-use App\Support\FabricQuantity;
-use App\Support\QtyHelper;
+use App\Support\Core\DemoData;
+use App\Support\Qty\FabricQuantity;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Seeder;
 
 class OrderSeeder extends Seeder

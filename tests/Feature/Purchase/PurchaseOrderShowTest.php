@@ -9,7 +9,7 @@ use App\Models\PurchaseOrderLine;
 use App\Models\Receiving;
 use App\Models\ReceivingLine;
 use App\Services\Purchase\PurchaseOrderShowData;
-use App\Support\PurchaseOrderType;
+use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderSeeder;

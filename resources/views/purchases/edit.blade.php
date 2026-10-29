@@ -93,14 +93,14 @@
                     </div>
                 </div>
 
-                @if (in_array($purchase->type, [\App\Support\PurchaseOrderType::PRODUCT, \App\Support\PurchaseOrderType::GREIGE], true))
+                @if (in_array($purchase->type, [\App\Support\Purchase\PurchaseOrderType::PRODUCT, \App\Support\Purchase\PurchaseOrderType::GREIGE], true))
                     <div class="form-row">
                         <div class="field">
                             <label class="label" for="finish_date">入荷予定日</label>
                             <input class="input" type="date" id="finish_date" name="finish_date"
                                    value="{{ old('finish_date', $purchase->finish_date ?? '') }}">
                             <p class="field-hint">
-                                @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT)
+                                @if ($purchase->type === \App\Support\Purchase\PurchaseOrderType::PRODUCT)
                                     月末在庫予想の入荷予定計算に使用します（納期とは別）。
                                 @else
                                     染工場への到着予定日です（織工場との納期とは別）。
@@ -122,7 +122,7 @@
                     </div>
                 @endif
 
-                @if (count($lineStageRows ?? []) > 1 && in_array($purchase->type, [\App\Support\PurchaseOrderType::GREIGE, \App\Support\PurchaseOrderType::PRODUCT], true))
+                @if (count($lineStageRows ?? []) > 1 && in_array($purchase->type, [\App\Support\Purchase\PurchaseOrderType::GREIGE, \App\Support\Purchase\PurchaseOrderType::PRODUCT], true))
                     <div class="field">
                         <label class="label">明細行ごとの生産工程</label>
                         <div style="display:flex;flex-direction:column;gap:12px;">
@@ -146,7 +146,7 @@
                             @endforeach
                         </div>
                         <p class="field-hint" style="margin-top:8px;">
-                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
+                            @if ($purchase->type === \App\Support\Purchase\PurchaseOrderType::GREIGE)
                                 織工場から織編開始の連絡があった行だけ「織編機投入済」を選びます。糸入荷・生機出荷は入荷記録から自動で更新されます。
                             @else
                                 染工場への投入連絡があった行だけ「染機投入済」を選びます。在庫中は入荷記録から自動で更新されます。
@@ -163,14 +163,14 @@
                             @endforeach
                         </select>
                         <p class="field-hint">
-                            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
+                            @if ($purchase->type === \App\Support\Purchase\PurchaseOrderType::GREIGE)
                                 織工場から織編開始の連絡があったら「織編機投入済」を選びます。糸入荷・生機出荷は入荷記録から自動で更新されます。
                             @else
                                 染工場への投入連絡後に「染機投入済」を選びます。在庫中・出荷済は入荷記録から自動で更新されます。
                             @endif
                         </p>
                     </div>
-                @elseif (in_array($purchase->type, [\App\Support\PurchaseOrderType::GREIGE, \App\Support\PurchaseOrderType::PRODUCT], true))
+                @elseif (in_array($purchase->type, [\App\Support\Purchase\PurchaseOrderType::GREIGE, \App\Support\Purchase\PurchaseOrderType::PRODUCT], true))
                     <div class="field">
                         <label class="label">生産工程</label>
                         <input class="input" type="text" readonly value="{{ $purchase->stage }}">

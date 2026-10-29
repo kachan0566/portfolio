@@ -57,7 +57,7 @@
                     'label' => '状態',
                     'options' => array_merge(
                         ['在庫不足' => '在庫不足', '残少なめ' => '残少なめ', '十分' => '十分'],
-                        \App\Support\PurchaseOrderDisplay::filterOptions()
+                        \App\Support\Purchase\PurchaseOrderDisplay::filterOptions()
                     ),
                 ],
             ],
@@ -194,7 +194,7 @@
                 <div class="kpi__label">染工場 生機在庫合計</div>
                 <div class="kpi__value" style="font-size:22px;">
                     @if ($greigeTotalMeters > 0)
-                        {{ \App\Support\QtyHelper::formatTanCount($greigeTotalTan) }}反 / {{ number_format($greigeTotalMeters) }}m
+                        {{ \App\Support\Qty\QtyHelper::formatTanCount($greigeTotalTan) }}反 / {{ number_format($greigeTotalMeters) }}m
                     @else
                         0反 / 0m
                     @endif

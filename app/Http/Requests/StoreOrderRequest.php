@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Support\FabricQuantity;
-use App\Support\QtyHelper;
+use App\Support\Qty\FabricQuantity;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;

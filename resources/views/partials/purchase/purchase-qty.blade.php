@@ -1,5 +1,5 @@
 @php
-    use App\Support\PurchaseOrderType;
+    use App\Support\Purchase\PurchaseOrderType;
 
     $po = $purchase ?? null;
     $type = $po->type ?? PurchaseOrderType::PRODUCT;

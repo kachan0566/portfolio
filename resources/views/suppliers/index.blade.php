@@ -40,7 +40,7 @@
                         @foreach ($suppliers as $s)
                             <tr>
                                 <td class="t-strong"><a href="{{ route('suppliers.show', $s->id) }}" class="link-strong">{{ $s->name }}</a></td>
-                                <td><span class="badge badge-indigo badge--plain">{{ \App\Support\SupplierType::label($s->type) }}</span></td>
+                                <td><span class="badge badge-indigo badge--plain">{{ \App\Support\Master\SupplierType::label($s->type) }}</span></td>
                                 <td>{{ $s->contact }}</td>
                                 <td class="mono t-muted">{{ $s->tel }}</td>
                                 <td class="num mono">{{ $purchases->where('supplier', $s->name)->count() }} 件</td>

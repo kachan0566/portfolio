@@ -49,7 +49,7 @@
                             <tr>
                                 <td class="code-cell">{{ $s->code }}</td>
                                 <td>
-                                    @php $orderId = \App\Support\DemoData::orders()->firstWhere('code', $s->order_code)?->id; @endphp
+                                    @php $orderId = \App\Support\Core\DemoData::orders()->firstWhere('code', $s->order_code)?->id; @endphp
                                     @if ($orderId)
                                         <a href="{{ route('orders.edit', $orderId) }}" class="link-strong code-cell" title="元の受注を見る">{{ $s->order_code }}</a>
                                     @else

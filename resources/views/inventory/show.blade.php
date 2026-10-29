@@ -135,7 +135,7 @@
                             $poUsed = $poUsageByPo[$po->id] ?? 0;
                             $received = (int) floor(\App\Models\PurchaseOrder::receivedQtyFor((int) $po->id, $po));
                             $poRem = \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po);
-                            $stockUsedTan = \App\Support\StockAllocation::stockUsageTanByPo($product->id)[$po->id] ?? 0.0;
+                            $stockUsedTan = \App\Support\Inventory\StockAllocation::stockUsageTanByPo($product->id)[$po->id] ?? 0.0;
                             $stockUsedM = $stockUsageByPo[$po->id] ?? 0;
                         @endphp
                         <div class="po-usage-item">
@@ -220,8 +220,8 @@
                             <tbody>
                                 @foreach ($conversionHistory as $ev)
                                     @php
-                                        $evOrder = \App\Support\DemoData::orders()->firstWhere('id', $ev['order_id'] ?? 0);
-                                        $evPo = \App\Support\DemoData::purchaseOrders()->firstWhere('id', $ev['po_id'] ?? 0);
+                                        $evOrder = \App\Support\Core\DemoData::orders()->firstWhere('id', $ev['order_id'] ?? 0);
+                                        $evPo = \App\Support\Core\DemoData::purchaseOrders()->firstWhere('id', $ev['po_id'] ?? 0);
                                     @endphp
                                     <tr>
                                         <td class="mono" style="font-size:12px;">{{ $ev['at'] ?? '' }}</td>

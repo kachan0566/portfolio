@@ -83,9 +83,9 @@
     @php
         $svc = $cmp->snapshot_vs_current;
         $currentQtyLines = $qtyLines;
-        $snapshotTan = \App\Support\QtyHelper::sumTanFromLines($snapshotQtyLines, 'total_qty');
-        $currentTan = \App\Support\QtyHelper::sumTanFromLines($currentQtyLines, 'total_qty');
-        $diffTan = round($currentTan - $snapshotTan, \App\Support\QtyHelper::TAN_DECIMALS);
+        $snapshotTan = \App\Support\Qty\QtyHelper::sumTanFromLines($snapshotQtyLines, 'total_qty');
+        $currentTan = \App\Support\Qty\QtyHelper::sumTanFromLines($currentQtyLines, 'total_qty');
+        $diffTan = round($currentTan - $snapshotTan, \App\Support\Qty\QtyHelper::TAN_DECIMALS);
     @endphp
     <div class="card" style="margin-bottom:16px;">
         <div class="card__head">
@@ -116,12 +116,12 @@
                             <td class="num mono {{ $svc->diff_qty != 0 ? 't-strong' : 't-muted' }}">
                                 @if ($selectedProduct ?? null)
                                     @php
-                                        $snapM = (int) \App\Support\QtyHelper::sumMetersFromLines($snapshotQtyLines, 'total_qty');
-                                        $curM = (int) \App\Support\QtyHelper::sumMetersFromLines($currentQtyLines, 'total_qty');
+                                        $snapM = (int) \App\Support\Qty\QtyHelper::sumMetersFromLines($snapshotQtyLines, 'total_qty');
+                                        $curM = (int) \App\Support\Qty\QtyHelper::sumMetersFromLines($currentQtyLines, 'total_qty');
                                     @endphp
                                     @include('partials.qty.qty-display', ['qty' => abs($curM - $snapM), 'productId' => $selectedProduct->id, 'sign' => $curM - $snapM >= 0 ? '+' : '-'])
                                 @else
-                                    {{ $diffTan >= 0 ? '+' : '' }}{{ \App\Support\QtyHelper::formatTanCount($diffTan) }}反
+                                    {{ $diffTan >= 0 ? '+' : '' }}{{ \App\Support\Qty\QtyHelper::formatTanCount($diffTan) }}反
                                     ／ {{ $svc->diff_qty >= 0 ? '+' : '' }}{{ number_format($svc->diff_qty) }}m
                                 @endif
                             </td>

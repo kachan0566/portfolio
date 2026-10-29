@@ -1,6 +1,6 @@
 @php
-    use App\Support\PurchaseOrderType;
-    use App\Support\QtyHelper;
+    use App\Support\Purchase\PurchaseOrderType;
+    use App\Support\Qty\QtyHelper;
 
     $type = $purchase->type ?? PurchaseOrderType::PRODUCT;
 @endphp

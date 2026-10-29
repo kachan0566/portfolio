@@ -1,6 +1,6 @@
 @php
-    use App\Support\ProductStock;
-    use App\Support\QtyHelper;
+    use App\Support\Inventory\ProductStock;
+    use App\Support\Qty\QtyHelper;
 
     $productId = $productId ?? null;
     $prefix = $prefix ?? '';

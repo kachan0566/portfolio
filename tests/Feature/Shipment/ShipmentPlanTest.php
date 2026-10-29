@@ -4,7 +4,7 @@ namespace Tests\Feature\Shipment;
 
 use App\Models\Order;
 use App\Models\ShipmentPlanRecord;
-use App\Support\ShipmentPlan;
+use App\Support\Shipment\ShipmentPlan;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderSeeder;

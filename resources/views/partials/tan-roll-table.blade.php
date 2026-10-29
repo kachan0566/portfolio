@@ -27,7 +27,7 @@
             <tbody>
                 @foreach ($rolls as $roll)
                     @php
-                        $variance = \App\Support\FabricTanRoll::varianceMeters($roll);
+                        $variance = \App\Support\Qty\FabricTanRoll::varianceMeters($roll);
                         $nominal = (int) ($roll->nominal_meters ?? 0);
                     @endphp
                     <tr>
@@ -53,7 +53,7 @@
                             </td>
                         @endif
                         <td class="num mono {{ abs($variance) >= 0.05 ? 't-amber' : 't-muted' }}">
-                            {{ \App\Support\QtyHelper::formatVariance($variance) }}
+                            {{ \App\Support\Qty\QtyHelper::formatVariance($variance) }}
                         </td>
                         <td class="mono t-muted" style="font-size:12px;">
                             {{ $roll->dyeing_measured_at ?? $roll->weaving_measured_at ?? $roll->measured_at }}

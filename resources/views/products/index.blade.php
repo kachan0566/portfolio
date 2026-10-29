@@ -39,7 +39,7 @@
                     <span class="t-muted" style="font-weight:500;">（生機：{{ $items->first()->greige_name }}）</span>
                 </h2>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <span class="badge badge-indigo badge--plain">{{ $greige?->meters_per_tan ?? \App\Support\DemoData::METERS_PER_TAN_GREIGE }}m/反（生機）</span>
+                    <span class="badge badge-indigo badge--plain">{{ $greige?->meters_per_tan ?? \App\Support\Core\DemoData::METERS_PER_TAN_GREIGE }}m/反（生機）</span>
                     <span class="badge badge-indigo badge--plain">製品 {{ $items->count() }} 品番</span>
                 </div>
             </div>

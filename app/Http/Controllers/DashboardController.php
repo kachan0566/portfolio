@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\DemoData;
+use App\Support\Core\DemoData;
 use Illuminate\View\View;
 
 class DashboardController extends Controller

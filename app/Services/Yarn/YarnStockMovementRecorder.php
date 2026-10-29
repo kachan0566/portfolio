@@ -4,8 +4,8 @@ namespace App\Services\Yarn;
 
 use App\Models\ReceivingLine;
 use App\Models\YarnStockMovement;
-use App\Support\YarnMovementReference;
-use App\Support\YarnMovementType;
+use App\Support\Yarn\YarnMovementReference;
+use App\Support\Yarn\YarnMovementType;
 
 final class YarnStockMovementRecorder
 {

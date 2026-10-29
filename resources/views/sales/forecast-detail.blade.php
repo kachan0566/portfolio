@@ -216,7 +216,7 @@
                                     <td class="code-cell"><a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a></td>
                                     <td>{{ $po->supplier }}</td>
                                     <td class="num mono">@include('partials.qty.qty', ['qty' => \App\Models\PurchaseOrder::remainingQtyFor((int) $po->id, $po), 'productId' => $product->id])</td>
-                                    <td class="mono">{{ \App\Support\DemoData::expectedArrivalDate($po) }}</td>
+                                    <td class="mono">{{ \App\Support\Core\DemoData::expectedArrivalDate($po) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

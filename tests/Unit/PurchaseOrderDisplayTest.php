@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use App\Support\DemoData;
-use App\Support\PurchaseOrderStages;
-use App\Support\PurchaseOrderType;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderStages;
+use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;
