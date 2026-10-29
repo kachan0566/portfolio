@@ -10,9 +10,9 @@ use App\Models\ProductRecipe;
 use App\Models\PurchaseOrder;
 use App\Models\YarnAllocation;
 use App\Services\Yarn\YarnStockMovementRecorder;
-use App\Support\DemoData;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
 use Illuminate\Database\Seeder;
 
 class CostFoundationSeeder extends Seeder

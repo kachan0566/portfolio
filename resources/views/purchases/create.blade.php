@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        $typeLabel = \App\Support\PurchaseOrderType::label($type);
+        $typeLabel = \App\Support\Purchase\PurchaseOrderType::label($type);
         $oldLines = old('lines', [[]]);
         if ($oldLines === [] || $oldLines === [[]]) {
             $oldLines = [[]];
@@ -22,10 +22,10 @@
     </div>
 
     <div class="tabs" style="margin-bottom:16px;display:flex;gap:8px;">
-        @foreach (\App\Support\PurchaseOrderType::all() as $t)
+        @foreach (\App\Support\Purchase\PurchaseOrderType::all() as $t)
             <a href="{{ route('purchases.create', array_filter(['type' => $t, 'order_id' => $t === 'product' ? request('order_id') : null])) }}"
                class="btn {{ $type === $t ? 'btn-primary' : 'btn-secondary' }} btn-sm">
-                {{ \App\Support\PurchaseOrderType::label($t) }}
+                {{ \App\Support\Purchase\PurchaseOrderType::label($t) }}
             </a>
         @endforeach
     </div>
@@ -99,7 +99,7 @@
                     </div>
                 </div>
 
-                @if ($type === \App\Support\PurchaseOrderType::GREIGE)
+                @if ($type === \App\Support\Purchase\PurchaseOrderType::GREIGE)
                     <div class="card" style="margin:0 0 16px;background:var(--bg-subtle, #f8fafc);">
                         <div class="card__body">
                             <h3 class="card__title" style="font-size:14px;margin:0 0 8px;">必要糸量（プレビュー・合計）</h3>

@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\Greige;
 use App\Models\Material;
 use App\Models\Product;
-use App\Support\DemoData;
+use App\Support\Core\DemoData;
 use Illuminate\Database\Seeder;
 
 class MasterCatalogSeeder extends Seeder

@@ -5,7 +5,7 @@ namespace Tests\Feature\Shipment;
 use App\Models\Order;
 use App\Models\ProductRoll;
 use App\Models\Shipment;
-use App\Support\StockAllocation;
+use App\Support\Inventory\StockAllocation;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;

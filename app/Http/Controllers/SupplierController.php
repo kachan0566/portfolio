@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Supplier;
-use App\Support\DemoData;
-use App\Support\ListSearch;
+use App\Support\Core\DemoData;
+use App\Support\Master\ListSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

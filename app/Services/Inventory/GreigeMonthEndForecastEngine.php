@@ -5,14 +5,14 @@ namespace App\Services\Inventory;
 use App\Models\GreigeMonthEndForecast;
 use App\Models\PurchaseOrder;
 use App\Services\Sales\SalesRecognition;
-use App\Support\DemoData;
+use App\Support\Core\DemoData;
 use App\Models\GreigeForecastManualAdjustment;
-use App\Support\GreigeRoll;
-use App\Support\GreigeSupply;
-use App\Support\MasterCatalog;
-use App\Support\PurchaseOrderStages;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
+use App\Support\Inventory\GreigeRoll;
+use App\Support\Inventory\GreigeSupply;
+use App\Support\Master\MasterCatalog;
+use App\Support\Purchase\PurchaseOrderStages;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
 use Illuminate\Support\Collection;
 
 /**

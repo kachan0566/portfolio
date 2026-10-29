@@ -2,11 +2,11 @@
 
 namespace App\Services\Fabric;
 
-use App\Support\DemoData;
-use App\Support\GreigeRoll;
-use App\Support\MasterCatalog;
-use App\Support\ProductRoll;
-use App\Support\QtyHelper;
+use App\Support\Core\DemoData;
+use App\Support\Inventory\GreigeRoll;
+use App\Support\Master\MasterCatalog;
+use App\Support\Inventory\ProductRoll;
+use App\Support\Qty\QtyHelper;
 
 /**
  * 織り上がり・染め上がりの反明細を記録する。

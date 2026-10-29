@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Support\GreigeInventory;
-use App\Support\GreigeSupply;
+use App\Support\Inventory\GreigeInventory;
+use App\Support\Inventory\GreigeSupply;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;

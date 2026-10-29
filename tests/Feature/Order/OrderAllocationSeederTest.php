@@ -3,8 +3,8 @@
 namespace Tests\Feature\Order;
 
 use App\Models\OrderAllocation;
-use App\Support\DemoData;
-use App\Support\StockAllocation;
+use App\Support\Core\DemoData;
+use App\Support\Inventory\StockAllocation;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;

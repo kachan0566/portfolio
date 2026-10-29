@@ -20,7 +20,7 @@
                 <div class="stat-row__item">
                     <div class="stat-row__label">種別</div>
                     <div class="stat-row__value" style="font-size:15px;">
-                        <span class="badge badge-indigo badge--plain">{{ \App\Support\SupplierType::label($supplier->type) }}</span>
+                        <span class="badge badge-indigo badge--plain">{{ \App\Support\Master\SupplierType::label($supplier->type) }}</span>
                     </div>
                 </div>
                 <div class="stat-row__item">
@@ -50,7 +50,7 @@
                 'due' => ['label' => '入荷予定'],
                 'status' => [
                     'label' => '工程',
-                    'options' => \App\Support\PurchaseOrderDisplay::filterOptions(),
+                    'options' => \App\Support\Purchase\PurchaseOrderDisplay::filterOptions(),
                 ],
             ],
         ])

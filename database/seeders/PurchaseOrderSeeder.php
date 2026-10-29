@@ -7,10 +7,10 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
-use App\Support\DemoData;
-use App\Support\PurchaseOrderStages;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderStages;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Seeder;
 
 class PurchaseOrderSeeder extends Seeder

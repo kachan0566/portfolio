@@ -4,7 +4,7 @@
 @section('breadcrumb', '取引 / 入荷処理')
 
 @section('content')
-    @php use App\Support\PurchaseOrderType; @endphp
+    @php use App\Support\Purchase\PurchaseOrderType; @endphp
     <div class="page-header">
         <div>
             <h1>入荷処理</h1>
@@ -52,7 +52,7 @@
                         @foreach ($receivings as $r)
                             @php
                                 $poType = $r->po_type ?? PurchaseOrderType::PRODUCT;
-                                $poId = \App\Support\DemoData::purchaseOrders()->firstWhere('code', $r->po_code)?->id;
+                                $poId = \App\Support\Core\DemoData::purchaseOrders()->firstWhere('code', $r->po_code)?->id;
                                 $lineNo = $r->line_no ?? 1;
                                 $lineCount = $r->line_count ?? 1;
                                 $receivingLineId = $r->receiving_line_id ?? null;

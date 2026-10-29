@@ -5,7 +5,7 @@ namespace App\Services\Inventory;
 use App\Models\CombinedMonthEndForecast;
 use App\Models\GreigeMonthEndForecast;
 use App\Models\MonthEndForecast;
-use App\Support\MasterCatalog;
+use App\Support\Master\MasterCatalog;
 
 /**
  * 製品月末予想と生機月末予想を合算した閲覧用サマリ。

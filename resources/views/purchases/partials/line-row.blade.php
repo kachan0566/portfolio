@@ -10,7 +10,7 @@
         @endif
     </div>
 
-    @if ($type === \App\Support\PurchaseOrderType::YARN)
+    @if ($type === \App\Support\Purchase\PurchaseOrderType::YARN)
         <div class="form-row">
             <div class="field">
                 <label class="label">糸品番<span class="req">*</span></label>
@@ -28,7 +28,7 @@
                        value="{{ $line['qty_kg'] ?? '' }}" required>
             </div>
         </div>
-    @elseif ($type === \App\Support\PurchaseOrderType::GREIGE)
+    @elseif ($type === \App\Support\Purchase\PurchaseOrderType::GREIGE)
         <div class="form-row">
             <div class="field">
                 <label class="label">生機品番<span class="req">*</span></label>

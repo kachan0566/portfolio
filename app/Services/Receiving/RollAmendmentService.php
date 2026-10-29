@@ -7,7 +7,7 @@ use App\Models\ProductRoll;
 use App\Models\ReceivingLine;
 use App\Models\ReceivingRollAmendment;
 use App\Models\ShipmentRollAllocation;
-use App\Support\QtyHelper;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Support\Facades\DB;
 
 class RollAmendmentService

@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\GreigeRecipe;
-use App\Support\MasterCatalog;
+use App\Support\Master\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

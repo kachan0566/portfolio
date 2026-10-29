@@ -5,8 +5,8 @@ namespace App\Services\Shipment;
 use App\Models\Order;
 use App\Models\Shipment;
 use App\Services\Inventory\ShipmentRollAllocator;
-use App\Support\QtyHelper;
-use App\Support\ShipmentPlan;
+use App\Support\Qty\QtyHelper;
+use App\Support\Shipment\ShipmentPlan;
 use Illuminate\Support\Facades\DB;
 
 /**

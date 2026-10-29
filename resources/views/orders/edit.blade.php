@@ -45,11 +45,11 @@
                             'tanName' => 'qty_tan',
                             'metersName' => 'qty_meters',
                             'id' => 'qty-display',
-                            'valueTan' => $order->qty_tan ?? \App\Support\QtyHelper::tanCount($order->qty, $order->product_id),
+                            'valueTan' => $order->qty_tan ?? \App\Support\Qty\QtyHelper::tanCount($order->qty, $order->product_id),
                             'valueMeters' => ($order->order_qty_mode ?? 'tan') === 'meters' ? ($order->qty_meters ?? $order->qty) : null,
                             'productId' => $order->product_id,
                             'metersPerTan' => $editProduct->meters_per_tan ?? 50,
-                            'tanStep' => \App\Support\QtyHelper::ORDER_PO_TAN_STEP,
+                            'tanStep' => \App\Support\Qty\QtyHelper::ORDER_PO_TAN_STEP,
                             'pageKey' => 'orders-form',
                         ])
                     </div>

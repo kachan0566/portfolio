@@ -31,8 +31,8 @@
         <div class="card__head">
             <h2 class="card__title">発注一覧（{{ $purchases->count() }} 行 / {{ $orderCount }} 件）</h2>
             <div class="legend" style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
-                @foreach (\App\Support\PurchaseOrderType::all() as $t)
-                    <span>{{ \App\Support\PurchaseOrderType::label($t) }} {{ $purchases->where('type', $t)->pluck('id')->unique()->count() }}</span>
+                @foreach (\App\Support\Purchase\PurchaseOrderType::all() as $t)
+                    <span>{{ \App\Support\Purchase\PurchaseOrderType::label($t) }} {{ $purchases->where('type', $t)->pluck('id')->unique()->count() }}</span>
                 @endforeach
             </div>
         </div>

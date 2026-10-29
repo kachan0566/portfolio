@@ -2,7 +2,7 @@
 
 namespace App\Services\Inventory;
 
-use App\Support\ProductRoll;
+use App\Support\Inventory\ProductRoll;
 use Illuminate\Support\Collection;
 
 /**

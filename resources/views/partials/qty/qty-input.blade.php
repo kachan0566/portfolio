@@ -6,28 +6,28 @@
     $greigeSku = $greigeSku ?? null;
     $metersPerTan = isset($metersPerTan)
         ? (float) $metersPerTan
-        : (float) \App\Support\QtyHelper::metersPerTan($productId, $isGreige, $greigeSku);
+        : (float) \App\Support\Qty\QtyHelper::metersPerTan($productId, $isGreige, $greigeSku);
     $valueMeters = isset($valueMeters) ? (float) $valueMeters : null;
     $valueTan = isset($valueTan)
         ? (float) $valueTan
         : ($valueMeters !== null && $valueMeters > 0
-            ? \App\Support\QtyHelper::roundTan($valueMeters / max(1, $metersPerTan))
+            ? \App\Support\Qty\QtyHelper::roundTan($valueMeters / max(1, $metersPerTan))
             : 0.0);
     if ($valueMeters === null && $valueTan > 0) {
-        $valueMeters = round(\App\Support\QtyHelper::roundTan($valueTan) * $metersPerTan, 2);
+        $valueMeters = round(\App\Support\Qty\QtyHelper::roundTan($valueTan) * $metersPerTan, 2);
     }
     $valueMeters = (float) ($valueMeters ?? 0);
     $pageKey = $pageKey ?? 'default';
     $id = $id ?? null;
     $maxTan = isset($maxTan)
         ? (float) $maxTan
-        : (isset($maxMeters) ? \App\Support\QtyHelper::roundTan((int) $maxMeters / max(1, $metersPerTan)) : null);
+        : (isset($maxMeters) ? \App\Support\Qty\QtyHelper::roundTan((int) $maxMeters / max(1, $metersPerTan)) : null);
     $placeholder = $placeholder ?? '0';
     $compact = $compact ?? false;
     $fieldClass = $fieldClass ?? '';
     $showMeterSwitch = $showMeterSwitch ?? true;
     $submitMeters = $submitMeters ?? true;
-    $tanStep = $tanStep ?? \App\Support\QtyHelper::TAN_STEP;
+    $tanStep = $tanStep ?? \App\Support\Qty\QtyHelper::TAN_STEP;
     $tanDecimals = $tanStep >= 1 ? 0 : 2;
 @endphp
 <div class="qty-unit-field{{ $compact ? ' qty-unit-field--compact' : '' }} {{ $fieldClass }}"
@@ -36,12 +36,12 @@
      data-qty-mode="tan"
      data-meters-per-tan="{{ $metersPerTan }}"
      data-tan-step="{{ $tanStep }}"
-     @if ($maxTan !== null) data-max-tan="{{ \App\Support\QtyHelper::formatTanCount($maxTan) }}" @endif>
-    <input type="hidden" name="{{ $tanName }}" value="{{ \App\Support\QtyHelper::formatTanCount($valueTan) }}" data-qty-tan-hidden>
+     @if ($maxTan !== null) data-max-tan="{{ \App\Support\Qty\QtyHelper::formatTanCount($maxTan) }}" @endif>
+    <input type="hidden" name="{{ $tanName }}" value="{{ \App\Support\Qty\QtyHelper::formatTanCount($valueTan) }}" data-qty-tan-hidden>
     @if ($submitMeters)
-        <input type="hidden" name="{{ $metersName }}" value="{{ $valueMeters > 0 ? \App\Support\QtyHelper::formatMeters($valueMeters) : '' }}" data-qty-meters-hidden>
+        <input type="hidden" name="{{ $metersName }}" value="{{ $valueMeters > 0 ? \App\Support\Qty\QtyHelper::formatMeters($valueMeters) : '' }}" data-qty-meters-hidden>
     @else
-        <input type="hidden" value="{{ $valueMeters > 0 ? \App\Support\QtyHelper::formatMeters($valueMeters) : '' }}" data-qty-meters-hidden>
+        <input type="hidden" value="{{ $valueMeters > 0 ? \App\Support\Qty\QtyHelper::formatMeters($valueMeters) : '' }}" data-qty-meters-hidden>
     @endif
     <div data-qty-tan-row>
         <div class="input-group{{ $compact ? ' po-line__input-group' : '' }}">

@@ -61,7 +61,7 @@
                 @php
                     $selectedOrder = $pending->firstWhere('id', $selectedOrderId) ?? $pending->first();
                     $selectedMetersPerTan = $selectedOrder
-                        ? \App\Support\QtyHelper::metersPerTan((int) $selectedOrder->product_id)
+                        ? \App\Support\Qty\QtyHelper::metersPerTan((int) $selectedOrder->product_id)
                         : null;
                     $selectedShippable = $selectedOrder?->shippable_qty ?? 0;
                 @endphp
@@ -71,14 +71,14 @@
                         <label class="label" for="order">受注元（対象受注）<span class="req">*</span></label>
                         <select class="select" id="order" name="order_id">
                             @foreach ($pending as $o)
-                                @php $perTan = \App\Support\QtyHelper::metersPerTan($o->product_id); @endphp
+                                @php $perTan = \App\Support\Qty\QtyHelper::metersPerTan($o->product_id); @endphp
                                 <option value="{{ $o->id }}"
                                         data-shippable="{{ $o->shippable_qty }}"
                                         data-meters-per-tan="{{ $perTan }}"
                                         data-order-mode="{{ $o->order_qty_mode ?? 'tan' }}"
                                         data-fifo-preview="{{ collect($o->fifo_preview ?? [])->map(fn ($r) => ($r->code ?? '').' '.number_format((float)$r->actual_qty_m,1).'m')->implode(' / ') }}"
                                         @selected($selectedOrderId === $o->id)>
-                                    {{ $o->code }} ／ {{ $o->customer }}（出荷可 {{ \App\Support\QtyHelper::format($o->shippable_qty, $o->product_id) }}）
+                                    {{ $o->code }} ／ {{ $o->customer }}（出荷可 {{ \App\Support\Qty\QtyHelper::format($o->shippable_qty, $o->product_id) }}）
                                 </option>
                             @endforeach
                         </select>
@@ -93,9 +93,9 @@
                                 'valueTan' => 0,
                                 'productId' => null,
                                 'metersPerTan' => $selectedMetersPerTan,
-                                'tanStep' => \App\Support\QtyHelper::ORDER_PO_TAN_STEP,
+                                'tanStep' => \App\Support\Qty\QtyHelper::ORDER_PO_TAN_STEP,
                                 'maxTan' => ($selectedOrder && $selectedShippable > 0)
-                                    ? \App\Support\QtyHelper::tanCount($selectedShippable, (int) $selectedOrder->product_id)
+                                    ? \App\Support\Qty\QtyHelper::tanCount($selectedShippable, (int) $selectedOrder->product_id)
                                     : null,
                                 'pageKey' => 'shipments-form',
                                 'showMeterSwitch' => false,

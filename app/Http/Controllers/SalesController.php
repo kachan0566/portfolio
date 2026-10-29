@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Services\Sales\SalesForecastEngine;
-use App\Support\BusinessDate;
-use App\Support\DemoData;
-use App\Support\ListSearch;
-use App\Support\MasterCatalog;
+use App\Support\Core\BusinessDate;
+use App\Support\Core\DemoData;
+use App\Support\Master\ListSearch;
+use App\Support\Master\MasterCatalog;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\FabricQuantity;
+use App\Support\Qty\FabricQuantity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

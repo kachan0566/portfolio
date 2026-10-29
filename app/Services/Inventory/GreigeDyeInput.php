@@ -4,13 +4,13 @@ namespace App\Services\Inventory;
 
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
-use App\Support\GreigeRoll;
-use App\Support\GreigeSupply;
-use App\Support\PurchaseOrderLineDisplay;
-use App\Support\PurchaseOrderStages;
-use App\Support\PurchaseOrderStatus;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
+use App\Support\Inventory\GreigeRoll;
+use App\Support\Inventory\GreigeSupply;
+use App\Support\Purchase\PurchaseOrderLineDisplay;
+use App\Support\Purchase\PurchaseOrderStages;
+use App\Support\Purchase\PurchaseOrderStatus;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Support\Facades\Schema;
 
 /**

@@ -1,7 +1,7 @@
 @php
     $fields = $fields ?? [];
     $params = $params ?? [];
-    $hasActive = \App\Support\ListSearch::isActive($params);
+    $hasActive = \App\Support\Master\ListSearch::isActive($params);
 @endphp
 <form class="filter-bar" method="GET" action="{{ $action ?? request()->url() }}">
     @foreach ($hidden ?? [] as $hiddenName => $hiddenValue)

@@ -8,10 +8,10 @@ use App\Models\Receiving;
 use App\Models\ReceivingLine;
 use App\Services\Fabric\TanRollRecorder;
 use App\Services\Yarn\YarnStockMovementRecorder;
-use App\Support\DemoData;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
-use App\Support\StockAllocation;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
+use App\Support\Inventory\StockAllocation;
 use Illuminate\Support\Facades\DB;
 
 /**

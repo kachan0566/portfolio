@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Support\ProductStock;
-use App\Support\QtyHelper;
+use App\Support\Inventory\ProductStock;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

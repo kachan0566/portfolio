@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use App\Models\Order;
 use App\Models\Shipment;
 use App\Services\Inventory\ShipmentRollAllocator;
-use App\Support\ProductRoll;
+use App\Support\Inventory\ProductRoll;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderAllocationSeeder;

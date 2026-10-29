@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\MaterialPrice;
-use App\Support\MasterCatalog;
+use App\Support\Master\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;

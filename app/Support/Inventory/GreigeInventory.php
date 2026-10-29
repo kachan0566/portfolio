@@ -1,0 +1,123 @@
+<?php
+
+namespace App\Support\Inventory;
+
+use App\Models\PurchaseOrder;
+use App\Services\Inventory\GreigeDyeInput;
+use Illuminate\Support\Collection;
+
+/**
+ * 染工場の生機在庫（生機発注の入荷実績ベース）。
+ * 旧製品発注の工程 stage 連動は Phase C で廃止。
+ */
+class GreigeInventory
+{
+    /**
+     * @return Collection<int, object{
+     *     po_id: int,
+     *     po_code: string,
+     *     greige_sku: string,
+     *     greige_name: string,
+     *     qty_meters: float,
+     *     qty_tan_calc: float,
+     *     ship_to: string,
+     *     due_date: string
+     * }>
+     */
+    public static function entries(): Collection
+    {
+        GreigeDyeInput::bootstrapIfNeeded();
+
+        return \App\Support\Core\DemoData::purchaseOrders()
+            ->filter(fn ($po) => ($po->type ?? '') === \App\Support\Purchase\PurchaseOrderType::GREIGE)
+            ->map(function ($po) {
+                $poId = (int) $po->id;
+                $greigeSku = (string) ($po->greige_sku ?? $po->sku ?? '');
+                $greige = \App\Support\Master\MasterCatalog::findGreige($greigeSku);
+                if ($greige === null) {
+                    return null;
+                }
+
+                $rolls = GreigeRoll::forPo($poId);
+                $stockRolls = $rolls->filter(fn ($roll) => in_array($roll->status, [
+                    GreigeRoll::STATUS_IN_STOCK,
+                    GreigeRoll::STATUS_PARTIALLY_CONSUMED,
+                ], true));
+
+                if ($stockRolls->isNotEmpty()) {
+                    $received = round((float) $stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m), 2);
+                    $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
+                } else {
+                    $received = PurchaseOrder::receivedQtyFor($poId, $po);
+                    if ($received <= 0) {
+                        return null;
+                    }
+                    $rollCount = 0;
+                }
+
+                $shipTo = \App\Support\Master\MasterCatalog::findShipTo((int) ($po->ship_to_id ?? 0));
+
+                return (object) [
+                    'po_id' => $poId,
+                    'po_code' => $po->code,
+                    'greige_sku' => $greigeSku,
+                    'greige_name' => $greige->name,
+                    'qty_meters' => $received,
+                    'qty_tan_calc' => $rollCount > 0
+                        ? (float) $rollCount
+                        : \App\Support\Qty\QtyHelper::tanCount($received, null, true, $greigeSku),
+                    'roll_count' => $rollCount,
+                    'ship_to' => $shipTo?->name ?? '—',
+                    'due_date' => $po->due_date ?? '—',
+                ];
+            })
+            ->filter()
+            ->values();
+    }
+
+    public static function totalMeters(): float
+    {
+        return round((float) self::entries()->sum('qty_meters'), 2);
+    }
+
+    public static function totalMetersForSku(string $greigeSku): float
+    {
+        return round((float) self::entries()
+            ->where('greige_sku', $greigeSku)
+            ->sum('qty_meters'), 2);
+    }
+
+    /** 製品発注詳細用：紐づく生機品番の染工場在庫 */
+    public static function forPurchase(int $productPoId): ?object
+    {
+        $po = \App\Support\Core\DemoData::purchaseOrders()->firstWhere('id', $productPoId);
+        if ($po === null || ($po->type ?? '') !== \App\Support\Purchase\PurchaseOrderType::PRODUCT) {
+            return null;
+        }
+
+        $greige = \App\Support\Master\MasterCatalog::findGreigeByProductId((int) $po->product_id);
+        if ($greige === null) {
+            return null;
+        }
+
+        $meters = self::totalMetersForSku($greige->sku);
+        if ($meters <= 0) {
+            return null;
+        }
+
+        return (object) [
+            'greige_sku' => $greige->sku,
+            'greige_name' => $greige->name,
+            'qty_meters' => $meters,
+            'qty_tan_calc' => \App\Support\Qty\QtyHelper::tanCount($meters, null, true, $greige->sku),
+        ];
+    }
+
+    /**
+     * @deprecated 旧8段階連動。新工程モデルでは入荷処理で在庫を更新する。
+     */
+    public static function handleStageTransition(int $poId, string $oldStage, string $newStage): void
+    {
+        // 互換のため残すが処理しない
+    }
+}

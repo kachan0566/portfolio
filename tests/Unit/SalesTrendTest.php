@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Support\DemoData;
-use App\Support\MasterCatalog;
+use App\Support\Core\DemoData;
+use App\Support\Master\MasterCatalog;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

@@ -51,7 +51,7 @@
                                 'valueTan' => 0,
                                 'productId' => null,
                                 'metersPerTan' => $products->first()->meters_per_tan ?? 50,
-                                'tanStep' => \App\Support\QtyHelper::ORDER_PO_TAN_STEP,
+                                'tanStep' => \App\Support\Qty\QtyHelper::ORDER_PO_TAN_STEP,
                                 'pageKey' => 'orders-form',
                                 'placeholder' => '2',
                             ])

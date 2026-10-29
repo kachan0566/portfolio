@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\MasterCatalog;
+use App\Support\Master\MasterCatalog;
 
 use App\Models\Greige;
 use App\Models\Product;
-use App\Support\ListSearch;
+use App\Support\Master\ListSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

@@ -2,11 +2,11 @@
 
 namespace App\Services\Inventory;
 
-use App\Support\BusinessDate;
-use App\Support\DemoData;
-use App\Support\MasterCatalog;
-use App\Support\ProductRoll;
-use App\Support\ProductStock;
+use App\Support\Core\BusinessDate;
+use App\Support\Core\DemoData;
+use App\Support\Master\MasterCatalog;
+use App\Support\Inventory\ProductRoll;
+use App\Support\Inventory\ProductStock;
 
 class LongTermInventoryEngine
 {

@@ -53,12 +53,12 @@
                                     <td class="num mono">{{ number_format((float) $amendment->old_value, 3) }}</td>
                                     <td class="num mono">{{ number_format((float) $amendment->new_value, 3) }}</td>
                                     <td class="num mono t-muted">
-                                        {{ \App\Support\QtyHelper::formatTanCount((float) $amendment->line_qty_tan_before) }}反
+                                        {{ \App\Support\Qty\QtyHelper::formatTanCount((float) $amendment->line_qty_tan_before) }}反
                                         ／ {{ number_format((int) $amendment->line_qty_m_before) }}m
                                     </td>
                                     <td class="num mono">
                                         @if ($amendment->line_qty_tan_after !== null)
-                                            {{ \App\Support\QtyHelper::formatTanCount((float) $amendment->line_qty_tan_after) }}反
+                                            {{ \App\Support\Qty\QtyHelper::formatTanCount((float) $amendment->line_qty_tan_after) }}反
                                             ／ {{ number_format((int) $amendment->line_qty_m_after) }}m
                                         @else
                                             —

@@ -52,7 +52,7 @@
         <div class="kpi">
             <div class="kpi__label">明細合計（キャッシュ）</div>
             <div class="kpi__value mono" style="font-size:18px;">
-                {{ \App\Support\QtyHelper::formatTanCount((float) $line->qty_tan) }}反
+                {{ \App\Support\Qty\QtyHelper::formatTanCount((float) $line->qty_tan) }}反
                 ／ {{ number_format((int) $line->qty_m) }}m
             </div>
             <div class="kpi__sub">反明細から自動再計算されます</div>
@@ -71,7 +71,7 @@
                     @foreach ($rollRows as $row)
                         @php
                             $roll = $row['roll'];
-                            $routeName = $poType === \App\Support\PurchaseOrderType::GREIGE
+                            $routeName = $poType === \App\Support\Purchase\PurchaseOrderType::GREIGE
                                 ? 'receiving-lines.update-greige-roll'
                                 : 'receiving-lines.update-product-roll';
                         @endphp
@@ -82,7 +82,7 @@
                                         <div class="code-cell t-strong" style="font-size:15px;">{{ $roll->code }}</div>
                                         <div class="t-muted" style="font-size:13px;margin-top:4px;">
                                             現在:
-                                            {{ \App\Support\QtyHelper::formatTanCount((float) $roll->tan_qty) }}反
+                                            {{ \App\Support\Qty\QtyHelper::formatTanCount((float) $roll->tan_qty) }}反
                                             ／ {{ number_format((float) $roll->actual_qty_m, 1) }}m
                                         </div>
                                     </div>
@@ -102,7 +102,7 @@
                                                 <label class="label">反数</label>
                                                 <input class="input mono" type="number" name="tan_qty"
                                                        value="{{ old('tan_qty', (float) $roll->tan_qty) }}"
-                                                       step="{{ \App\Support\QtyHelper::RECEIVING_TAN_STEP }}" min="0.25" required>
+                                                       step="{{ \App\Support\Qty\QtyHelper::RECEIVING_TAN_STEP }}" min="0.25" required>
                                             </div>
                                             <div class="field">
                                                 <label class="label">実測m</label>

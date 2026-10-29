@@ -4,7 +4,7 @@ namespace Tests\Feature\Order;
 
 use App\Models\Customer;
 use App\Models\Order;
-use App\Support\DemoData;
+use App\Support\Core\DemoData;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;
 use Database\Seeders\OrderSeeder;

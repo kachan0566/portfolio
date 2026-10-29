@@ -2,12 +2,12 @@
 
 namespace Tests\Feature\Inventory;
 
-use App\Support\DemoData;
-use App\Support\GreigeInventory;
-use App\Support\GreigeRoll;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
-use App\Support\YarnInventory;
+use App\Support\Core\DemoData;
+use App\Support\Inventory\GreigeInventory;
+use App\Support\Inventory\GreigeRoll;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
+use App\Support\Yarn\YarnInventory;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

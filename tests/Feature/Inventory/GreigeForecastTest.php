@@ -4,9 +4,9 @@ namespace Tests\Feature\Inventory;
 
 use App\Services\Inventory\GreigeDyeInput;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
-use App\Support\DemoData;
-use App\Support\MasterCatalog;
-use App\Support\GreigeRoll;
+use App\Support\Core\DemoData;
+use App\Support\Master\MasterCatalog;
+use App\Support\Inventory\GreigeRoll;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

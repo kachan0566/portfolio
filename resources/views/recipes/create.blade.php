@@ -5,7 +5,7 @@
 
 @section('content')
   @php
-      use App\Support\DemoData;
+      use App\Support\Core\DemoData;
 
       $selected = $products->firstWhere('id', (int) old('product_id')) ?? $products->first();
       $selectedBreakdown = $selected

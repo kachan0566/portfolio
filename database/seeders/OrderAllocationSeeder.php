@@ -5,8 +5,8 @@ namespace Database\Seeders;
 use App\Models\Order;
 use App\Models\OrderAllocation;
 use App\Models\PurchaseOrder;
-use App\Support\DemoData;
-use App\Support\QtyHelper;
+use App\Support\Core\DemoData;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Seeder;
 
 class OrderAllocationSeeder extends Seeder

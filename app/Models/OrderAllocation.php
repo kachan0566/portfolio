@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\QtyHelper;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

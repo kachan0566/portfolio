@@ -49,9 +49,9 @@
             <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'cart'])</div>
             <div class="kpi__label">発注数量</div>
             <div class="kpi__value" style="font-size:22px;">@include('partials.purchase.purchase-qty', ['purchase' => $purchase])</div>
-            @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE)
+            @if ($purchase->type === \App\Support\Purchase\PurchaseOrderType::GREIGE)
                 <div class="kpi__sub">標準反長 {{ $purchase->meters_per_tan }}m/反</div>
-            @elseif ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT)
+            @elseif ($purchase->type === \App\Support\Purchase\PurchaseOrderType::PRODUCT)
                 <div class="kpi__sub">標準反長 {{ $purchase->meters_per_tan ?? $product?->meters_per_tan }}m/反</div>
             @endif
         </div>
@@ -134,7 +134,7 @@
         </div>
     </div>
 
-    @if ($purchase->type === \App\Support\PurchaseOrderType::GREIGE && ! empty($purchase->yarn_requirements))
+    @if ($purchase->type === \App\Support\Purchase\PurchaseOrderType::GREIGE && ! empty($purchase->yarn_requirements))
         <div class="card" style="margin-bottom:16px;">
             <div class="card__head"><h2 class="card__title">必要糸量（ロス率込み）</h2></div>
             <div class="card__body card__body--flush">
@@ -158,7 +158,7 @@
         </div>
     @endif
 
-    @if ($purchase->type === \App\Support\PurchaseOrderType::PRODUCT && $greigeStock)
+    @if ($purchase->type === \App\Support\Purchase\PurchaseOrderType::PRODUCT && $greigeStock)
         <div class="card">
             <div class="card__head">
                 <h2 class="card__title">染工場 生機在庫（関連ロット）</h2>

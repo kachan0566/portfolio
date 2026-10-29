@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        use App\Support\PurchaseOrderType;
+        use App\Support\Purchase\PurchaseOrderType;
         $typeLabel = PurchaseOrderType::label($type);
         $qtyUnit = $type === PurchaseOrderType::YARN ? 'kg' : 'm';
         $useMultiLine = $poLinesJson !== '{}';
@@ -113,12 +113,12 @@
                                             $metersPerTan = null;
                                             if ($firstPo !== null) {
                                                 $metersPerTan = $type === PurchaseOrderType::GREIGE
-                                                    ? \App\Support\QtyHelper::metersPerTan(
+                                                    ? \App\Support\Qty\QtyHelper::metersPerTan(
                                                         null,
                                                         true,
                                                         (string) ($firstPo->greige_sku ?? $firstPo->sku ?? '')
                                                     )
-                                                    : \App\Support\QtyHelper::metersPerTan((int) $firstPo->product_id);
+                                                    : \App\Support\Qty\QtyHelper::metersPerTan((int) $firstPo->product_id);
                                             }
                                         @endphp
                                         @include('partials.qty.qty-input', [
@@ -127,7 +127,7 @@
                                             'id' => 'receiving-qty',
                                             'valueTan' => 0,
                                             'metersPerTan' => $metersPerTan,
-                                            'tanStep' => \App\Support\QtyHelper::RECEIVING_TAN_STEP,
+                                            'tanStep' => \App\Support\Qty\QtyHelper::RECEIVING_TAN_STEP,
                                             'showMeterSwitch' => false,
                                             'submitMeters' => false,
                                             'pageKey' => 'receiving-form',
@@ -183,7 +183,7 @@
                                     linesBody: document.getElementById('receiving-lines-body'),
                                     poLines: {!! $poLinesJson !!},
                                     type: @json($type),
-                                    tanStep: {{ \App\Support\QtyHelper::RECEIVING_TAN_STEP }},
+                                    tanStep: {{ \App\Support\Qty\QtyHelper::RECEIVING_TAN_STEP }},
                                 });
                             </script>
                         @elseif ($type !== PurchaseOrderType::YARN)

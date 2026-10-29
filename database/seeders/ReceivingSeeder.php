@@ -12,9 +12,9 @@ use App\Services\Fabric\TanRollRecorder;
 use App\Services\Receiving\PurchaseOrderLineReceiver;
 use App\Services\Receiving\ReceivingLineTotals;
 use App\Services\Yarn\YarnStockMovementRecorder;
-use App\Support\DemoData;
-use App\Support\PurchaseOrderType;
-use App\Support\QtyHelper;
+use App\Support\Core\DemoData;
+use App\Support\Purchase\PurchaseOrderType;
+use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 

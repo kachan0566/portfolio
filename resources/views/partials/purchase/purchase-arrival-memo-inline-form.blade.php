@@ -1,5 +1,5 @@
 @php
-    $expectedDate = \App\Support\DemoData::expectedArrivalDate($purchase);
+    $expectedDate = \App\Support\Core\DemoData::expectedArrivalDate($purchase);
 @endphp
 <form method="POST" action="{{ route('purchases.patch-arrival', $purchase->id) }}" style="display:flex;flex-direction:column;gap:4px;min-width:140px;">
     @csrf

@@ -7,4 +7,4 @@
     $isGreige = $isGreige ?? false;
     $greigeSkuKey = $greigeSkuKey ?? null;
 @endphp
-{{ $prefix }}{{ \App\Support\QtyHelper::formatAggregateFromLines($lines, $qtyKey, $productId, $productIdKey, $isGreige, $greigeSkuKey) }}
+{{ $prefix }}{{ \App\Support\Qty\QtyHelper::formatAggregateFromLines($lines, $qtyKey, $productId, $productIdKey, $isGreige, $greigeSkuKey) }}
