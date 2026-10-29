@@ -742,7 +742,7 @@ READMEには、
 
 ## 状態：✅ 完了条件確定
 
-基本回答・ポートフォリオ台本・企業別メモは `memo/interview/` に保存する（個人情報を含むため Git 管理外）。企業ごとは `companies/_template.md` をコピーして使う。
+基本回答・ポートフォリオ台本・企業別メモは `docs/interview/` に保存する（個人情報を含むため Git 管理外）。企業ごとは `companies/_template.md` をコピーして使う。
 
 ---
 

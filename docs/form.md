@@ -29,7 +29,7 @@ Route::delete('/products/{product}', [ProductController::class, 'destroy'])->nam
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
+use App\Models\Master\Product;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse; //処理後、別のページへ飛ばす（リダイレクト）
 use Illuminate\Http\Request; //ブラウザから送られてきた情報をまとめて使う

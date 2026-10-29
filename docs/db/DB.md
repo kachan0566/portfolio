@@ -1,6 +1,6 @@
 # DB 具体設計（実装用）
 
-このファイルは `[memo/DBplan.md](DBplan.md)` の設計地図を、**マイグレーションにそのまま落とし込めるレベル**まで具体化したものです。
+このファイルは `[docs/db/DBplan.md](DBplan.md)` の設計地図を、**マイグレーションにそのまま落とし込めるレベル**まで具体化したものです。
 
 
 | ファイル        | 役割                           |
@@ -562,7 +562,7 @@ ORDER BY po.id, pol.line_no;
 
 **インデックス:** `purchase_order_id`, `order_id`, `converted_at`
 
-**参照モデル:** `App\Models\AllocationConversion`（`recordEvent` / `eventsForOrder` / `eventsForProduct`）
+**参照モデル:** `App\Models\Order\AllocationConversion`（`recordEvent` / `eventsForOrder` / `eventsForProduct`）
 
 **移行元:** `allocation_conversions.json`
 
@@ -966,7 +966,7 @@ GROUP BY product_id;
 | `created_by_name`  | string        |
 | `timestamps`       |               |
 
-参照: `App\Models\GreigeForecastManualAdjustment`（`greige_sku` で呼び出し、内部で `greige_id` に解決）
+参照: `App\Models\Inventory\GreigeForecastManualAdjustment`（`greige_sku` で呼び出し、内部で `greige_id` に解決）
 
 
 ---
@@ -1177,7 +1177,7 @@ Laravel 初期・在庫予測導入時に作成済み。本線1から触る前�
 
 ### 将来ロードマップ（本線10の後。未着手）
 
-工場システム連携は本線完了後に着手する。詳細は [`memo/integration/factory-receiving.md`](integration/factory-receiving.md)。
+工場システム連携は本線完了後に着手する。詳細は [`docs/integration/factory-receiving.md`](integration/factory-receiving.md)。
 
 
 | 段階 | マイグレーション / アプリ | 内容 | 依存 | 状態 |

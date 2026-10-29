@@ -9,7 +9,7 @@
 | --- | --- |
 | **実装済み・変更不要** | セクション 1-1〜1-4、2〜7、10 |
 | **廃止済み（実行禁止）** | セクション 1-5、8、9 の旧「8段階進捗」手順 → **付録A** に退避 |
-| **現行の正** | 発注工程・DB設計 → **付録B**、`memo/DB.md`、`app/Support/PurchaseOrder*.php` |
+| **現行の正** | 発注工程・DB設計 → **付録B**、`docs/db/DB.md`、`app/Support/Purchase/PurchaseOrder*.php` |
 
 新しい作業を始める前に、対象画面が **DemoData か DB か** をコードで確認してください。
 
@@ -20,9 +20,9 @@
 ### このアプリの作り（重要）
 
 - データの置き場所は **ハイブリッド** です。
-  - **まだデモデータ** … 発注・仕入先・レシピなど（`app/Support/DemoData.php`、一部は `DemoState` で上書き）
+  - **まだデモデータ** … 発注・仕入先・レシピなど（`app/Support/Core/DemoData.php`、一部は `DemoState` で上書き）
   - **すでにDB化** … 製品・原材料・受注・在庫予測など（`database/migrations/`、`app/Models/`）
-- DB の設計・移行方針は **`memo/DBplan.md`（地図）** と **`memo/DB.md`（列定義）** を参照します。
+- DB の設計・移行方針は **`docs/db/DBplan.md`（地図）** と **`docs/db/DB.md`（列定義）** を参照します。
 - 画面は `resources/views/**/*.blade.php`、ルートは `routes/web.php`、データ渡しは `app/Http/Controllers/*Controller.php` です。
 - CSSは `public/css/app.css`。既存クラス（`card` `data` `badge` `btn` など）を再利用し、必要なときだけ足します。
 
@@ -35,11 +35,11 @@
 ### 作業のおすすめ順番（歴史的メモ）
 
 初期実装時は 1 → 2 → … → 12 の順で進めました。**いま新規に同じ作業をする必要はありません。**
-発注・工程の変更は **付録B** と `memo/DB.md` を正としてください。
+発注・工程の変更は **付録B** と `docs/db/DB.md` を正としてください。
 
 ---
 
-## 1. データ定義の変更（`app/Support/DemoData.php`）
+## 1. データ定義の変更（`app/Support/Core/DemoData.php`）
 
 > ✅ **セクション 1-1〜1-4 は実装済み。** 以下は当時の手順の記録です。コードを戻すときの参考にしてください。
 
@@ -430,7 +430,7 @@ public function create(): \Illuminate\View\View
 1. **「商品」列を品番に**：`{{ $po->product }}` → `{{ $po->sku }}`（`code-cell` クラス推奨）。
 2. **得意先列を追加してリンク**：得意先名をクリックで得意先詳細へ。
    ```blade
-   <td><a href="{{ route('customers.show', \App\Support\DemoData::customers()->firstWhere('name', $po->customer)->id) }}" class="link-strong">{{ $po->customer }}</a></td>
+   <td><a href="{{ route('customers.show', \App\Support\Core\DemoData::customers()->firstWhere('name', $po->customer)->id) }}" class="link-strong">{{ $po->customer }}</a></td>
    ```
    （※ シンプルにしたい場合は、まずリンクなしで `{{ $po->customer }}` を表示するだけでもOK）
 3. **進捗を8段階バッジで表示**：今までの「受入数/数量バー」を、現在の段階バッジに置き換え。
@@ -447,7 +447,7 @@ public function create(): \Illuminate\View\View
    <div class="field">
        <label class="label" for="stage">進捗段階</label>
        <select class="select" id="stage" name="stage">
-           @foreach (\App\Support\DemoData::PO_STAGES as $st)
+           @foreach (\App\Support\Core\DemoData::PO_STAGES as $st)
                <option value="{{ $st }}" @selected($st === $purchase->stage)>{{ $st }}</option>
            @endforeach
        </select>
@@ -457,7 +457,7 @@ public function create(): \Illuminate\View\View
    ```blade
    <div class="field">
        <label class="label">各工程の予定日</label>
-       @foreach (\App\Support\DemoData::PO_STAGES as $st)
+       @foreach (\App\Support\Core\DemoData::PO_STAGES as $st)
            <div class="form-row" style="align-items:center;margin-bottom:8px;">
                <span>{{ $st }}</span>
                <input class="input" type="date" name="schedule[{{ $st }}]" value="{{ $purchase->schedule[$st] ?? '' }}">
@@ -566,10 +566,10 @@ grep -rn "->product\b\|->name" resources/views
 
 | トピック | 参照先 |
 | --- | --- |
-| 発注・工程・DB | `memo/DB.md`（付録B と同内容） |
-| 全体のDB方針 | `memo/DBplan.md` |
-| 反数・数量 | `markdown/qty-tan-spec.md` |
-| ポートフォリオ説明 | `markdown/portfolio.md` |
+| 発注・工程・DB | `docs/db/DB.md`（付録B と同内容） |
+| 全体のDB方針 | `docs/db/DBplan.md` |
+| 反数・数量 | `docs/qty-tan-spec.md` |
+| ポートフォリオ説明 | `docs/portfolio.md` |
 
 > 本ファイルの「8段階進捗」記述は `portfolio.md` に残っている場合があります。発注まわりは **付録B** を正としてください。
 
@@ -579,7 +579,7 @@ grep -rn "->product\b\|->name" resources/views
 
 1. **PHP構文チェック**（編集したPHPファイルごと）：
    ```bash
-   php -l app/Support/DemoData.php
+   php -l app/Support/Core/DemoData.php
    php -l app/Http/Controllers/PurchaseOrderController.php
    # 編集した他のControllerも同様に
    ```
@@ -621,7 +621,7 @@ grep -rn "->product\b\|->name" resources/views
 | 得意先：得意先ごと受注履歴 | 6 |
 | 仕入先：仕入先ごと発注履歴 | 7 |
 | 発注管理（旧8段階） | 1-5, 8, **付録A**（廃止） |
-| 発注管理（現行・種別ごと工程） | **付録B**, `memo/DB.md` |
+| 発注管理（現行・種別ごと工程） | **付録B**, `docs/db/DB.md` |
 | 在庫管理：生産中表示 | 9（旧）、現行は付録B＋`InventoryController` |
 
 ---
@@ -655,7 +655,7 @@ grep -rn "->product\b\|->name" resources/views
 
 ## 付録B：発注工程・表示（現行・2026-07）
 
-**正：** `memo/DB.md` の「発注工程」節。実装は以下のクラスに集約。
+**正：** `docs/db/DB.md` の「発注工程」節。実装は以下のクラスに集約。
 
 | クラス | 役割 |
 | --- | --- |
@@ -711,11 +711,11 @@ purchase_orders          … 共通ヘッダ（type, status, due_date など）
 └── product_purchase_orders  … stage（染機投入済のみ手動）, finish_date
 ```
 
-詳細列定義は `memo/DB.md` の段階4を参照。
+詳細列定義は `docs/db/DB.md` の段階4を参照。
 
 ### 触るときのファイル例
 
-- `app/Support/DemoData.php` … デモ発注データ
+- `app/Support/Core/DemoData.php` … デモ発注データ
 - `app/Http/Controllers/PurchaseOrderController.php`
 - `resources/views/purchases/*.blade.php`
 - `resources/views/orders/show.blade.php`（生産状況）

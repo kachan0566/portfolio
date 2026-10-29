@@ -45,7 +45,7 @@
 
 | ファイル | 現状 | 直す先 |
 |----------|------|--------|
-| `QtyHelper.php` | `DemoData::greiges()` / `products()` フォールバック | `MasterCatalog` または `Greige` / `Product` モデル |
+| `Qty/QtyHelper.php` | `DemoData::greiges()` / `products()` フォールバック | `MasterCatalog` または `Greige` / `Product` モデル |
 | `DemoData.php` 内の実行時メソッド | `self::findProduct()` など固定配列 | `MasterCatalog::findProduct()` など |
 | `OrderController.php` | `Product::query()->find()` を直接 | `MasterCatalog::findProduct()` |
 

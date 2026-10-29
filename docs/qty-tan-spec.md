@@ -2,7 +2,7 @@
 
 生機・製品の数量は **反数をメイン表示** とし、業務ごとに「正とする数量」の持ち方を分ける。
 
-> **発注工程との関係** … 工程表示は `PurchaseOrderDisplay`（種別ごと）が正。詳細は `markdown/change-instructions.md` **付録B** と `memo/DB.md` を参照。
+> **発注工程との関係** … 工程表示は `PurchaseOrderDisplay`（種別ごと）が正。詳細は `docs/change-instructions.md` **付録B** と `docs/db/DB.md` を参照。
 > 旧「8段階進捗で在庫を動かす」連動（`GreigeInventory::handleStageTransition`）は **廃止済み**。
 
 ---
@@ -104,14 +104,14 @@
 
 | ファイル | 役割 |
 | --- | --- |
-| `app/Support/QtyHelper.php` | 表示・換算・刻みルール |
+| `app/Support/Qty/QtyHelper.php` | 表示・換算・刻みルール |
 | `app/Support/GreigeRoll.php` | 生機の物理反（1反 = 1レコード） |
 | `app/Support/ProductRoll.php` | 製品の物理反 |
 | `app/Support/GreigeInventory.php` | 生機在庫一覧の組み立て（入荷ベース） |
 | `app/Services/Inventory/GreigeDyeInput.php` | 染機投入に連動した生機反の `in_dyeing` 移動 |
 | `app/Services/Fabric/TanRollRecorder.php` | 織り上がり・染め上がりの反登録 |
 | `app/Support/DemoState.php` | 発注の手動工程オーバーレイ・デモ用染色移動 |
-| `app/Support/PurchaseOrderDisplay.php` | 発注の工程表示ラベル |
+| `app/Support/Purchase/PurchaseOrderDisplay.php` | 発注の工程表示ラベル |
 | `resources/views/inventory/index.blade.php` | 製品／生機タブ |
 | `resources/views/purchases/show.blade.php` | 発注詳細 |
 
@@ -130,14 +130,14 @@
 
 ## 将来拡張
 
-連携の実装チェックリスト・着手順は [`memo/integration/factory-receiving.md`](../memo/integration/factory-receiving.md) を参照。
+連携の実装チェックリスト・着手順は [`docs/integration/factory-receiving.md`](integration/factory-receiving.md) を参照。
 
 ### 染工場・織工場システム連携
 
 | 現状 | 将来 |
 | --- | --- |
 | 入荷画面で反行を手入力 | 工場 API から反ごとの実測 m を受信 |
-| JSON ファイルで反明細 | DB テーブル `greige_rolls` / `product_rolls`（`memo/DB.md`） |
+| JSON ファイルで反明細 | DB テーブル `greige_rolls` / `product_rolls`（`docs/db/DB.md`） |
 | ロット（PO）単位の一覧 | 反 ID 単位の追跡・FIFO 出荷 |
 
 ### 反明細のデータイメージ（DB 移行後）
