@@ -2,13 +2,13 @@
 
 namespace Database\Seeders;
 
-use App\Models\Greige;
-use App\Models\GreigeRecipe;
-use App\Models\GreigeRecipeLine;
-use App\Models\MaterialPrice;
-use App\Models\ProductRecipe;
-use App\Models\PurchaseOrder;
-use App\Models\YarnAllocation;
+use App\Models\Master\Greige;
+use App\Models\Recipe\GreigeRecipe;
+use App\Models\Recipe\GreigeRecipeLine;
+use App\Models\Master\MaterialPrice;
+use App\Models\Recipe\ProductRecipe;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Yarn\YarnAllocation;
 use App\Services\Yarn\YarnStockMovementRecorder;
 use App\Support\Core\DemoData;
 use App\Support\Purchase\PurchaseOrderStatus;

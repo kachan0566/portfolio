@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\Greige;
-use App\Models\Order;
-use App\Models\Product;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
+use App\Models\Master\Greige;
+use App\Models\Order\Order;
+use App\Models\Master\Product;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
 use App\Support\Core\DemoData;
 use App\Support\Purchase\PurchaseOrderStages;
 use App\Support\Purchase\PurchaseOrderType;

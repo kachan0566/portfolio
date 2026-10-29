@@ -2,8 +2,8 @@
 
 namespace App\Support\Inventory;
 
-use App\Models\ReceivingLine;
-use App\Models\Shipment;
+use App\Models\Receiving\ReceivingLine;
+use App\Models\Shipment\Shipment;
 use Illuminate\Support\Collection;
 
 /**

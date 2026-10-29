@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\GreigeRoll;
-use App\Models\ProductRoll;
-use App\Models\ReceivingLine;
+use App\Models\Inventory\GreigeRoll;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Receiving\ReceivingLine;
 use App\Services\Receiving\RollAmendmentService;
 use App\Support\Purchase\PurchaseOrderType;
 use App\Support\Qty\QtyHelper;

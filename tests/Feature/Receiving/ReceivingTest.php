@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Receiving;
 
-use App\Models\PurchaseOrder;
-use App\Models\ReceivingLine;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Receiving\ReceivingLine;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\Inventory\GreigeInventory;
 use App\Support\Inventory\ProductStock;

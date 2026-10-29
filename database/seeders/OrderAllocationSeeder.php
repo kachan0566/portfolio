@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Order;
-use App\Models\OrderAllocation;
-use App\Models\PurchaseOrder;
+use App\Models\Order\Order;
+use App\Models\Order\OrderAllocation;
+use App\Models\Purchase\PurchaseOrder;
 use App\Support\Core\DemoData;
 use App\Support\Qty\QtyHelper;
 use Illuminate\Database\Seeder;

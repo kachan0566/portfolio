@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AllocationConversion;
-use App\Models\Order;
+use App\Models\Order\AllocationConversion;
+use App\Models\Order\Order;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;

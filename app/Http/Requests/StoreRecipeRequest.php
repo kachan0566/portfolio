@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\ProductRecipe;
+use App\Models\Recipe\ProductRecipe;
 use App\Support\Master\MasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;

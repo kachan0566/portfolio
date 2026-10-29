@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Inventory;
 
-use App\Models\PurchaseOrderLine;
+use App\Models\Purchase\PurchaseOrderLine;
 use App\Services\Inventory\GreigeDyeInput;
 use App\Support\Inventory\GreigeInventory;
 use App\Support\Inventory\GreigeRoll;

@@ -2,9 +2,9 @@
 
 namespace App\Services\Inventory;
 
-use App\Models\ForecastManualAdjustment;
-use App\Models\MonthEndForecast;
-use App\Models\Order;
+use App\Models\Inventory\ForecastManualAdjustment;
+use App\Models\Inventory\MonthEndForecast;
+use App\Models\Order\Order;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;

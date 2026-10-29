@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
+use App\Models\Order\Order;
 use App\Services\Inventory\ShipmentRollAllocator;
 use App\Services\Shipment\ShipmentRegistrar;
 use App\Support\Core\BusinessDate;

@@ -2,16 +2,16 @@
 
 namespace Tests\Feature\Inventory;
 
-use App\Models\CombinedMonthEndForecast;
-use App\Models\GreigeMonthEndForecast;
-use App\Models\GreigeMonthEndForecastLine;
-use App\Models\MonthEndForecast;
+use App\Models\Inventory\CombinedMonthEndForecast;
+use App\Models\Inventory\GreigeMonthEndForecast;
+use App\Models\Inventory\GreigeMonthEndForecastLine;
+use App\Models\Inventory\MonthEndForecast;
 use App\Services\Inventory\CombinedMonthEndForecastEngine;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\Core\DemoData;
-use App\Models\GreigeForecastManualAdjustment;
+use App\Models\Inventory\GreigeForecastManualAdjustment;
 use App\Support\Master\MasterCatalog;
 use Database\Seeders\MasterCatalogSeeder;
 use Database\Seeders\MasterFoundationSeeder;

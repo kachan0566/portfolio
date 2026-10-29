@@ -2,9 +2,9 @@
 
 namespace App\Support\Inventory;
 
-use App\Models\ProductRoll as ProductRollModel;
-use App\Models\PurchaseOrderLine;
-use App\Models\ReceivingLine;
+use App\Models\Inventory\ProductRoll as ProductRollModel;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\ReceivingLine;
 use Illuminate\Support\Collection;
 
 /**

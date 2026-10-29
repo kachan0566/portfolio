@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Yarn;
 
-use App\Models\PurchaseOrder;
-use App\Models\YarnAllocation;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Yarn\YarnAllocation;
 use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;

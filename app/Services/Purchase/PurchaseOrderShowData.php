@@ -2,11 +2,11 @@
 
 namespace App\Services\Purchase;
 
-use App\Models\GreigeRoll;
-use App\Models\ProductRoll;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-use App\Models\ReceivingLine;
+use App\Models\Inventory\GreigeRoll;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\ReceivingLine;
 use App\Support\Purchase\PurchaseOrderType;
 
 class PurchaseOrderShowData

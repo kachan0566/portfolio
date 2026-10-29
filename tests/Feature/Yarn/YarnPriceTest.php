@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Yarn;
 
-use App\Models\MaterialPrice;
+use App\Models\Master\MaterialPrice;
 use App\Support\Core\DemoData;
 use Database\Seeders\CostFoundationSeeder;
 use Database\Seeders\MasterCatalogSeeder;

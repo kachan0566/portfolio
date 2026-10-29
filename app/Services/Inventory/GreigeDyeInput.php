@@ -2,8 +2,8 @@
 
 namespace App\Services\Inventory;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
 use App\Support\Inventory\GreigeRoll;
 use App\Support\Inventory\GreigeSupply;
 use App\Support\Purchase\PurchaseOrderLineDisplay;

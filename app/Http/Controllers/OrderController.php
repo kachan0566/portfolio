@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
-use App\Models\AllocationConversion;
-use App\Models\Customer;
-use App\Models\Order;
-use App\Models\PurchaseOrder;
+use App\Models\Order\AllocationConversion;
+use App\Models\Master\Customer;
+use App\Models\Order\Order;
+use App\Models\Purchase\PurchaseOrder;
 use App\Support\Core\DemoData;
 use App\Support\Qty\FabricQuantity;
 use App\Support\Master\ListSearch;

@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ForecastManualAdjustment;
-use App\Models\GreigeMonthEndForecast;
-use App\Models\MonthEndForecast;
+use App\Models\Inventory\ForecastManualAdjustment;
+use App\Models\Inventory\GreigeMonthEndForecast;
+use App\Models\Inventory\MonthEndForecast;
 use App\Services\Inventory\ForecastSubmissionCoordinator;
 use App\Services\Inventory\GreigeMonthEndForecastEngine;
 use App\Services\Inventory\LongTermInventoryEngine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\Core\BusinessDate;
 use App\Support\Core\DemoData;
-use App\Models\GreigeForecastManualAdjustment;
+use App\Models\Inventory\GreigeForecastManualAdjustment;
 use App\Support\Master\MasterCatalog;
 use App\Support\Qty\QtyHelper;
 use Illuminate\Http\RedirectResponse;

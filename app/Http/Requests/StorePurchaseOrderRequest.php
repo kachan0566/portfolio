@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Models\GreigeRecipe;
-use App\Models\ShipTo;
-use App\Models\Supplier;
+use App\Models\Recipe\GreigeRecipe;
+use App\Models\Master\ShipTo;
+use App\Models\Master\Supplier;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;
 use App\Support\Purchase\PurchaseOrderType;

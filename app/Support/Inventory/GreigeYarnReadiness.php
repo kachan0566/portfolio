@@ -2,7 +2,7 @@
 
 namespace App\Support\Inventory;
 
-use App\Models\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrder;
 use Illuminate\Support\Collection;
 
 /**

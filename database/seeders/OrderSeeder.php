@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Customer;
-use App\Models\Order;
+use App\Models\Master\Customer;
+use App\Models\Order\Order;
 use App\Support\Core\DemoData;
 use App\Support\Qty\FabricQuantity;
 use App\Support\Qty\QtyHelper;

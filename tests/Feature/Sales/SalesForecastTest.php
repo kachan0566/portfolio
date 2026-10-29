@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Sales;
 
-use App\Models\SalesForecast;
-use App\Models\SalesForecastLine;
+use App\Models\Sales\SalesForecast;
+use App\Models\Sales\SalesForecastLine;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Services\Sales\SalesForecastEngine;
 use App\Support\Core\DemoData;

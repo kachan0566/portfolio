@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Models\MaterialPrice;
-use App\Models\Product;
+use App\Models\Master\MaterialPrice;
+use App\Models\Master\Product;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;
 use Database\Seeders\CostFoundationSeeder;

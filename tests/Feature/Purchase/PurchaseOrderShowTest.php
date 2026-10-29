@@ -2,12 +2,12 @@
 
 namespace Tests\Feature\Purchase;
 
-use App\Models\GreigeRoll;
-use App\Models\ProductRoll;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-use App\Models\Receiving;
-use App\Models\ReceivingLine;
+use App\Models\Inventory\GreigeRoll;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
+use App\Models\Receiving\Receiving;
+use App\Models\Receiving\ReceivingLine;
 use App\Services\Purchase\PurchaseOrderShowData;
 use App\Support\Purchase\PurchaseOrderType;
 use Database\Seeders\MasterCatalogSeeder;

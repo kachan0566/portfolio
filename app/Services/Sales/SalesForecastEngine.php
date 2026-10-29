@@ -2,11 +2,11 @@
 
 namespace App\Services\Sales;
 
-use App\Models\ForecastManualAdjustment;
-use App\Models\Order;
-use App\Models\PurchaseOrder;
-use App\Models\SalesForecast;
-use App\Models\SalesForecastLine;
+use App\Models\Inventory\ForecastManualAdjustment;
+use App\Models\Order\Order;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Sales\SalesForecast;
+use App\Models\Sales\SalesForecastLine;
 use App\Support\Core\DemoData;
 use App\Support\Purchase\FreightCalculator;
 use App\Support\Master\MasterCatalog;

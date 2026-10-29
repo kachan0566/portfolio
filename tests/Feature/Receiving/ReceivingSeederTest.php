@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Receiving;
 
-use App\Models\GreigeRoll;
-use App\Models\ProductRoll;
-use App\Models\Receiving;
-use App\Models\ReceivingLine;
+use App\Models\Inventory\GreigeRoll;
+use App\Models\Inventory\ProductRoll;
+use App\Models\Receiving\Receiving;
+use App\Models\Receiving\ReceivingLine;
 use App\Support\Core\DemoData;
 use App\Support\Inventory\GreigeRoll as GreigeRollSupport;
 use App\Support\Purchase\PurchaseOrderType;

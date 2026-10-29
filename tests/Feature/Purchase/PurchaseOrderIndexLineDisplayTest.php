@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Purchase;
 
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderLine;
 use App\Services\Receiving\ReceivingRegistrar;
 use App\Support\Purchase\PurchaseOrderStages;
 use App\Support\Purchase\PurchaseOrderType;
@@ -140,7 +140,7 @@ class PurchaseOrderIndexLineDisplayTest extends TestCase
             'qty_meters' => 50,
         ]);
 
-        $product6Sku = \App\Models\Product::query()->find(6)?->sku;
+        $product6Sku = \App\Models\Master\Product::query()->find(6)?->sku;
         $this->assertNotNull($product6Sku);
 
         $response = $this->get(route('purchases.index', ['sku' => $product6Sku]));

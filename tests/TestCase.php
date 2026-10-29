@@ -2,7 +2,7 @@
 
 namespace Tests;
 
-use App\Models\SalesForecastLine;
+use App\Models\Sales\SalesForecastLine;
 use App\Services\Inventory\GreigeDyeInput;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 

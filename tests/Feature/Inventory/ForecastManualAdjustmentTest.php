@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Inventory;
 
-use App\Models\ForecastManualAdjustment;
+use App\Models\Inventory\ForecastManualAdjustment;
 use App\Services\Inventory\MonthEndForecastEngine;
 use App\Support\Core\DemoData;
 use App\Support\Master\MasterCatalog;
