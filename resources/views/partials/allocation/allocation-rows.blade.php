@@ -59,7 +59,7 @@
             <td class="col-customer" title="{{ $sOrder->customer }}">{{ $sOrder->customer }}</td>
             <td class="mono col-due">{{ $sOrder->due_date }}</td>
         @endif
-        <td class="num mono col-remaining">@include('partials.qty', ['qty' => $sOrder->remaining, 'productId' => $productId])</td>
+        <td class="num mono col-remaining">@include('partials.qty.qty', ['qty' => $sOrder->remaining, 'productId' => $productId])</td>
 
         {{-- 現在庫引当 --}}
         <td class="alloc-cell alloc-cell--stock">
@@ -75,7 +75,7 @@
                             @endforeach
                         </select>
                         <div class="po-line__qty-wrap">
-                            @include('partials.qty-input', [
+                            @include('partials.qty.qty-input', [
                                 'tanName' => 'allocations['.$sOrder->id.']['.$stockType.']['.$safePoId.']',
                                 'valueTan' => $qty,
                                 'metersPerTan' => $allocMetersPerTan,
@@ -89,15 +89,15 @@
                                 'id' => null,
                             ])
                         </div>
-                        <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.icon', ['name' => 'close'])</button>
+                        <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.ui.icon', ['name' => 'close'])</button>
                     </div>
                 @endforeach
             </div>
             <div class="po-lines__footer">
                 <button type="button" class="btn btn-ghost btn-sm po-lines__add" data-order-id="{{ $sOrder->id }}" data-alloc-type="{{ $stockType }}">
-                    @include('partials.icon', ['name' => 'plus']) 行を追加
+                    @include('partials.ui.icon', ['name' => 'plus']) 行を追加
                 </button>
-                <span class="mono t-muted alloc-stock-total" data-order-id="{{ $sOrder->id }}">@include('partials.qty', ['qty' => $stockAlloc, 'productId' => $productId])</span>
+                <span class="mono t-muted alloc-stock-total" data-order-id="{{ $sOrder->id }}">@include('partials.qty.qty', ['qty' => $stockAlloc, 'productId' => $productId])</span>
             </div>
         </td>
 
@@ -115,7 +115,7 @@
                             @endforeach
                         </select>
                         <div class="po-line__qty-wrap">
-                            @include('partials.qty-input', [
+                            @include('partials.qty.qty-input', [
                                 'tanName' => 'allocations['.$sOrder->id.']['.$poType.']['.$safePoId.']',
                                 'valueTan' => $qty,
                                 'metersPerTan' => $allocMetersPerTan,
@@ -129,15 +129,15 @@
                                 'id' => null,
                             ])
                         </div>
-                        <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.icon', ['name' => 'close'])</button>
+                        <button type="button" class="btn-icon po-line__remove" title="削除">@include('partials.ui.icon', ['name' => 'close'])</button>
                     </div>
                 @endforeach
             </div>
             <div class="po-lines__footer">
                 <button type="button" class="btn btn-ghost btn-sm po-lines__add" data-order-id="{{ $sOrder->id }}" data-alloc-type="{{ $poType }}">
-                    @include('partials.icon', ['name' => 'plus']) 行を追加
+                    @include('partials.ui.icon', ['name' => 'plus']) 行を追加
                 </button>
-                <span class="mono t-muted alloc-po-total" data-order-id="{{ $sOrder->id }}">@include('partials.qty', ['qty' => $poAlloc, 'productId' => $productId])</span>
+                <span class="mono t-muted alloc-po-total" data-order-id="{{ $sOrder->id }}">@include('partials.qty.qty', ['qty' => $poAlloc, 'productId' => $productId])</span>
             </div>
         </td>
 
@@ -152,7 +152,7 @@
                 </span>
             </div>
             <div class="alloc-progress__detail">
-                在庫 @include('partials.qty', ['qty' => $stockAlloc, 'productId' => $productId]) + 発注 @include('partials.qty', ['qty' => $poAlloc, 'productId' => $productId])
+                在庫 @include('partials.qty.qty', ['qty' => $stockAlloc, 'productId' => $productId]) + 発注 @include('partials.qty.qty', ['qty' => $poAlloc, 'productId' => $productId])
             </div>
         </td>
         <td class="col-status">

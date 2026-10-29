@@ -10,7 +10,7 @@
             <p class="lead">この仕入先への発注履歴を確認します。</p>
         </div>
         <a href="{{ route('suppliers.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 仕入先一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 仕入先一覧に戻る
         </a>
     </div>
 
@@ -41,7 +41,7 @@
 
     <div class="card">
         <div class="card__head"><h2 class="card__title">発注履歴（{{ $purchases->count() }} 件）</h2></div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'code' => ['label' => '発注番号', 'placeholder' => 'PO-2606-001'],
@@ -69,7 +69,7 @@
                                 <td class="code-cell">{{ $po->code }}</td>
                                 <td>{{ $po->customer }}</td>
                                 <td class="code-cell t-strong">{{ $po->sku }}</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $po->qty, 'productId' => $po->product_id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $po->qty, 'productId' => $po->product_id])</td>
                                 <td><span class="badge badge-indigo badge--plain">{{ $po->stage }}</span></td>
                                 <td class="mono">{{ $po->eta }}</td>
                             </tr>

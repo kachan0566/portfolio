@@ -15,11 +15,11 @@
     <div class="kpi-grid" style="margin-bottom:16px;">
         <div class="kpi">
             <div class="kpi__label">現在庫</div>
-            <div class="kpi__value" style="font-size:20px;">@include('partials.qty', ['qty' => $line->current_stock_qty, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:20px;">@include('partials.qty.qty', ['qty' => $line->current_stock_qty, 'productId' => $product->id])</div>
         </div>
         <div class="kpi">
             <div class="kpi__label">長期在庫</div>
-            <div class="kpi__value" style="font-size:20px;">@include('partials.qty', ['qty' => $line->long_term_qty, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:20px;">@include('partials.qty.qty', ['qty' => $line->long_term_qty, 'productId' => $product->id])</div>
             <div class="kpi__sub">{{ number_format($line->long_term_value) }} 円</div>
         </div>
         <div class="kpi">
@@ -49,8 +49,8 @@
                             <tr>
                                 <td class="mono">{{ $lot->received_date }}</td>
                                 <td class="code-cell">{{ $lot->receiving_code ?? '—' }}</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $lot->received_qty_m, 'productId' => $product->id])</td>
-                                <td class="num mono">@include('partials.qty', ['qty' => $lot->remaining_qty_m, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $lot->received_qty_m, 'productId' => $product->id])</td>
+                                <td class="num mono">@include('partials.qty.qty', ['qty' => $lot->remaining_qty_m, 'productId' => $product->id])</td>
                                 <td class="num mono">{{ $lot->age_months }}か月</td>
                                 <td>
                                     @if ($lot->is_long_term)

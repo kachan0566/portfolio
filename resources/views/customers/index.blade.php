@@ -10,7 +10,7 @@
             <p class="lead">受注先（販売先）の企業を管理します。</p>
         </div>
         <a href="{{ route('customers.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'plus']) 得意先を登録
+            @include('partials.ui.icon', ['name' => 'plus']) 得意先を登録
         </a>
     </div>
 
@@ -18,7 +18,7 @@
         <div class="card__head">
             <h2 class="card__title">得意先一覧（{{ $customers->count() }} 件）</h2>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'customer' => ['label' => '得意先名', 'placeholder' => '得意先名'],

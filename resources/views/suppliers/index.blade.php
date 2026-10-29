@@ -10,7 +10,7 @@
             <p class="lead">発注先（仕入先＝依頼先）の企業を管理します。種別により、発注種別ごとに選択候補が制限されます。</p>
         </div>
         <a href="{{ route('suppliers.create') }}" class="btn btn-primary">
-            @include('partials.icon', ['name' => 'plus']) 仕入先を登録
+            @include('partials.ui.icon', ['name' => 'plus']) 仕入先を登録
         </a>
     </div>
 
@@ -18,7 +18,7 @@
         <div class="card__head">
             <h2 class="card__title">仕入先一覧（{{ $suppliers->count() }} 件）</h2>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'supplier' => ['label' => '仕入先名', 'placeholder' => '仕入先名'],

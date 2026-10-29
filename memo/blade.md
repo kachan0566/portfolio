@@ -10,8 +10,8 @@
 | 目的                      | このプロジェクトでの具体例                                               |
 | ----------------------- | ----------------------------------------------------------- |
 | Bladeの書き方を理解する          | `@extends`, `@section`, `@include`, `@if`, `@foreach` など    |
-| 各ファイルの役割                | `layouts/` = 共通枠、`orders/index` = 一覧ページ、`partials/qty` = 部品 |
-| 共通化を学び、さらに共通化できる部分を見つける | `partials/icon`, `partials/list-search` など                  |
+| 各ファイルの役割                | `layouts/` = 共通枠、`orders/index` = 一覧ページ、`partials/qty/qty` = 部品 |
+| 共通化を学び、さらに共通化できる部分を見つける | `partials.ui.icon`, `partials.ui.list-search` など                  |
 
 
 ### 追加で持つとよい目的
@@ -48,11 +48,13 @@ resources/views/
 │   ├── create.blade.php   ← 登録
 │   ├── edit.blade.php     ← 編集
 │   └── show.blade.php     ← 詳細
-├── partials/              ← 全体で使う共通部品
-│   ├── icon.blade.php
-│   ├── qty.blade.php
-│   ├── list-search.blade.php
-│   └── ...
+├── partials/              ← 全体で使う共通部品（機能ごとにサブフォルダ）
+│   ├── ui/                ← icon, status, list-search, cost-warning
+│   ├── qty/               ← 数量表示・入力（qty, qty-input など）
+│   ├── recipe/            ← レシピフォーム関連
+│   ├── purchase/          ← 発注数量・到着日インライン編集
+│   ├── allocation/        ← 引当UI
+│   └── （直下）           ← 未整理の部品（例: qty-unit-toggle）
 ├── sales/partials/        ← 売上画面だけで使う部品
 └── inventory/partials/    ← 在庫画面だけで使う部品
 ```
@@ -105,7 +107,7 @@ resources/views/
 | --------------------- | -------------- | ------------------ |
 | `@extends`            | 共通レイアウトを使う     | `layouts.app`      |
 | `@section` / `@yield` | ページごとのタイトル・本文  | `title`, `content` |
-| `@include`            | 部品を読み込む        | `partials.icon`    |
+| `@include`            | 部品を読み込む        | `partials.ui.icon`    |
 | `@if` / `@foreach`    | 条件分岐・繰り返し      | ナビ、テーブル行           |
 | `@push` / `@stack`    | ページ固有のJSを末尾に足す | `orders/create`    |
 | `@php`                | 短い準備処理         | `qty.blade.php`    |
@@ -145,15 +147,15 @@ resources/views/
 
 | 部品                               | 役割       | 学ぶこと                     |
 | -------------------------------- | -------- | ------------------------ |
-| `partials/icon.blade.php`        | SVGアイコン  | パラメータ `name` の渡し方        |
-| `partials/qty.blade.php`         | 数量表示     | デフォルト値 `??`、PHPクラスへの委譲   |
-| `partials/status.blade.php`      | ステータスバッジ | マップ配列で色分け                |
-| `partials/list-search.blade.php` | 検索フォーム   | 設定配列 `fields` で画面ごとに出し分け |
+| `partials/ui/icon.blade.php`        | SVGアイコン  | パラメータ `name` の渡し方        |
+| `partials/qty/qty.blade.php`         | 数量表示     | デフォルト値 `??`、PHPクラスへの委譲   |
+| `partials/ui/status.blade.php`      | ステータスバッジ | マップ配列で色分け                |
+| `partials/ui/list-search.blade.php` | 検索フォーム   | 設定配列 `fields` で画面ごとに出し分け |
 
 
 `qty.blade.php` は「部品のお手本」です:
 
-```1:8:resources/views/partials/qty.blade.php
+```1:8:resources/views/partials/qty/qty.blade.php
 @php
     $qty = $qty ?? 0;
     $productId = $productId ?? null;
@@ -166,7 +168,7 @@ resources/views/
 
 **小さな確認課題**
 
-- `orders/index.blade.php` で `@include('partials.qty', [...])` が何箇所あるか数える
+- `orders/index.blade.php` で `@include('partials.qty.qty', [...])` が何箇所あるか数える
 - 各箇所で渡しているパラメータの違いをメモする
 
 ---
@@ -192,10 +194,12 @@ resources/views/
 
 **すでに共通化されているパターン**
 
-- 数量表示 → `partials/qty` 系（`qty-input`, `qty-display`, `qty-aggregate`）
-- 検索バー → `partials/list-search`
-- アイコン → `partials/icon`
-- レシピ関連 → `partials/recipe-*`
+- 数量表示 → `partials/qty/` 系（`qty-input`, `qty-display`, `qty-aggregate`）
+- 検索バー → `partials/ui/list-search`
+- アイコン → `partials/ui/icon`
+- レシピ関連 → `partials/recipe/*`
+- 引当 → `partials/allocation/*`
+- 発注 → `partials/purchase/*`
 - タブの中身 → `sales/partials/*`, `inventory/partials/*`
 
 **まだ共通化できそうな候補（練習用）**
@@ -269,8 +273,8 @@ resources/views/
 ## おすすめの学習順（ファイル）
 
 1. `layouts/app.blade.php`
-2. `partials/icon.blade.php` → `partials/qty.blade.php` → `partials/status.blade.php`
-3. `partials/list-search.blade.php`
+2. `partials/ui/icon.blade.php` → `partials/qty/qty.blade.php` → `partials/ui/status.blade.php`
+3. `partials/ui/list-search.blade.php`
 4. `orders/index.blade.php`（一覧のお手本）
 5. `products/create.blade.php`（フォームのお手本）
 6. `sales/index.blade.php`（タブ＋部品の組み合わせ）
@@ -340,7 +344,7 @@ resources/views/
 
 他にも partial はあります（`qty-input`、`qty-display`、`recipe-*` など）。これらは第5段階で「すでに共通化されているパターン」として触れる想定です。第3段階で全部を読む必要はありません。
 
-また、確認課題では `orders/index.blade.php` で `@include('partials.qty', [...])` を追うよう書かれています。これは4つの部品ファイルを読んだあと、**実際の画面でどう使われているか**を確認するための補助です。
+また、確認課題では `orders/index.blade.php` で `@include('partials.qty.qty', [...])` を追うよう書かれています。これは4つの部品ファイルを読んだあと、**実際の画面でどう使われているか**を確認するための補助です。
 
 ## まとめ
 

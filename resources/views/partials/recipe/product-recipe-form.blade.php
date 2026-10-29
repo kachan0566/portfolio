@@ -35,7 +35,7 @@
     <p class="field-hint">染色・仕上げなどの加工費用を1mあたりの金額で入力します。</p>
 </div>
 
-@include('partials.recipe-profit-panel', [
+@include('partials.recipe.recipe-profit-panel', [
     'ym' => $ym ?? null,
     'breakdown' => $breakdown ?? null,
     'profit' => $profit ?? null,

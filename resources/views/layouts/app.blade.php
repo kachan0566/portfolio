@@ -43,7 +43,7 @@
                 @else
                     <a href="{{ route($item['route']) }}"
                        class="nav-link {{ request()->routeIs(str_replace('.index', '', $item['route']) . '*') ? 'is-active' : '' }}">
-                        <span class="nav-link__icon">@include('partials.icon', ['name' => $item['icon']])</span>
+                        <span class="nav-link__icon">@include('partials.ui.icon', ['name' => $item['icon']])</span>
                         {{ $item['label'] }}
                     </a>
                 @endif
@@ -73,14 +73,14 @@
         <main class="content">
             @if (session('success'))
                 <div class="alert alert-success">
-                    @include('partials.icon', ['name' => 'check'])
+                    @include('partials.ui.icon', ['name' => 'check'])
                     {{ session('success') }}
                 </div>
             @endif
 
             @if (session('error'))
                 <div class="alert alert-danger">
-                    @include('partials.icon', ['name' => 'alert'])
+                    @include('partials.ui.icon', ['name' => 'alert'])
                     {{ session('error') }}
                 </div>
             @endif

@@ -36,7 +36,7 @@
     <p class="field-hint">1mあたりの織賃。糸原価と合算して生機単価（円/m）になります。</p>
 </div>
 
-@include('partials.recipe-lines', [
+@include('partials.recipe.recipe-lines', [
     'materials' => $materials,
     'lines' => $lines ?? [],
     'showProcessingCost' => false,

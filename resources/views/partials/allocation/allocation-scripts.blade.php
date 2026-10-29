@@ -1,4 +1,4 @@
-@include('partials.qty-unit-loader')
+@include('partials.qty.qty-unit-loader')
 <script>
 (function () {
     const metaEl = document.getElementById('alloc-meta');

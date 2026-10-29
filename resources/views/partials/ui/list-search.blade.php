@@ -70,7 +70,7 @@
 
     <div class="filter-bar__actions">
         <button type="submit" class="btn btn-primary btn-sm">
-            @include('partials.icon', ['name' => 'search']) 検索
+            @include('partials.ui.icon', ['name' => 'search']) 検索
         </button>
         @if ($hasActive)
             @php

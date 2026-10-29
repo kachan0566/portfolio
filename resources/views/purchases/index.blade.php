@@ -18,7 +18,7 @@
 
     @if (session('success'))
         <div class="alert alert-success" style="margin-bottom:16px;">
-            @include('partials.icon', ['name' => 'check'])
+            @include('partials.ui.icon', ['name' => 'check'])
             <span>{{ session('success') }}</span>
         </div>
     @endif
@@ -36,7 +36,7 @@
                 @endforeach
             </div>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'code' => ['label' => '発注番号', 'placeholder' => 'PO-'],
@@ -77,18 +77,18 @@
                                     </div>
                                 </td>
                                 <td class="code-cell t-strong">{{ $po->sku }}</td>
-                                <td class="num mono">@include('partials.purchase-qty', ['purchase' => $po])</td>
+                                <td class="num mono">@include('partials.purchase.purchase-qty', ['purchase' => $po])</td>
                                 <td>{{ $po->supplier }}</td>
                                 <td>{{ $po->ship_to }}</td>
                                 <td class="mono">{{ $po->eta }}</td>
                                 <td>
-                                    @include('partials.purchase-arrival-date-inline-form', [
+                                    @include('partials.purchase.purchase-arrival-date-inline-form', [
                                         'purchase' => $po,
                                         'search' => $search,
                                     ])
                                 </td>
                                 <td>
-                                    @include('partials.purchase-arrival-memo-inline-form', [
+                                    @include('partials.purchase.purchase-arrival-memo-inline-form', [
                                         'purchase' => $po,
                                         'search' => $search,
                                     ])

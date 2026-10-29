@@ -10,7 +10,7 @@
             <p class="lead">{{ $purchase->code }}（{{ $purchase->type_label }}）の依頼先・出荷先・状態を編集します。</p>
         </div>
         <a href="{{ route('purchases.show', $purchase->id) }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 詳細に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 詳細に戻る
         </a>
     </div>
 
@@ -44,7 +44,7 @@
                 <div class="form-row">
                     <div class="field">
                         <label class="label">数量</label>
-                        @php $qtyLabel = view('partials.purchase-qty', ['purchase' => $purchase])->render(); @endphp
+                        @php $qtyLabel = view('partials.purchase.purchase-qty', ['purchase' => $purchase])->render(); @endphp
                         <input class="input mono" type="text" readonly value="{{ strip_tags($qtyLabel) }}">
                     </div>
                     <div class="field">
@@ -179,7 +179,7 @@
                 @endif
 
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 更新する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 更新する</button>
                     <a href="{{ route('purchases.show', $purchase->id) }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

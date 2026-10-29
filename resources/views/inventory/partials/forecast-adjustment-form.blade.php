@@ -34,7 +34,7 @@
     </div>
     <div class="field" style="min-width:160px;">
         <label class="label" for="adj-qty-{{ $formId ?? 'list' }}">数量（反）</label>
-        @include('partials.qty-input', [
+        @include('partials.qty.qty-input', [
             'name' => 'qty',
             'id' => 'adj-qty-'.($formId ?? 'list'),
             'valueMeters' => 0,
@@ -51,7 +51,7 @@
 </form>
 @if (! ($productId ?? null))
     @push('scripts')
-        @include('partials.qty-unit-loader')
+        @include('partials.qty.qty-unit-loader')
         <script>
         (function () {
             const formId = @json($formId ?? 'list');
@@ -69,7 +69,7 @@
     @endpush
 @else
     @push('scripts')
-        @include('partials.qty-unit-loader')
+        @include('partials.qty.qty-unit-loader')
         <script>QtyUnit.initPage(@json('forecast-adj-'.($formId ?? 'list')));</script>
     @endpush
 @endif

@@ -10,28 +10,28 @@
             <p class="lead">2026年6月の業務状況サマリーです。</p>
         </div>
         <a href="{{ route('sales.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'chart']) 売上・粗利の詳細
+            @include('partials.ui.icon', ['name' => 'chart']) 売上・粗利の詳細
         </a>
     </div>
 
-    @include('partials.cost-warning', ['warnings' => $data['costWarnings'] ?? []])
+    @include('partials.ui.cost-warning', ['warnings' => $data['costWarnings'] ?? []])
 
     {{-- KPI カード --}}
     <div class="kpi-grid">
         <div class="kpi">
-            <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'yen'])</div>
+            <div class="kpi__icon tone-indigo">@include('partials.ui.icon', ['name' => 'yen'])</div>
             <div class="kpi__label">今月売上</div>
             <div class="kpi__value">{{ number_format($data['sales']) }}<span style="font-size:14px;font-weight:600;"> 円</span></div>
             <div class="kpi__sub"><span class="kpi__trend up">▲ 前月比 +6.2%</span></div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'package'])</div>
+            <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'package'])</div>
             <div class="kpi__label">今月出荷数量</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.qty-aggregate', ['lines' => $data['salesByProduct'], 'qtyKey' => 'qty'])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.qty.qty-aggregate', ['lines' => $data['salesByProduct'], 'qtyKey' => 'qty'])</div>
             <div class="kpi__sub">出荷件数 {{ \App\Support\DemoData::shipments()->count() }} 件</div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-green">@include('partials.icon', ['name' => 'chart'])</div>
+            <div class="kpi__icon tone-green">@include('partials.ui.icon', ['name' => 'chart'])</div>
             <div class="kpi__label">今月粗利</div>
             <div class="kpi__value">{{ number_format($data['profit']) }}<span style="font-size:14px;font-weight:600;"> 円</span></div>
             <div class="kpi__sub">
@@ -42,13 +42,13 @@
             </div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-amber">@include('partials.icon', ['name' => 'cart'])</div>
+            <div class="kpi__icon tone-amber">@include('partials.ui.icon', ['name' => 'cart'])</div>
             <div class="kpi__label">未出荷受注</div>
             <div class="kpi__value">{{ $data['unshippedOrders'] }}<span style="font-size:14px;font-weight:600;"> 件</span></div>
             <div class="kpi__sub">未入荷発注 {{ $data['unreceivedPurchaseOrders'] }} 件</div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-rose">@include('partials.icon', ['name' => 'alert'])</div>
+            <div class="kpi__icon tone-rose">@include('partials.ui.icon', ['name' => 'alert'])</div>
             <div class="kpi__label">在庫不足商品</div>
             <div class="kpi__value">{{ $data['lowStock']->count() }}<span style="font-size:14px;font-weight:600;"> 件</span></div>
             <div class="kpi__sub">安全在庫を下回る商品</div>
@@ -96,8 +96,8 @@
                             @forelse ($data['lowStock'] as $p)
                                 <tr>
                                     <td class="code-cell t-strong">{{ $p->sku }}</td>
-                                    <td class="num mono">@include('partials.qty-roll-stock', ['productId' => $p->id])</td>
-                                    <td class="num mono t-muted">@include('partials.qty', ['qty' => $p->stock_min, 'productId' => $p->id])</td>
+                                    <td class="num mono">@include('partials.qty.qty-roll-stock', ['productId' => $p->id])</td>
+                                    <td class="num mono t-muted">@include('partials.qty.qty', ['qty' => $p->stock_min, 'productId' => $p->id])</td>
                                     <td><span class="badge badge-rose">要発注</span></td>
                                 </tr>
                             @empty
@@ -134,8 +134,8 @@
                                         <span class="code-cell t-strong">{{ $o->sku }}</span>
                                         <div class="t-muted" style="font-size:11.5px;">{{ $o->color }}</div>
                                     </td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $o->qty, 'productId' => $o->product_id])</td>
-                                    <td>@include('partials.status', ['status' => $o->status])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $o->qty, 'productId' => $o->product_id])</td>
+                                    <td>@include('partials.ui.status', ['status' => $o->status])</td>
                                 </tr>
                             @endforeach
                         </tbody>

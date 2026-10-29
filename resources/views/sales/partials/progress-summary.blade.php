@@ -25,12 +25,12 @@
             <div class="kpi">
                 <div class="kpi__label">出荷数量</div>
                 <div class="kpi__value" style="font-size:18px;">
-                    @include('partials.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'actual_qty', 'productId' => $selectedProduct?->id])
-                    <span style="font-size:13px;"> / @include('partials.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</span>
+                    @include('partials.qty.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'actual_qty', 'productId' => $selectedProduct?->id])
+                    <span style="font-size:13px;"> / @include('partials.qty.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'total_qty', 'productId' => $selectedProduct?->id])</span>
                 </div>
                 <div class="kpi__sub">
-                    実績 @include('partials.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'actual_qty', 'productId' => $selectedProduct?->id])
-                    ＋ 見通し @include('partials.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'forecast_remaining_qty', 'productId' => $selectedProduct?->id])
+                    実績 @include('partials.qty.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'actual_qty', 'productId' => $selectedProduct?->id])
+                    ＋ 見通し @include('partials.qty.qty-aggregate', ['lines' => $qtyLines, 'qtyKey' => 'forecast_remaining_qty', 'productId' => $selectedProduct?->id])
                 </div>
             </div>
             <div class="kpi">

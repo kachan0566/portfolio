@@ -10,7 +10,7 @@
             <p class="lead">得意先からの新しい受注を登録します。</p>
         </div>
         <a href="{{ route('orders.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -44,7 +44,7 @@
                     </div>
                     <div class="field">
                         <label class="label" for="qty-display">数量<span class="req">*</span></label>
-                            @include('partials.qty-input', [
+                            @include('partials.qty.qty-input', [
                                 'tanName' => 'qty_tan',
                                 'metersName' => 'qty_meters',
                                 'id' => 'qty-display',
@@ -73,7 +73,7 @@
                     <p class="field-hint">出荷予定日に関する補足を自由に記入できます。</p>
                 </div>
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 登録する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 登録する</button>
                     <a href="{{ route('orders.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>
@@ -82,7 +82,7 @@
 @endsection
 
 @push('scripts')
-    @include('partials.qty-unit-loader')
+    @include('partials.qty.qty-unit-loader')
     <script>
     (function () {
         const productSelect = document.getElementById('product');

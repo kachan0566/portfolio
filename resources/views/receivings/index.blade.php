@@ -14,7 +14,7 @@
             <a href="{{ route('receivings.create', ['type' => PurchaseOrderType::YARN]) }}" class="btn btn-secondary btn-sm">糸入荷</a>
             <a href="{{ route('receivings.create', ['type' => PurchaseOrderType::GREIGE]) }}" class="btn btn-secondary btn-sm">生機入荷</a>
             <a href="{{ route('receivings.create', ['type' => PurchaseOrderType::PRODUCT]) }}" class="btn btn-primary">
-                @include('partials.icon', ['name' => 'arrow-down']) 入荷を登録
+                @include('partials.ui.icon', ['name' => 'arrow-down']) 入荷を登録
             </a>
         </div>
     </div>
@@ -23,7 +23,7 @@
         <div class="card__head">
             <h2 class="card__title">入荷履歴（{{ $receivings->count() }} 件）</h2>
         </div>
-        @include('partials.list-search', [
+        @include('partials.ui.list-search', [
             'params' => $search,
             'fields' => [
                 'code' => ['label' => '発注番号', 'placeholder' => 'PO-2606-001'],
@@ -83,9 +83,9 @@
                                         @if ($poType === PurchaseOrderType::YARN)
                                             +{{ number_format((float) ($r->qty_kg ?? $r->qty ?? 0), 2) }} kg
                                         @elseif ($poType === PurchaseOrderType::GREIGE)
-                                            +@include('partials.qty', ['qty' => (int) ($r->qty_meters ?? $r->qty ?? 0), 'isGreige' => true, 'greigeSku' => $r->greige_sku ?? $r->sku])
+                                            +@include('partials.qty.qty', ['qty' => (int) ($r->qty_meters ?? $r->qty ?? 0), 'isGreige' => true, 'greigeSku' => $r->greige_sku ?? $r->sku])
                                         @else
-                                            +@include('partials.qty', ['qty' => (int) ($r->qty ?? 0), 'productId' => $r->product_id ?? null])
+                                            +@include('partials.qty.qty', ['qty' => (int) ($r->qty ?? 0), 'productId' => $r->product_id ?? null])
                                         @endif
                                     </span>
                                 </td>

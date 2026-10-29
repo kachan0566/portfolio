@@ -44,13 +44,13 @@
                     @endforeach
                 </select>
             </form>
-            <button class="btn btn-secondary" disabled>@include('partials.icon', ['name' => 'download']) 売上一覧CSV</button>
+            <button class="btn btn-secondary" disabled>@include('partials.ui.icon', ['name' => 'download']) 売上一覧CSV</button>
         </div>
     </div>
 
     @if (session('success'))
         <div class="alert alert-success" style="margin-bottom:16px;">
-            @include('partials.icon', ['name' => 'check'])
+            @include('partials.ui.icon', ['name' => 'check'])
             <span>{{ session('success') }}</span>
         </div>
     @endif

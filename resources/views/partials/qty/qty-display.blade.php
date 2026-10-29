@@ -13,4 +13,4 @@
 @if ($sign)
     {{ $sign }}
 @endif
-{{ $prefix }}@include('partials.qty', ['qty' => $qty, 'productId' => $productId, 'isGreige' => $isGreige, 'greigeSku' => $greigeSku])
+{{ $prefix }}@include('partials.qty.qty', ['qty' => $qty, 'productId' => $productId, 'isGreige' => $isGreige, 'greigeSku' => $greigeSku])

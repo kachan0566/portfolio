@@ -23,7 +23,7 @@
     <p class="field-hint">顧客への販売単価です。製造コストと合わせて粗利を確認できます。</p>
 </div>
 
-@include('partials.cost-warning', [
+@include('partials.ui.cost-warning', [
     'warnings' => $costWarnings ?? [],
     'heading' => '製造コストを算出できないため、粗利を表示できません。',
 ])
@@ -79,7 +79,7 @@
                 </tbody>
             </table>
         </div>
-        @include('partials.recipe-outcome-strip', [
+        @include('partials.recipe.recipe-outcome-strip', [
             'profit' => $profit,
             'price' => $priceValue,
             'dynamic' => true,

@@ -10,35 +10,35 @@
             <p class="lead">カラー：{{ $product->color }} ／ この品番の現在庫と、受注に対する過不足を確認します。</p>
         </div>
         <a href="{{ route('inventory.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 在庫一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 在庫一覧に戻る
         </a>
     </div>
 
-    @include('partials.cost-warning', ['warnings' => $costWarnings])
+    @include('partials.ui.cost-warning', ['warnings' => $costWarnings])
 
     <div class="kpi-grid">
         <div class="kpi">
-            <div class="kpi__icon tone-blue">@include('partials.icon', ['name' => 'archive'])</div>
+            <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'archive'])</div>
             <div class="kpi__label">現在庫</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</div>
-            <div class="kpi__sub">安全在庫 @include('partials.qty', ['qty' => $product->stock_min, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.qty.qty-roll-stock', ['inStockRoll' => $inStockRoll])</div>
+            <div class="kpi__sub">安全在庫 @include('partials.qty.qty', ['qty' => $product->stock_min, 'productId' => $product->id])</div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-amber">@include('partials.icon', ['name' => 'cart'])</div>
+            <div class="kpi__icon tone-amber">@include('partials.ui.icon', ['name' => 'cart'])</div>
             <div class="kpi__label">受注残（未出荷分）</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.qty', ['qty' => $outstanding, 'productId' => $product->id])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.qty.qty', ['qty' => $outstanding, 'productId' => $product->id])</div>
             <div class="kpi__sub">出荷が必要な合計数量</div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon {{ $balance < 0 ? 'tone-rose' : 'tone-green' }}">@include('partials.icon', ['name' => $balance < 0 ? 'alert' : 'check'])</div>
+            <div class="kpi__icon {{ $balance < 0 ? 'tone-rose' : 'tone-green' }}">@include('partials.ui.icon', ['name' => $balance < 0 ? 'alert' : 'check'])</div>
             <div class="kpi__label">過不足（現在庫 − 受注残）</div>
             <div class="kpi__value" style="color:{{ $balance < 0 ? 'var(--danger)' : 'var(--success)' }};">
-                {{ $balance >= 0 ? '+' : '' }}@include('partials.qty', ['qty' => abs($balance), 'productId' => $product->id])
+                {{ $balance >= 0 ? '+' : '' }}@include('partials.qty.qty', ['qty' => abs($balance), 'productId' => $product->id])
             </div>
             <div class="kpi__sub">{{ $balance < 0 ? '在庫が不足しています' : '受注を満たせます' }}</div>
         </div>
         <div class="kpi">
-            <div class="kpi__icon tone-indigo">@include('partials.icon', ['name' => 'yen'])</div>
+            <div class="kpi__icon tone-indigo">@include('partials.ui.icon', ['name' => 'yen'])</div>
             <div class="kpi__label">在庫金額（コストベース）</div>
             <div class="kpi__value">
                 @if ($costCalculable)
@@ -61,9 +61,9 @@
         <div class="card__head">
             <h2 class="card__title">現在庫と受注残の比較</h2>
             @if ($balance < 0)
-                <span class="badge badge-rose">@include('partials.qty', ['qty' => abs($balance), 'productId' => $product->id]) 不足</span>
+                <span class="badge badge-rose">@include('partials.qty.qty', ['qty' => abs($balance), 'productId' => $product->id]) 不足</span>
             @else
-                <span class="badge badge-green">充足（余り @include('partials.qty', ['qty' => $balance, 'productId' => $product->id])）</span>
+                <span class="badge badge-green">充足（余り @include('partials.qty.qty', ['qty' => $balance, 'productId' => $product->id])）</span>
             @endif
         </div>
         <div class="card__body">
@@ -77,14 +77,14 @@
                     <div class="cmp__track">
                         <div class="cmp__fill cmp__fill--stock" style="width:{{ round($effectiveStock / $scale * 100) }}%;"></div>
                     </div>
-                    <div class="cmp__value mono">@include('partials.qty-roll-stock', ['inStockRoll' => $inStockRoll])</div>
+                    <div class="cmp__value mono">@include('partials.qty.qty-roll-stock', ['inStockRoll' => $inStockRoll])</div>
                 </div>
                 <div class="cmp__row">
                     <div class="cmp__label">受注残</div>
                     <div class="cmp__track">
                         <div class="cmp__fill cmp__fill--demand" style="width:{{ round($outstanding / $scale * 100) }}%;"></div>
                     </div>
-                    <div class="cmp__value mono">@include('partials.qty', ['qty' => $outstanding, 'productId' => $product->id])</div>
+                    <div class="cmp__value mono">@include('partials.qty.qty', ['qty' => $outstanding, 'productId' => $product->id])</div>
                 </div>
             </div>
             <div class="cmp-legend">
@@ -101,7 +101,7 @@
                 <div class="field-hint">現在庫引当（入荷済み発注）と発注引当（未入荷残）を分けて、受注へ配分します。</div>
             </div>
             @if ($allocationShortage > 0)
-                <span class="badge badge-rose">@include('partials.qty', ['qty' => $allocationShortage, 'productId' => $product->id]) 未引当</span>
+                <span class="badge badge-rose">@include('partials.qty.qty', ['qty' => $allocationShortage, 'productId' => $product->id]) 未引当</span>
             @else
                 <span class="badge badge-green">全受注を引当</span>
             @endif
@@ -110,20 +110,20 @@
             <div class="allocation-summary">
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">現在庫引当</div>
-                    <div class="allocation-summary__value mono">@include('partials.qty-roll-stock', ['tan' => $stockAllocatedQty->tan, 'meters' => $stockAllocatedQty->meters])</div>
+                    <div class="allocation-summary__value mono">@include('partials.qty.qty-roll-stock', ['tan' => $stockAllocatedQty->tan, 'meters' => $stockAllocatedQty->meters])</div>
                 </div>
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">発注引当</div>
-                    <div class="allocation-summary__value mono">@include('partials.qty', ['qty' => $poAllocatedTotal, 'productId' => $product->id])</div>
+                    <div class="allocation-summary__value mono">@include('partials.qty.qty', ['qty' => $poAllocatedTotal, 'productId' => $product->id])</div>
                 </div>
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">未割当在庫</div>
-                    <div class="allocation-summary__value mono">@include('partials.qty-roll-stock', ['tan' => $unallocatedStockQty->tan, 'meters' => $unallocatedStockQty->meters])</div>
+                    <div class="allocation-summary__value mono">@include('partials.qty.qty-roll-stock', ['tan' => $unallocatedStockQty->tan, 'meters' => $unallocatedStockQty->meters])</div>
                 </div>
                 <div class="allocation-summary__item">
                     <div class="allocation-summary__label">未引当の受注残</div>
                     <div class="allocation-summary__value mono {{ $allocationShortage > 0 ? 'text-danger' : 'text-success' }}">
-                        @include('partials.qty', ['qty' => $allocationShortage, 'productId' => $product->id])
+                        @include('partials.qty.qty', ['qty' => $allocationShortage, 'productId' => $product->id])
                     </div>
                 </div>
             </div>
@@ -143,10 +143,10 @@
                                 <a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a>
                             </div>
                             <div class="po-usage-item__nums mono" style="font-size:12px;">
-                                <span class="t-muted">入荷済 @include('partials.qty', ['qty' => $received, 'productId' => $product->id])</span>
-                                <span class="{{ $stockUsedTan > 0 ? 't-strong' : 't-muted' }}">在庫引当 @include('partials.qty-roll-stock', ['tan' => $stockUsedTan, 'meters' => $stockUsedM])</span>
-                                <span class="{{ $poUsed > 0 ? 't-strong' : 't-muted' }}">発注引当 @include('partials.qty', ['qty' => $poUsed, 'productId' => $product->id])</span>
-                                <span class="t-muted">残 @include('partials.qty', ['qty' => $poRem, 'productId' => $product->id])</span>
+                                <span class="t-muted">入荷済 @include('partials.qty.qty', ['qty' => $received, 'productId' => $product->id])</span>
+                                <span class="{{ $stockUsedTan > 0 ? 't-strong' : 't-muted' }}">在庫引当 @include('partials.qty.qty-roll-stock', ['tan' => $stockUsedTan, 'meters' => $stockUsedM])</span>
+                                <span class="{{ $poUsed > 0 ? 't-strong' : 't-muted' }}">発注引当 @include('partials.qty.qty', ['qty' => $poUsed, 'productId' => $product->id])</span>
+                                <span class="t-muted">残 @include('partials.qty.qty', ['qty' => $poRem, 'productId' => $product->id])</span>
                             </div>
                         </div>
                     @endforeach
@@ -194,7 +194,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @include('partials.allocation-rows', [
+                                @include('partials.allocation.allocation-rows', [
                                     'orders' => $allocationOrders,
                                     'productId' => $product->id,
                                     'stockPoOptions' => $stockPoOptions,
@@ -206,7 +206,7 @@
                         </table>
                     </div>
                     <div class="allocation-actions">
-                        <button type="submit" class="btn btn-primary" id="alloc-submit-btn">@include('partials.icon', ['name' => 'check']) 引当を保存する</button>
+                        <button type="submit" class="btn btn-primary" id="alloc-submit-btn">@include('partials.ui.icon', ['name' => 'check']) 引当を保存する</button>
                     </div>
                 @endif
             </form>
@@ -228,7 +228,7 @@
                                         <td>{{ $ev['receiving_code'] ?? '' }}</td>
                                         <td>{{ $evOrder?->code ?? '' }}</td>
                                         <td>{{ $evPo?->code ?? '' }}</td>
-                                        <td class="num mono">@include('partials.qty', ['qty' => $ev['qty'] ?? 0, 'productId' => $product->id])</td>
+                                        <td class="num mono">@include('partials.qty.qty', ['qty' => $ev['qty'] ?? 0, 'productId' => $product->id])</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -239,7 +239,7 @@
         </div>
     </div>
 
-    @include('partials.allocation-scripts')
+    @include('partials.allocation.allocation-scripts')
 
     <div class="grid grid-equal-2" style="margin-bottom:16px;">
         <div class="card">
@@ -261,11 +261,11 @@
                                         <a href="{{ route('orders.edit', $o->id) }}" class="link-strong">{{ $o->code }}</a>
                                     </td>
                                     <td>{{ $o->customer }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $o->qty, 'productId' => $product->id])</td>
-                                    <td class="num mono t-muted">@include('partials.qty', ['qty' => $o->shipped, 'productId' => $product->id])</td>
-                                    <td class="num mono {{ $o->remaining > 0 ? 't-strong' : 't-muted' }}">@include('partials.qty', ['qty' => $o->remaining, 'productId' => $product->id])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $o->qty, 'productId' => $product->id])</td>
+                                    <td class="num mono t-muted">@include('partials.qty.qty', ['qty' => $o->shipped, 'productId' => $product->id])</td>
+                                    <td class="num mono {{ $o->remaining > 0 ? 't-strong' : 't-muted' }}">@include('partials.qty.qty', ['qty' => $o->remaining, 'productId' => $product->id])</td>
                                     <td class="mono">{{ $o->due_date }}</td>
-                                    <td>@include('partials.status', ['status' => $o->status])</td>
+                                    <td>@include('partials.ui.status', ['status' => $o->status])</td>
                                 </tr>
                             @empty
                                 <tr><td colspan="7" class="empty">受注履歴はありません。</td></tr>
@@ -294,7 +294,7 @@
                                         <a href="{{ route('purchases.show', $po->id) }}" class="link-strong">{{ $po->code }}</a>
                                     </td>
                                     <td>{{ $po->customer }}</td>
-                                    <td class="num mono">@include('partials.qty', ['qty' => $po->qty, 'productId' => $product->id])</td>
+                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $po->qty, 'productId' => $product->id])</td>
                                     <td><span class="badge badge-indigo badge--plain">{{ $po->stage }}</span></td>
                                     <td class="mono">{{ $po->eta }}</td>
                                     <td class="mono">{{ $po->finish_date }}</td>
@@ -328,7 +328,7 @@
                                         <span class="badge badge-rose badge--plain">出庫</span>
                                     @endif
                                 </td>
-                                <td class="num mono">{{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty', ['qty' => $m->qty, 'productId' => $product->id])</td>
+                                <td class="num mono">{{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty.qty', ['qty' => $m->qty, 'productId' => $product->id])</td>
                                 <td class="t-muted" style="font-size:12px;">{{ $m->note }}</td>
                             </tr>
                         @empty

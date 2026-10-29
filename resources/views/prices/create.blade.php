@@ -10,7 +10,7 @@
             <p class="lead">糸の年月別単価（円/kg）を登録します。</p>
         </div>
         <a href="{{ route('prices.index') }}" class="btn btn-secondary">
-            @include('partials.icon', ['name' => 'back']) 一覧に戻る
+            @include('partials.ui.icon', ['name' => 'back']) 一覧に戻る
         </a>
     </div>
 
@@ -42,7 +42,7 @@
                     </div>
                 </div>
                 <div class="actions">
-                    <button type="submit" class="btn btn-primary">@include('partials.icon', ['name' => 'check']) 登録する</button>
+                    <button type="submit" class="btn btn-primary">@include('partials.ui.icon', ['name' => 'check']) 登録する</button>
                     <a href="{{ route('prices.index') }}" class="btn btn-secondary">キャンセル</a>
                 </div>
             </form>

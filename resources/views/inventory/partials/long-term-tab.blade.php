@@ -14,7 +14,7 @@
     </div>
     <div class="kpi">
         <div class="kpi__label">長期在庫総数量</div>
-        <div class="kpi__value" style="font-size:20px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'long_term_qty'])</div>
+        <div class="kpi__value" style="font-size:20px;">@include('partials.qty.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'long_term_qty'])</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">長期在庫総金額</div>
@@ -22,22 +22,22 @@
     </div>
     <div class="kpi">
         <div class="kpi__label">12〜18か月</div>
-        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_12_18_qty'])</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_12_18_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_12_18_value) }} 円</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">18〜24か月</div>
-        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_18_24_qty'])</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_18_24_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_18_24_value) }} 円</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">24〜36か月</div>
-        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_24_36_qty'])</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_24_36_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_24_36_value) }} 円</div>
     </div>
     <div class="kpi">
         <div class="kpi__label">36か月以上</div>
-        <div class="kpi__value" style="font-size:16px;">@include('partials.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_36_plus_qty'])</div>
+        <div class="kpi__value" style="font-size:16px;">@include('partials.qty.qty-aggregate', ['lines' => $ltLines, 'qtyKey' => 'bucket_36_plus_qty'])</div>
         <div class="kpi__sub">{{ number_format($lt->bucket_36_plus_value) }} 円</div>
     </div>
 </div>
@@ -64,8 +64,8 @@
                     @forelse ($lt->lines->where('long_term_qty', '>', 0) as $line)
                         <tr>
                             <td class="code-cell t-strong">{{ $line->sku }}</td>
-                            <td class="num mono">@include('partials.qty', ['qty' => $line->current_stock_qty, 'productId' => $line->product_id])</td>
-                            <td class="num mono">@include('partials.qty', ['qty' => $line->long_term_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono">@include('partials.qty.qty', ['qty' => $line->current_stock_qty, 'productId' => $line->product_id])</td>
+                            <td class="num mono">@include('partials.qty.qty', ['qty' => $line->long_term_qty, 'productId' => $line->product_id])</td>
                             <td class="num mono">{{ number_format($line->long_term_value) }} 円</td>
                             <td class="mono t-muted">{{ $line->oldest_received_date ?? '—' }}</td>
                             <td class="num mono">{{ $line->oldest_age_months !== null ? $line->oldest_age_months.'か月' : '—' }}</td>
