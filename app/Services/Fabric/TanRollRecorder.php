@@ -2,6 +2,8 @@
 
 namespace App\Services\Fabric;
 
+use App\Models\Inventory\GreigeRoll as GreigeRollModel;
+use App\Models\Inventory\ProductRoll as ProductRollModel;
 use App\Support\Core\DemoData;
 use App\Support\Inventory\GreigeRoll;
 use App\Support\Master\MasterCatalog;
@@ -14,10 +16,17 @@ use App\Support\Qty\QtyHelper;
 class TanRollRecorder
 {
     /**
-     * 織り上がり：反行入力から生機反を作成。
+     * 織り上がり：反行入力から生機反を作成する。
      *
-     * @param  list<array{tan_qty: float|int, actual_qty_m: float|int}>  $lines
-     * @return list<object>
+     * 反コードは SKU-発注コード-連番。連番は同じ発注の既存生機反の最大番号の次から付ける。
+     *
+     * @param  int  $poId  発注 ID。purchase_order_id と連番の起点に使う
+     * @param  string  $greigeSku  生機 SKU。コード接頭辞とマスタ検索に使う
+     * @param  list<array{tan_qty: float|int, actual_qty_m: float|int}>  $lines  今回入力の反行
+     * @param  string|null  $measuredAt  実測日（YYYY-MM-DD）。省略時は当日
+     * @param  int|null  $receivingId  入荷ヘッダ ID。明細解決の補助
+     * @param  int|null  $receivingLineId  入荷明細 ID。反の紐づけ先
+     * @return list<object>  作成した生機反
      */
     public static function recordWeavingFromLines(
         int $poId,
@@ -36,18 +45,20 @@ class TanRollRecorder
         $measuredAt ??= date('Y-m-d');
         $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
         $poCode = $po?->code ?? 'PO-'.$poId;
+        $prefix = $greigeSku.'-'.$poCode.'-';
+        $seq = self::nextGreigeRollSeq($poId, $greige?->id, $prefix);
         $created = [];
 
-        foreach ($lines as $index => $line) {
+        foreach ($lines as $line) {
             $tanQty = QtyHelper::roundReceivingTan((float) ($line['tan_qty'] ?? 1));
             $actualM = round((float) ($line['actual_qty_m'] ?? 0), 2);
             if ($tanQty <= 0 || $actualM <= 0) {
                 continue;
             }
 
-            $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+            $seq++;
             $created[] = GreigeRoll::create([
-                'code' => $greigeSku.'-'.$poCode.'-'.$seq,
+                'code' => $prefix.self::formatRollSeq($seq),
                 'greige_sku' => $greigeSku,
                 'purchase_order_id' => $poId,
                 'receiving_id' => $receivingId,
@@ -82,8 +93,13 @@ class TanRollRecorder
     }
 
     /**
-     * 染め上がり：生機反を半分カットして製品反を生成。
+     * 染め上がり：生機反を消費して製品反を生成する。
      *
+     * 製品反コードの連番は、同じ発注・製品の既存 product_rolls の最大番号の次から付ける。
+     *
+     * @param  int  $productPoId  製品発注 ID
+     * @param  int  $productId  製品 ID
+     * @param  string|null  $measuredAt  実測日。省略時は発注の finish_date または当日
      * @return array{product_rolls: list<object>, total_meters: float}
      */
     public static function recordDyeingCompletion(
@@ -115,7 +131,8 @@ class TanRollRecorder
         }
         $productRolls = [];
         $totalMeters = 0.0;
-        $seq = 0;
+        $prefix = $product->sku.'-'.$po->code.'-';
+        $seq = self::nextProductRollSeq($productPoId, $productId, $prefix);
 
         foreach ($greigeRolls as $greigeRoll) {
             if ($targetTan <= 0.0001) {
@@ -134,9 +151,8 @@ class TanRollRecorder
             self::consumeGreigeRollFromDyeing((int) $greigeRoll->id, $useTan, $consumeM);
 
             $seq++;
-            $seqStr = str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
             $productRolls[] = ProductRoll::create([
-                'code' => $product->sku.'-'.$po->code.'-'.$seqStr,
+                'code' => $prefix.self::formatRollSeq($seq),
                 'product_id' => $productId,
                 'parent_greige_roll_id' => (int) $greigeRoll->id,
                 'purchase_order_id' => $productPoId,
@@ -158,10 +174,18 @@ class TanRollRecorder
     }
 
     /**
-     * 製品入荷：反行入力から製品反を作成。
+     * 製品入荷：反行入力から製品反を作成する。
      *
-     * @param  list<array{tan_qty: float|int, actual_qty_m: float|int}>  $lines
-     * @return list<object>
+     * 反コードは SKU-発注コード-連番。連番は同じ発注・製品の既存反の最大番号の次から付ける。
+     * 2回目以降の入荷でも 01 からやり直さない。
+     *
+     * @param  int  $poId  発注 ID
+     * @param  int  $productId  製品 ID
+     * @param  list<array{tan_qty: float|int, actual_qty_m: float|int}>  $lines  今回入力の反行
+     * @param  string|null  $measuredAt  実測日（YYYY-MM-DD）。省略時は当日
+     * @param  int|null  $receivingId  入荷ヘッダ ID。明細解決の補助
+     * @param  int|null  $receivingLineId  入荷明細 ID。反の紐づけ先
+     * @return list<object>  作成した製品反
      */
     public static function recordProductReceivingFromLines(
         int $poId,
@@ -184,18 +208,20 @@ class TanRollRecorder
         $measuredAt ??= date('Y-m-d');
         $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
         $poCode = $po?->code ?? 'PO-'.$poId;
+        $prefix = $product->sku.'-'.$poCode.'-';
+        $seq = self::nextProductRollSeq($poId, $productId, $prefix);
         $created = [];
 
-        foreach ($lines as $index => $line) {
+        foreach ($lines as $line) {
             $tanQty = QtyHelper::roundReceivingTan((float) ($line['tan_qty'] ?? 1));
             $actualM = round((float) ($line['actual_qty_m'] ?? 0), 2);
             if ($tanQty <= 0 || $actualM <= 0) {
                 continue;
             }
 
-            $seq = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+            $seq++;
             $created[] = ProductRoll::create([
-                'code' => $product->sku.'-'.$poCode.'-'.$seq,
+                'code' => $prefix.self::formatRollSeq($seq),
                 'product_id' => $productId,
                 'purchase_order_id' => $poId,
                 'receiving_id' => $receivingId,
@@ -381,6 +407,14 @@ class TanRollRecorder
         return $lines;
     }
 
+    /**
+     * 織り実測mを、生機反あたりmと製品反あたりmの比で染め実測mに換算する。
+     *
+     * @param  float  $weavingMeters  消費した生機の実測m
+     * @param  int  $productNominal  製品1反あたりの基準m
+     * @param  int  $greigeNominal  生機1反あたりの基準m
+     * @return float  染め実測m。生機基準mが0以下なら織り実測をそのまま返す
+     */
     private static function dyeingMetersFromWeaving(float $weavingMeters, int $productNominal, int $greigeNominal): float
     {
         if ($greigeNominal <= 0) {
@@ -390,5 +424,84 @@ class TanRollRecorder
         $ratio = $productNominal / $greigeNominal;
 
         return round($weavingMeters * $ratio, 2);
+    }
+
+    /**
+     * 同じ発注・製品の既存製品反から、次に使う連番の直前値を返す。
+     *
+     * product_rolls の code から接頭辞に続く数字の最大値を返す。
+     * 該当が無ければ 0（呼び出し側で +1 する）。
+     *
+     * @param  int  $poId  purchase_orders.id。product_rolls.purchase_order_id の絞り込みに使う
+     * @param  int  $productId  products.id。product_rolls.product_id の絞り込みに使う
+     * @param  string  $prefix  コード接頭辞（例: FAB-T-BK-PO-2606-009-）
+     * @return int  既存の最大連番。該当なしは 0
+     */
+    private static function nextProductRollSeq(int $poId, int $productId, string $prefix): int
+    {
+        $codes = ProductRollModel::query()
+            ->where('purchase_order_id', $poId)
+            ->where('product_id', $productId)
+            ->pluck('code')
+            ->all();
+
+        return self::maxRollSeq($codes, $prefix);
+    }
+
+    /**
+     * 同じ発注の既存生機反から、次に使う連番の直前値を返す。
+     *
+     * @param  int  $poId  purchase_orders.id。greige_rolls.purchase_order_id の絞り込みに使う
+     * @param  int|null  $greigeId  greiges.id。分かれば greige_id でも絞る
+     * @param  string  $prefix  コード接頭辞（例: KB-A-PO-G-2606-001-）
+     * @return int  既存の最大連番。該当なしは 0
+     */
+    private static function nextGreigeRollSeq(int $poId, ?int $greigeId, string $prefix): int
+    {
+        $query = GreigeRollModel::query()->where('purchase_order_id', $poId);
+        if ($greigeId !== null && $greigeId > 0) {
+            $query->where('greige_id', $greigeId);
+        }
+
+        return self::maxRollSeq($query->pluck('code')->all(), $prefix);
+    }
+
+    /**
+     * 同じ接頭辞の既存コードから、使われている連番の最大値を返す。
+     *
+     * 例: 接頭辞が FAB-T-BK-PO-2606-009- で、既存が …-01 と …-03 なら 3。
+     * 件数ではなく末尾数字を見るので、欠番があっても次番号が既存とぶつからない。
+     *
+     * @param  list<string>  $codes  既存の反コード
+     * @param  string  $prefix  SKU + 発注コード + '-'（例: FAB-T-BK-PO-2606-009-）
+     * @return int  最大連番。該当なしは 0
+     */
+    private static function maxRollSeq(array $codes, string $prefix): int
+    {
+        $max = 0;
+        foreach ($codes as $code) {
+            if (! str_starts_with($code, $prefix)) {
+                continue;
+            }
+            $suffix = substr($code, strlen($prefix));
+            if ($suffix !== '' && ctype_digit($suffix)) {
+                $max = max($max, (int) $suffix);
+            }
+        }
+
+        return $max;
+    }
+
+    /**
+     * 連番を2桁以上の文字列にする。
+     *
+     * 1 → 01、12 → 12、100 → 100（2桁未満のときだけ 0 を足す）。
+     *
+     * @param  int  $seq  1以上の連番
+     * @return string  ゼロ埋めした連番
+     */
+    private static function formatRollSeq(int $seq): string
+    {
+        return str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
     }
 }
