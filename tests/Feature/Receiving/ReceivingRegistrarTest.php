@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Receiving;
 
+use App\Models\Inventory\GreigeRoll;
 use App\Models\Inventory\ProductRoll;
 use App\Models\Purchase\PurchaseOrderLine;
 use App\Models\Receiving\Receiving;
@@ -102,5 +103,88 @@ class ReceivingRegistrarTest extends TestCase
 
         $this->assertNotNull($line);
         $this->assertSame(50.0, (float) $line->qty_kg);
+    }
+
+    /**
+     * 同じ製品発注へ2回入荷しても、反コードの連番が 01, 02 と続き重複しないことを確認する。
+     *
+     * @return void
+     */
+    public function test_second_product_receiving_on_same_po_uses_next_roll_code(): void
+    {
+        $this->seedBase();
+
+        $qty = 25;
+        $qtyTan = QtyHelper::tanCount($qty, 7);
+        $rollLine = ['tan_qty' => $qtyTan, 'actual_qty_m' => (float) $qty];
+
+        ReceivingRegistrar::register(
+            9,
+            '2026-07-04',
+            PurchaseOrderType::PRODUCT,
+            qtyTan: $qtyTan,
+            qtyMeters: $qty,
+            rollLines: [$rollLine],
+        );
+        ReceivingRegistrar::register(
+            9,
+            '2026-07-05',
+            PurchaseOrderType::PRODUCT,
+            qtyTan: $qtyTan,
+            qtyMeters: $qty,
+            rollLines: [$rollLine],
+        );
+
+        $codes = ProductRoll::query()
+            ->where('purchase_order_id', 9)
+            ->where('product_id', 7)
+            ->orderBy('id')
+            ->pluck('code')
+            ->all();
+
+        $this->assertContains('FAB-T-BK-PO-2606-009-01', $codes);
+        $this->assertContains('FAB-T-BK-PO-2606-009-02', $codes);
+        $this->assertCount(2, $codes);
+    }
+
+    /**
+     * 同じ生機発注へ2回入荷しても、反コードの連番が 01, 02 と続き重複しないことを確認する。
+     *
+     * @return void
+     */
+    public function test_second_greige_receiving_on_same_po_uses_next_roll_code(): void
+    {
+        $this->seedBase();
+
+        $qty = 50;
+        $qtyTan = QtyHelper::tanCount($qty, null, true, 'KB-A');
+        $rollLine = ['tan_qty' => $qtyTan, 'actual_qty_m' => (float) $qty];
+
+        ReceivingRegistrar::register(
+            4,
+            '2026-07-04',
+            PurchaseOrderType::GREIGE,
+            qtyTan: $qtyTan,
+            qtyMeters: $qty,
+            rollLines: [$rollLine],
+        );
+        ReceivingRegistrar::register(
+            4,
+            '2026-07-05',
+            PurchaseOrderType::GREIGE,
+            qtyTan: $qtyTan,
+            qtyMeters: $qty,
+            rollLines: [$rollLine],
+        );
+
+        $codes = GreigeRoll::query()
+            ->where('purchase_order_id', 4)
+            ->orderBy('id')
+            ->pluck('code')
+            ->all();
+
+        $this->assertContains('KB-A-PO-G-2606-001-01', $codes);
+        $this->assertContains('KB-A-PO-G-2606-001-02', $codes);
+        $this->assertCount(2, $codes);
     }
 }

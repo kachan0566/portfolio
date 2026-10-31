@@ -4,6 +4,7 @@ namespace App\Support\Qty;
 
 use App\Models\Master\Greige;
 use App\Models\Master\Product;
+
 /**
  * 数量の表示・換算ヘルパー。
  *
@@ -12,25 +13,43 @@ use App\Models\Master\Product;
  */
 class QtyHelper
 {
-    /** 製品品番の標準：1反あたりのメートル数 */
+    /** @var int 製品品番の標準：1反あたりのメートル数（マスタ未設定時のフォールバック参照用） */
     public const METERS_PER_TAN_PRODUCT = 50;
 
-    /** 生機品番の標準：1反あたりのメートル数 */
+    /** @var int 生機品番の標準：1反あたりのメートル数（マスタ未設定時のフォールバック参照用） */
     public const METERS_PER_TAN_GREIGE = 100;
 
-    /** 受注・発注・入荷・引当・出荷で共通する反数の最小刻み */
+    /** @var float 受注・発注・入荷・引当・出荷で共通する反数の最小刻み */
     public const TAN_STEP = 0.25;
 
-    /** @deprecated TAN_STEPを使用。後方互換のため同じ0.25を返す */
+    /**
+     * @deprecated TAN_STEP を使用
+     * @var float 後方互換のため TAN_STEP と同じ 0.25
+     */
     public const ORDER_PO_TAN_STEP = self::TAN_STEP;
 
-    /** @deprecated TAN_STEPを使用。後方互換のため同じ0.25を返す */
+    /**
+     * @deprecated TAN_STEP を使用
+     * @var float 後方互換のため TAN_STEP と同じ 0.25
+     */
     public const RECEIVING_TAN_STEP = self::TAN_STEP;
 
+    /** @var int 反数表示・丸め結果の小数桁数 */
     public const TAN_DECIMALS = 2;
 
+    /** @var int 入荷画面などで参照する反数の小数桁数（現状 TAN_DECIMALS と同値） */
     public const RECEIVING_TAN_DECIMALS = 2;
 
+    /**
+     * 品番マスタから1反あたりの標準m数を取得する。
+     *
+     * @param  int|null  $productId  製品の場合に Product を検索する内部 ID
+     * @param  bool  $isGreige  true のとき生機として $greigeSku で Greige を検索する
+     * @param  string|null  $greigeSku  生機 SKU（$isGreige が true のとき必須）
+     * @return int  マスタの meters_per_tan（整数）
+     *
+     * @throws \InvalidArgumentException  ID/SKU 未指定・マスタに存在しない場合
+     */
     public static function metersPerTan(?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): int
     {
         if ($isGreige) {
@@ -88,6 +107,13 @@ class QtyHelper
         return abs((float) $tan - self::roundTan($tan)) < 0.0001;
     }
 
+    /**
+     * 任意の刻み $step で反数を丸める（$step が 0 以下のときは 0.0）。
+     *
+     * @param  float|int  $tan  丸める反数
+     * @param  float  $step  反数の刻み（例: 0.25）
+     * @return float  刻みに合わせた反数
+     */
     public static function roundTanWithStep(float|int $tan, float $step): float
     {
         if ($step <= 0) {
@@ -99,6 +125,13 @@ class QtyHelper
         return round($steps * $step, self::decimalsForStep($step));
     }
 
+    /**
+     * 正の反数が指定刻み $step の倍数かを roundTanWithStep と比較して判定する。
+     *
+     * @param  float|int  $tan  判定する反数
+     * @param  float  $step  反数の刻み
+     * @return bool  倍数なら true（0 以下は false）
+     */
     public static function isValidTanStepWith(float|int $tan, float $step): bool
     {
         if ((float) $tan <= 0) {
@@ -108,6 +141,12 @@ class QtyHelper
         return abs((float) $tan - self::roundTanWithStep($tan, $step)) < 0.0001;
     }
 
+    /**
+     * 刻み $step の小数桁数を求め、number_format の桁数に使う。
+     *
+     * @param  float  $step  反数の刻み
+     * @return int  小数桁数（1 以上の整数刻みは 0）
+     */
     private static function decimalsForStep(float $step): int
     {
         if ($step >= 1) {
@@ -120,17 +159,37 @@ class QtyHelper
         return $dot === false ? 0 : strlen(substr($formatted, $dot + 1));
     }
 
+    /**
+     * 入荷用刻み RECEIVING_TAN_STEP で反数を丸める。
+     *
+     * @param  float|int  $tan  丸める反数
+     * @return float  入荷刻みに合わせた反数
+     */
     public static function roundReceivingTan(float|int $tan): float
     {
         return self::roundTanWithStep($tan, self::RECEIVING_TAN_STEP);
     }
 
+    /**
+     * 正の反数が入荷用刻み RECEIVING_TAN_STEP の倍数かを判定する。
+     *
+     * @param  float|int  $tan  判定する反数
+     * @return bool  倍数なら true
+     */
     public static function isValidReceivingTanStep(float|int $tan): bool
     {
         return self::isValidTanStepWith($tan, self::RECEIVING_TAN_STEP);
     }
 
-    /** m受注の出荷：足りる反数を切り上げ（丸反出荷） */
+    /**
+     * m指定数量を満たすために必要な反数を切り上げ整数相当の float で返す（丸反出荷用）。
+     *
+     * @param  float|int  $meters  出荷対象の m 数
+     * @param  int|null  $productId  製品の標準 m/反取得用 ID
+     * @param  bool  $isGreige  生機として換算する場合は true
+     * @param  string|null  $greigeSku  生機の標準 m/反取得用 SKU
+     * @return float  必要反数（m または m/反 が 0 以下のとき 0.0）
+     */
     public static function tanCountCeilForShipment(
         float|int $meters,
         ?int $productId = null,
@@ -146,7 +205,7 @@ class QtyHelper
     }
 
     /**
-     * m数を表示・見積用の反数へ換算する。
+     * m 数を標準 m/反で割り、表示・見積用の反数（TAN_DECIMALS 桁、刻み丸めなし）を返す。
      *
      * m指定受注や予測値は0.25反入力の対象外なので、0.25刻みへ丸めず小数2桁で返す。
      *
@@ -179,6 +238,13 @@ class QtyHelper
         return round((float) $tan * $perTan, 2);
     }
 
+    /**
+     * 反数を桁区切り表示し、末尾の不要な 0 を省く。
+     *
+     * @param  float|int  $tan  表示する反数
+     * @param  int|null  $decimals  小数桁（null のとき TAN_DECIMALS）
+     * @return string  表示用文字列（単位「反」は付けない）
+     */
     public static function formatTanCount(float|int $tan, ?int $decimals = null): string
     {
         $decimals ??= self::TAN_DECIMALS;
@@ -187,7 +253,15 @@ class QtyHelper
         return rtrim(rtrim($formatted, '0'), '.');
     }
 
-    /** 「2.4反 / 120m」形式（反メイン・mサブ） */
+    /**
+     * m 数から「反数 / m数」形式の表示文字列を返す（反メイン・m サブ）。
+     *
+     * @param  float|int  $meters  表示元の m 数
+     * @param  int|null  $productId  換算用の製品 ID
+     * @param  bool  $isGreige  生機として換算する場合は true
+     * @param  string|null  $greigeSku  生機 SKU
+     * @return string  例: 「2.4反 / 120m」
+     */
     public static function format(float|int $meters, ?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): string
     {
         $tan = self::tanCount($meters, $productId, $isGreige, $greigeSku);
@@ -195,7 +269,15 @@ class QtyHelper
         return self::formatTanCount($tan).'反 / '.self::formatMeters($meters).'m';
     }
 
-    /** 反数から表示（見込mは標準換算） */
+    /**
+     * 反数入力から「反数 / 標準換算 m 数」形式の表示文字列を返す。
+     *
+     * @param  float|int  $tan  表示する反数（内部で TAN_STEP 丸め）
+     * @param  int|null  $productId  標準 m/反取得用の製品 ID
+     * @param  bool  $isGreige  生機として換算する場合は true
+     * @param  string|null  $greigeSku  生機 SKU
+     * @return string  例: 「2.5反 / 125m」
+     */
     public static function formatFromTan(float|int $tan, ?int $productId = null, bool $isGreige = false, ?string $greigeSku = null): string
     {
         $roundedTan = self::roundTan($tan);
@@ -205,9 +287,14 @@ class QtyHelper
     }
 
     /**
-     * 品番ごとに換算した反数の合計（全品番集計用）。
+     * 明細行ごとに品番の m/反で反数へ換算し、合計反数を返す（複数品番集計用）。
      *
-     * @param  iterable<int|string, object|array<string, mixed>>  $lines
+     * @param  iterable<int|string, object|array<string, mixed>>  $lines  qty_tan または $qtyKey の m 数を持つ行
+     * @param  string  $qtyKey  m 数が入るプロパティ名（qty_tan 優先時は未使用）
+     * @param  string  $productIdKey  行オブジェクト上の製品 ID キー
+     * @param  bool  $isGreige  生機明細として扱う場合は true
+     * @param  string|null  $greigeSkuKey  生機 SKU のキー名（null なら SKU なし）
+     * @return float  合計反数（TAN_DECIMALS 桁で丸め）
      */
     public static function sumTanFromLines(
         iterable $lines,
@@ -240,7 +327,14 @@ class QtyHelper
     }
 
     /**
-     * @param  iterable<int|string, object|array<string, mixed>>  $lines
+     * 明細行から m 数を合算する（qty_meters・qty_tan・$qtyKey の優先順で読む）。
+     *
+     * @param  iterable<int|string, object|array<string, mixed>>  $lines  数量を持つ明細行
+     * @param  string  $qtyKey  フォールバックの m 数キー
+     * @param  string  $productIdKey  qty_tan 換算時の製品 ID キー
+     * @param  bool  $isGreige  生機明細として qty_tan を換算する場合は true
+     * @param  string|null  $greigeSkuKey  生機 SKU キー名
+     * @return float  合計 m 数
      */
     public static function sumMetersFromLines(
         iterable $lines,
@@ -271,15 +365,28 @@ class QtyHelper
         return $total;
     }
 
+    /**
+     * 合計反数と合計 m 数から「反 / m」形式の表示文字列を返す。
+     *
+     * @param  float  $totalMeters  合計 m 数
+     * @param  float  $totalTan  合計反数
+     * @return string  例: 「10反 / 500m」
+     */
     public static function formatAggregate(float $totalMeters, float $totalTan): string
     {
         return self::formatTanCount($totalTan).'反 / '.self::formatMeters($totalMeters).'m';
     }
 
     /**
-     * 単一品番ならその品番で、複数品番なら反数合算＋m合算で表示。
+     * 明細から数量表示を組み立てる（単一品番は format、複数品番は合算後 formatAggregate）。
      *
-     * @param  iterable<int|string, object|array<string, mixed>>  $lines
+     * @param  iterable<int|string, object|array<string, mixed>>  $lines  明細行
+     * @param  string  $qtyKey  m 数キー（sumMetersFromLines 等に渡す）
+     * @param  int|null  $productId  指定時は単一品番としてその ID で format する
+     * @param  string  $productIdKey  複数品番時の製品 ID キー
+     * @param  bool  $isGreige  生機明細として集計する場合は true
+     * @param  string|null  $greigeSkuKey  生機 SKU キー名
+     * @return string  「反 / m」形式の表示文字列
      */
     public static function formatAggregateFromLines(
         iterable $lines,
@@ -302,10 +409,10 @@ class QtyHelper
     }
 
     /**
-     * m数を小数2桁まで表示し、不要な末尾の0を省く。
+     * m 数を小数 2 桁・桁区切りで表示し、末尾の不要な 0 を省く。
      *
-     * @param  float|int  $meters  表示するm数
-     * @return string 桁区切り済みのm数（例: 1,250 / 12.5）
+     * @param  float|int  $meters  表示する m 数
+     * @return string  桁区切り済み m 数（単位「m」は付けない）
      */
     public static function formatMeters(float|int $meters): string
     {
@@ -314,13 +421,27 @@ class QtyHelper
         return rtrim(rtrim($formatted, '0'), '.');
     }
 
-    /** 生機反数 → 同長さの製品反数（例：生機1反100m → 製品2反） */
+    /**
+     * 生機側の m 長を、指定製品の標準 m/反で割った製品反数を返す。
+     *
+     * @param  float|int  $greigeMeters  生機換算の m 長
+     * @param  int  $productId  製品マスタ ID
+     * @return float  製品反数（tanCount と同じ丸め規則）
+     */
     public static function productTanFromGreigeMeters(float|int $greigeMeters, int $productId): float
     {
         return self::tanCount($greigeMeters, $productId, false);
     }
 
-    /** 生機反数 → 同長さの製品反数（反数ベース換算） */
+    /**
+     * 生機反数を製品に紐づく生機 SKU 経由で m に換算し、同長の製品反数を返す。
+     *
+     * @param  float|int  $greigeTan  生機反数
+     * @param  int  $productId  製品マスタ ID（紐づく生機 SKU を参照）
+     * @return float  同長換算後の製品反数
+     *
+     * @throws \InvalidArgumentException  製品不存在・生機 SKU 未設定
+     */
     public static function productTanFromGreigeTan(float|int $greigeTan, int $productId): float
     {
         $product = Product::query()->with('greige')->find($productId);
@@ -338,7 +459,15 @@ class QtyHelper
         return self::tanCount($meters, $productId, false);
     }
 
-    /** 反明細の表示（1反 / 実測m、標準との差分付き） */
+    /**
+     * 反ロール1件の表示文字列を返す（反数 / 実測 m、標準 m との差が大きいとき注記付き）。
+     *
+     * @param  object|array<string, mixed>  $roll  tan_qty・nominal_meters 等を持つ反明細
+     * @param  bool  $isGreige  標準 m/反取得を生機として行う場合は true
+     * @param  int|null  $productId  製品の標準 m/反取得用 ID
+     * @param  string|null  $greigeSku  生機 SKU
+     * @return string  画面表示用1行
+     */
     public static function formatRoll(object|array $roll, bool $isGreige = false, ?int $productId = null, ?string $greigeSku = null): string
     {
         $row = (object) $roll;
@@ -357,6 +486,12 @@ class QtyHelper
         return $base.'（標準'.$nominal.'m '.$sign.number_format($variance, 1).'）';
     }
 
+    /**
+     * 標準 m との差分（m）を符号付きで表示する（微小差は「±0」）。
+     *
+     * @param  float  $variance  実測と標準の差（m）
+     * @return string  例: 「+1.2m」「±0」
+     */
     public static function formatVariance(float $variance): string
     {
         if (abs($variance) < 0.05) {

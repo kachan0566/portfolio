@@ -18,7 +18,18 @@ use Illuminate\Support\Facades\DB;
 class ShipmentRegistrar
 {
     /**
-     * @return array{code: string, message: string, allocated_tan: float, allocated_m: float}
+     * 受注に紐づく出荷を1件登録し、反引当・在庫減・受注出荷累計をトランザクション内で更新する。
+     *
+     * @param  int  $orderId  出荷元の受注 ID（行ロックして読む）
+     * @param  float  $qtyTan  反数受注時の出荷反数（m 受注時は未使用）
+     * @param  float|null  $qtyMeters  m 受注時の出荷 m 数
+     * @param  string  $shippedDate  出荷日（DB 保存形式）
+     * @param  string|null  $shipToName  届け先名称
+     * @param  string|null  $note  備考
+     * @param  float|null  $partialActualMeters  反数受注で部分出荷するときの実測 m（任意）
+     * @return array{code: string, message: string, allocated_tan: float, allocated_m: float}  登録した出荷コードと引当結果
+     *
+     * @throws \RuntimeException  引当できる在庫がない場合
      */
     public static function register(
         int $orderId,
@@ -100,7 +111,11 @@ class ShipmentRegistrar
     }
 
     /**
-     * デモ Seeder 用：出荷ヘッダ作成後に FIFO で反消費のみ行う（受注 shipped_qty は触らない）。
+     * デモ Seeder 用に、既存出荷ヘッダへ FIFO 引当のみ再実行する（受注の shipped_qty は更新しない）。
+     *
+     * @param  Shipment  $shipment  引当対象の出荷（既に allocations がある場合は何もしない）
+     * @param  int  $qtyM  引当する m 数
+     * @return void
      */
     public static function replayDemoShipment(Shipment $shipment, int $qtyM): void
     {
@@ -124,7 +139,9 @@ class ShipmentRegistrar
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * デモ環境用の出荷マスタ初期行定義を返す。
+     *
+     * @return list<array<string, mixed>>  Seeder が insert する連想配列のリスト
      */
     public static function demoRows(): array
     {
@@ -136,6 +153,11 @@ class ShipmentRegistrar
         ];
     }
 
+    /**
+     * 当月連番の出荷コード（SH-yymm-NNN）を採番する。
+     *
+     * @return string  未使用の出荷 code
+     */
     private static function nextCode(): string
     {
         $prefix = 'SH-'.date('ym').'-';
