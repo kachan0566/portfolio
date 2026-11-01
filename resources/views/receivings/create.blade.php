@@ -44,7 +44,11 @@
                         </thead>
                         <tbody>
                             @forelse ($pending as $po)
-                                @php $rem = \App\Models\Purchase\PurchaseOrder::remainingQtyFor((int) $po->id, $po); @endphp
+                                @php
+                                    $rem = $type === PurchaseOrderType::YARN
+                                        ? \App\Models\Purchase\PurchaseOrder::remainingQtyFor((int) $po->id, $po)
+                                        : 0;
+                                @endphp
                                 <tr>
                                     <td class="code-cell">{{ $po->code }}</td>
                                     <td>{{ $po->supplier }}</td>
@@ -53,7 +57,11 @@
                                         @if ($type === PurchaseOrderType::YARN)
                                             {{ number_format($rem, 2) }} kg
                                         @else
-                                            @include('partials.purchase.purchase-qty', ['purchase' => (object) ['type' => $type, 'qty_meters' => $rem, 'greige_sku' => $po->greige_sku ?? null, 'product_id' => $po->product_id ?? null]])
+                                            @include('partials.qty.qty-roll-stock', [
+                                                'tan' => (float) ($po->remaining_tan ?? 0),
+                                                'meters' => (float) ($po->remaining_planned_meters ?? 0),
+                                            ])
+                                            <span class="t-muted">（mは予定）</span>
                                         @endif
                                     </td>
                                     <td><span class="badge badge-indigo badge--plain">{{ $po->status_label ?? $po->status }}</span></td>
@@ -80,10 +88,15 @@
                             <label class="label" for="po">対象発注<span class="req">*</span></label>
                             <select class="select" id="po" name="po_id">
                                 @foreach ($pending as $po)
-                                    @php $rem = \App\Models\Purchase\PurchaseOrder::remainingQtyFor((int) $po->id, $po); @endphp
+                                    @php
+                                        $remainingLabel = $type === PurchaseOrderType::YARN
+                                            ? number_format(\App\Models\Purchase\PurchaseOrder::remainingQtyFor((int) $po->id, $po), 2).' kg'
+                                            : \App\Support\Qty\QtyHelper::formatTanCount((float) ($po->remaining_tan ?? 0)).'反 / '
+                                                .\App\Support\Qty\QtyHelper::formatMeters((float) ($po->remaining_planned_meters ?? 0)).'m（予定）';
+                                    @endphp
                                     <option value="{{ $po->id }}">
                                         {{ $po->code }} ／ {{ $po->sku }}
-                                        （残 {{ $type === PurchaseOrderType::YARN ? number_format($rem, 2).' kg' : number_format($rem).' m' }}）
+                                        （残 {{ $remainingLabel }}）
                                     </option>
                                 @endforeach
                             </select>

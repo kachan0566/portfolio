@@ -190,6 +190,18 @@ class PurchaseOrderLine extends Model
         return max(0.0, $this->orderedTan() - $this->receivedTan());
     }
 
+    /**
+     * 未入荷反数を明細の標準m/反で換算した予定mを返す。
+     *
+     * 実測mは入荷時まで確定しないため、入荷待ち画面の目安として使用する。
+     *
+     * @return float 残反数に対応する予定m。糸発注は0
+     */
+    public function remainingPlannedMeters(): float
+    {
+        return round($this->remainingTan() * $this->metersPerTanValue(), 2);
+    }
+
     public function metersPerTanValue(): int
     {
         $type = (string) ($this->purchaseOrder?->type ?? PurchaseOrderType::PRODUCT);
@@ -216,6 +228,8 @@ class PurchaseOrderLine extends Model
             'line_no' => $this->line_no,
             'sku' => $this->skuLabel(),
             'remaining' => $remaining,
+            'remaining_tan' => $this->remainingTan(),
+            'remaining_planned_meters' => $this->remainingPlannedMeters(),
             'meters_per_tan' => $this->metersPerTanValue(),
             'product_id' => $this->product_id,
             'greige_sku' => $this->greige?->sku,
