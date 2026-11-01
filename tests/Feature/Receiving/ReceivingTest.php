@@ -53,6 +53,31 @@ class ReceivingTest extends TestCase
         $response->assertSee('RC-2606-002');
     }
 
+    /**
+     * 入荷履歴が実測mから反数を再計算せず、DBに保存された反数と実測mを表示することを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_receiving_index_shows_stored_tan_and_actual_meters(): void
+    {
+        $line = ReceivingLine::query()
+            ->whereHas(
+                'purchaseOrderLine.purchaseOrder',
+                fn ($query) => $query->where('type', PurchaseOrderType::PRODUCT)
+            )
+            ->firstOrFail();
+
+        $line->update([
+            'qty_tan' => 2.00,
+            'qty_m' => 105.75,
+        ]);
+
+        $response = $this->get(route('receivings.index'));
+
+        $response->assertOk();
+        $response->assertSee('2反 / 105.75m');
+    }
+
     public function test_yarn_receiving_registers_movements_and_po_line(): void
     {
         $before = YarnInventory::effectiveStockKg(1);

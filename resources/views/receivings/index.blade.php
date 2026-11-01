@@ -83,9 +83,15 @@
                                         @if ($poType === PurchaseOrderType::YARN)
                                             +{{ number_format((float) ($r->qty_kg ?? $r->qty ?? 0), 2) }} kg
                                         @elseif ($poType === PurchaseOrderType::GREIGE)
-                                            +@include('partials.qty.qty', ['qty' => (int) ($r->qty_meters ?? $r->qty ?? 0), 'isGreige' => true, 'greigeSku' => $r->greige_sku ?? $r->sku])
+                                            +@include('partials.qty.qty-roll-stock', [
+                                                'tan' => (float) ($r->qty_tan ?? 0),
+                                                'meters' => (float) ($r->qty_meters ?? $r->qty ?? 0),
+                                            ])
                                         @else
-                                            +@include('partials.qty.qty', ['qty' => (int) ($r->qty ?? 0), 'productId' => $r->product_id ?? null])
+                                            +@include('partials.qty.qty-roll-stock', [
+                                                'tan' => (float) ($r->qty_tan ?? 0),
+                                                'meters' => (float) ($r->qty ?? 0),
+                                            ])
                                         @endif
                                     </span>
                                 </td>

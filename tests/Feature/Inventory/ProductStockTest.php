@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Inventory;
 
+use App\Models\Receiving\ReceivingLine;
 use App\Models\Shipment\Shipment;
 use App\Support\Inventory\ProductStock;
 use Database\Seeders\MasterCatalogSeeder;
@@ -59,5 +60,40 @@ class ProductStockTest extends TestCase
         $shipment = Shipment::query()->where('code', 'SH-2606-001')->first();
         $this->assertNotNull($shipment);
         $this->assertEqualsWithDelta((float) $shipment->qty_m, (float) $sh001->qty, 0.001);
+    }
+
+    /**
+     * 入出庫履歴が入荷明細・出荷実績に保存された反数と実測mを保持することを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_stock_movements_keep_actual_tan_and_meters(): void
+    {
+        $this->seedTransactionalData();
+
+        $receivingLine = ReceivingLine::query()
+            ->whereHas('receiving', fn ($query) => $query->where('code', 'RC-2606-001'))
+            ->firstOrFail();
+        $receivingLine->update([
+            'qty_tan' => 2.00,
+            'qty_m' => 105.75,
+        ]);
+
+        $shipment = Shipment::query()->where('code', 'SH-2606-001')->firstOrFail();
+        $shipment->update([
+            'qty_tan' => 0.25,
+            'qty_m' => 10.75,
+        ]);
+
+        $movements = ProductStock::stockMovements();
+        $inbound = $movements->firstWhere('note', '入荷 RC-2606-001');
+        $outbound = $movements->firstWhere('note', '出荷 SH-2606-001');
+
+        $this->assertNotNull($inbound);
+        $this->assertSame(2.0, (float) $inbound->qty_tan);
+        $this->assertSame(105.75, (float) $inbound->qty);
+        $this->assertNotNull($outbound);
+        $this->assertSame(0.25, (float) $outbound->qty_tan);
+        $this->assertSame(10.75, (float) $outbound->qty);
     }
 }

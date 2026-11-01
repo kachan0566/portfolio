@@ -59,7 +59,14 @@
                                 </td>
                                 <td class="code-cell t-strong">{{ $s->sku }}</td>
                                 <td>{{ $s->color }}</td>
-                                <td class="num mono"><span class="badge badge-rose badge--plain">-@include('partials.qty.qty', ['qty' => $s->qty, 'productId' => $s->product_id])</span></td>
+                                <td class="num mono">
+                                    <span class="badge badge-rose badge--plain">
+                                        -@include('partials.qty.qty-roll-stock', [
+                                            'tan' => (float) ($s->qty_tan ?? 0),
+                                            'meters' => (float) ($s->qty ?? 0),
+                                        ])
+                                    </span>
+                                </td>
                                 <td class="mono">{{ $s->due_date }}</td>
                                 <td class="mono t-muted">{{ $s->date }}</td>
                                 <td style="font-size:12.5px;">{{ $s->ship_to }}</td>

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Inventory;
 
+use App\Models\Inventory\GreigeRoll as GreigeRollModel;
+use App\Models\Inventory\ProductRoll as ProductRollModel;
 use App\Support\Core\DemoData;
 use App\Support\Inventory\GreigeInventory;
 use App\Support\Inventory\GreigeRoll;
@@ -33,6 +35,7 @@ class InventoryTabTest extends TestCase
         $this->seed(CostFoundationSeeder::class);
         $this->seed(ReceivingSeeder::class);
     }
+
     public function test_inventory_has_yarn_tab(): void
     {
         $response = $this->get(route('inventory.index', ['tab' => 'yarn']));
@@ -58,4 +61,58 @@ class InventoryTabTest extends TestCase
         $this->assertSame(800.0, YarnInventory::effectiveStockKg(1));
         $this->assertSame(500.0, YarnInventory::effectiveStockKg(2));
     }
+
+    /**
+     * 製品在庫一覧が物理反に保存された現在庫反数と実測mを表示することを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_product_inventory_shows_roll_tan_and_actual_meters(): void
+    {
+        $roll = ProductRollModel::query()
+            ->where('status', ProductRollModel::STATUS_IN_STOCK)
+            ->firstOrFail();
+
+        ProductRollModel::query()
+            ->where('product_id', $roll->product_id)
+            ->update(['status' => ProductRollModel::STATUS_SHIPPED]);
+        ProductRollModel::query()->whereKey($roll->id)->update([
+            'status' => ProductRollModel::STATUS_IN_STOCK,
+            'tan_qty' => 0.25,
+            'actual_qty_m' => 10.75,
+        ]);
+
+        $response = $this->get(route('inventory.index', ['tab' => 'product']));
+
+        $response->assertOk();
+        $response->assertSeeText('0.25反 / 10.75m');
+    }
+
+    /**
+     * 生機在庫一覧が物理反に保存された現在庫反数と実測mを表示することを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_greige_inventory_shows_roll_tan_and_actual_meters(): void
+    {
+        GreigeInventory::entries();
+        $roll = GreigeRollModel::query()
+            ->whereNotNull('purchase_order_id')
+            ->firstOrFail();
+
+        GreigeRollModel::query()
+            ->where('purchase_order_id', $roll->purchase_order_id)
+            ->update(['status' => GreigeRoll::STATUS_CONSUMED]);
+        GreigeRollModel::query()->whereKey($roll->id)->update([
+            'status' => GreigeRoll::STATUS_IN_STOCK,
+            'tan_qty' => 0.25,
+            'actual_qty_m' => 10.75,
+        ]);
+
+        $response = $this->get(route('inventory.index', ['tab' => 'greige']));
+
+        $response->assertOk();
+        $response->assertSeeText('0.25反 / 10.75m');
+    }
+
 }

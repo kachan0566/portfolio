@@ -19,7 +19,10 @@
         <div class="kpi">
             <div class="kpi__icon tone-blue">@include('partials.ui.icon', ['name' => 'archive'])</div>
             <div class="kpi__label">総在庫数</div>
-            <div class="kpi__value" style="font-size:22px;">@include('partials.qty.qty-aggregate', ['lines' => $products->map(fn ($p) => (object) ['product_id' => $p->id, 'qty' => $p->stock]), 'qtyKey' => 'qty'])</div>
+            <div class="kpi__value" style="font-size:22px;">@include('partials.qty.qty-roll-stock', [
+                'tan' => (float) $products->sum('stock_tan'),
+                'meters' => (float) $products->sum('stock'),
+            ])</div>
         </div>
         <div class="kpi">
             <div class="kpi__icon tone-indigo">@include('partials.ui.icon', ['name' => 'yen'])</div>
@@ -194,7 +197,10 @@
                 <div class="kpi__label">染工場 生機在庫合計</div>
                 <div class="kpi__value" style="font-size:22px;">
                     @if ($greigeTotalMeters > 0)
-                        {{ \App\Support\Qty\QtyHelper::formatTanCount($greigeTotalTan) }}反 / {{ number_format($greigeTotalMeters) }}m
+                        @include('partials.qty.qty-roll-stock', [
+                            'tan' => (float) $greigeTotalTan,
+                            'meters' => (float) $greigeTotalMeters,
+                        ])
                     @else
                         0反 / 0m
                     @endif
@@ -213,7 +219,6 @@
                                 <th>発注番号</th>
                                 <th>生機品番</th>
                                 <th class="num">入荷済数量</th>
-                                <th class="num">反明細</th>
                                 <th>出荷先</th>
                                 <th>納期</th>
                                 <th style="width:88px;"></th>
@@ -224,14 +229,16 @@
                                 <tr>
                                     <td class="code-cell"><a href="{{ route('purchases.show', $g->po_id) }}" class="link-strong">{{ $g->po_code }}</a></td>
                                     <td class="code-cell t-strong">{{ $g->greige_sku }}<div class="t-muted" style="font-size:11px;">{{ $g->greige_name }}</div></td>
-                                    <td class="num mono">@include('partials.qty.qty', ['qty' => $g->qty_meters, 'isGreige' => true, 'greigeSku' => $g->greige_sku])</td>
-                                    <td class="num mono t-muted">{{ ($g->roll_count ?? 0) > 0 ? ($g->roll_count).'反' : '—' }}</td>
+                                    <td class="num mono">@include('partials.qty.qty-roll-stock', [
+                                        'tan' => (float) ($g->stock_tan ?? 0),
+                                        'meters' => (float) $g->qty_meters,
+                                    ])</td>
                                     <td>{{ $g->ship_to }}</td>
                                     <td class="mono">{{ $g->due_date }}</td>
                                     <td><a href="{{ route('purchases.show', $g->po_id) }}" class="btn btn-secondary btn-sm">詳細</a></td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="empty">染工場に生機在庫はありません。生機発注の入荷登録を行うとここに表示されます。</td></tr>
+                                <tr><td colspan="6" class="empty">染工場に生機在庫はありません。生機発注の入荷登録を行うとここに表示されます。</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -296,7 +303,12 @@
                                             <span class="badge badge-rose badge--plain">出庫</span>
                                         @endif
                                     </td>
-                                    <td class="num mono">{{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty.qty', ['qty' => $m->qty, 'productId' => $m->product_id])</td>
+                                    <td class="num mono">
+                                        {{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty.qty-roll-stock', [
+                                            'tan' => (float) ($m->qty_tan ?? 0),
+                                            'meters' => (float) ($m->qty ?? 0),
+                                        ])
+                                    </td>
                                     <td class="t-muted" style="font-size:12px;">{{ $m->note }}</td>
                                 </tr>
                             @endforeach
