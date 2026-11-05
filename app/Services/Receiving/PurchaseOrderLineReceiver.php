@@ -9,6 +9,9 @@ use App\Support\Purchase\PurchaseOrderStatus;
 use App\Support\Purchase\PurchaseOrderType;
 use App\Support\Qty\QtyHelper;
 
+/**
+ * 入荷実績を発注明細の累計数量と発注ステータスへ反映する。
+ */
 class PurchaseOrderLineReceiver
 {
     public static function syncFromReceivingLine(ReceivingLine $line): void
@@ -92,7 +95,13 @@ class PurchaseOrderLineReceiver
     }
 
     /**
-     * @return array{0: float, 1: float}
+     * 発注種別に応じた発注数量と入荷済み数量を返す。
+     *
+     * 糸はkg、生機・製品は実測mの増減に左右されない反数を完了判定に使う。
+     *
+     * @param  string  $type  発注種別
+     * @param  PurchaseOrderLine  $line  判定対象の発注明細
+     * @return array{0: float, 1: float} 発注数量、入荷済み数量の順
      */
     private static function orderedAndReceived(string $type, PurchaseOrderLine $line): array
     {
@@ -101,13 +110,9 @@ class PurchaseOrderLineReceiver
                 (float) ($line->qty_kg ?? 0),
                 (float) ($line->received_qty_kg ?? 0),
             ],
-            PurchaseOrderType::GREIGE => [
-                (float) ($line->qty_meters ?? 0),
-                (float) ($line->received_qty_m ?? 0),
-            ],
             default => [
-                (float) ($line->qty_meters ?? 0),
-                (float) ($line->received_qty_m ?? 0),
+                $line->orderedTan(),
+                $line->receivedTan(),
             ],
         };
     }

@@ -19,6 +19,11 @@
         return Math.round(tanQty * metersPerTan);
     }
 
+    function formatQuantity(value) {
+        const number = Number(value || 0);
+        return number.toFixed(2).replace(/\.?0+$/, '');
+    }
+
     function splitHeaderTan(headerTan) {
         const lines = [];
         let remaining = roundReceivingTan(headerTan);
@@ -109,7 +114,9 @@
     }
 
     function buildFabricEntry(index, line, type) {
-        const remLabel = Math.floor(line.remaining) + ' m';
+        const remainingTan = parseTan(line.remaining_tan);
+        const remLabel = formatQuantity(remainingTan) + '反 / '
+            + formatQuantity(line.remaining_planned_meters) + 'm（予定）';
         const perTan = line.meters_per_tan || 50;
         return (
             '<div class="receiving-entry" data-receiving-entry data-entry-index="' + index + '" data-meters-per-tan="' + perTan + '" style="padding:12px;border-top:1px solid var(--border-subtle,#e2e8f0);">' +
@@ -121,7 +128,7 @@
             '<div class="form-row">' +
             '<div class="field">' +
             '<label class="label">入荷反数</label>' +
-            '<input class="input mono" type="number" name="entries[' + index + '][qty_tan]" data-entry-tan min="0.25" step="0.25" value="0.25">' +
+            '<input class="input mono" type="number" name="entries[' + index + '][qty_tan]" data-entry-tan min="0.25" max="' + remainingTan + '" step="0.25" value="0.25">' +
             '</div>' +
             '<div class="field">' +
             '<label class="label">入荷m数（参考）</label>' +

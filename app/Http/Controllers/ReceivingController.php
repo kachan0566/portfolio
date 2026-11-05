@@ -58,7 +58,9 @@ class ReceivingController extends Controller
         $pending = DemoData::purchaseOrders()
             ->filter(fn ($po) => ($po->type ?? '') === $type)
             ->filter(fn ($po) => PurchaseOrderStatus::isActive($po->status ?? ''))
-            ->filter(fn ($po) => PurchaseOrder::remainingQtyFor((int) $po->id, $po) > 0)
+            ->filter(fn ($po) => $type === PurchaseOrderType::YARN
+                ? PurchaseOrder::remainingQtyFor((int) $po->id, $po) > 0
+                : (float) ($po->remaining_tan ?? 0) > 0)
             ->values();
 
         $poLinesJson = $this->pendingPoLinesJson($type, $pending);
@@ -118,7 +120,7 @@ class ReceivingController extends Controller
     {
         $rawEntries = $request->input('entries');
         if (is_array($rawEntries) && $rawEntries !== []) {
-            return $this->normalizeMultiLineEntries($request, $poType, $poId, $rawEntries);
+            return $this->normalizeMultiLineEntries($poType, $poId, $rawEntries);
         }
 
         return $this->normalizeLegacySingleEntry($request, $poType, $poId);
@@ -127,17 +129,16 @@ class ReceivingController extends Controller
     /**
      * 複数明細の entries 配列を検証・正規化する。
      *
-     * @param  Request  $request  フォーム全体（反ロール等）
      * @param  string  $poType  発注種別
      * @param  int  $poId  発注 ID
      * @param  array<int, mixed>  $rawEntries  entries の生配列
      * @return list<array<string, mixed>>
      */
-    private function normalizeMultiLineEntries(Request $request, string $poType, int $poId, array $rawEntries): array
+    private function normalizeMultiLineEntries( string $poType, int $poId, array $rawEntries): array
     {
         $entries = [];
 
-        foreach ($rawEntries as $index => $row) {
+        foreach ($rawEntries as $row) {
             if (! is_array($row) || empty($row['selected'])) {
                 continue;
             }
@@ -147,12 +148,16 @@ class ReceivingController extends Controller
                 continue;
             }
 
-            $remaining = PurchaseOrderLine::query()->find($poLineId)?->remainingQty() ?? 0.0;
-            if ($remaining <= 0) {
+            $poLine = PurchaseOrderLine::query()
+                ->with(['purchaseOrder', 'greige', 'product'])
+                ->where('purchase_order_id', $poId)
+                ->find($poLineId);
+            if ($poLine === null) {
                 continue;
             }
 
             if ($poType === PurchaseOrderType::YARN) {
+                $remaining = $poLine->remainingQty();
                 $qty = round((float) ($row['qty_kg'] ?? 0), 2);
                 if ($qty <= 0 || $qty > $remaining + 0.001) {
                     continue;
@@ -162,7 +167,6 @@ class ReceivingController extends Controller
                     'qty_kg' => $qty,
                 ];
             } else {
-                $poLine = PurchaseOrderLine::query()->with(['greige', 'product'])->find($poLineId);
                 $productId = $poType === PurchaseOrderType::PRODUCT ? (int) ($poLine?->product_id ?? 0) : null;
                 $greigeSku = $poType === PurchaseOrderType::GREIGE
                     ? (string) ($poLine?->greige?->sku ?? '')
@@ -187,8 +191,7 @@ class ReceivingController extends Controller
                     continue;
                 }
 
-                $lineRemaining = $remaining > 0 ? $remaining : PurchaseOrder::remainingQtyFor($poId);
-                if ($qty > (int) floor($lineRemaining) + 1) {
+                if ($qtyTan > $poLine->remainingTan() + 0.001) {
                     continue;
                 }
 
@@ -219,11 +222,16 @@ class ReceivingController extends Controller
      */
     private function normalizeLegacySingleEntry(Request $request, string $poType, int $poId): array
     {
-        $po = DemoData::purchaseOrders()->firstWhere('id', $poId);
-        $remaining = PurchaseOrder::remainingQtyFor($poId, $po);
         $poLineId = $this->resolveLegacyPoLineId($poId);
+        $poLine = PurchaseOrderLine::query()
+            ->with(['purchaseOrder', 'greige', 'product'])
+            ->find($poLineId);
+        if ($poLine === null) {
+            return [];
+        }
 
         if ($poType === PurchaseOrderType::YARN) {
+            $remaining = $poLine->remainingQty();
             $qty = round((float) $request->input('qty'), 2);
             if ($qty <= 0 || $qty > $remaining + 0.001) {
                 return [];
@@ -235,9 +243,9 @@ class ReceivingController extends Controller
             ]];
         }
 
-        $productId = $poType === PurchaseOrderType::PRODUCT ? (int) $po->product_id : null;
+        $productId = $poType === PurchaseOrderType::PRODUCT ? (int) $poLine->product_id : null;
         $greigeSku = $poType === PurchaseOrderType::GREIGE
-            ? (string) ($po->greige_sku ?? $po->sku)
+            ? (string) ($poLine->greige?->sku ?? '')
             : null;
         $rawQtyTan = (float) $request->input('qty_tan');
         if (! QtyHelper::isValidTanStep($rawQtyTan)) {
@@ -259,7 +267,7 @@ class ReceivingController extends Controller
             return [];
         }
 
-        if ($qty > (int) floor($remaining) + 1) {
+        if ($qtyTan > $poLine->remainingTan() + 0.001) {
             return [];
         }
 
@@ -356,7 +364,9 @@ class ReceivingController extends Controller
             $lines = $model->lines
                 ->sortBy('line_no')
                 ->map(fn ($line) => $line->toReceivingMeta())
-                ->filter(fn ($meta) => ($meta['remaining'] ?? 0) > 0)
+                ->filter(fn ($meta) => $type === PurchaseOrderType::YARN
+                    ? ($meta['remaining'] ?? 0) > 0
+                    : ($meta['remaining_tan'] ?? 0) > 0)
                 ->values()
                 ->all();
 

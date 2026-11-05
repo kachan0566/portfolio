@@ -237,6 +237,16 @@ class PurchaseOrder extends Model
         $row['order_code'] = $this->order?->code;
         $row['customer'] = $this->order?->customer?->name;
 
+        if ($type !== PurchaseOrderType::YARN) {
+            $row['remaining_tan'] = QtyHelper::roundReceivingTan(
+                (float) $this->lines->sum(fn (PurchaseOrderLine $line) => $line->remainingTan())
+            );
+            $row['remaining_planned_meters'] = round(
+                (float) $this->lines->sum(fn (PurchaseOrderLine $line) => $line->remainingPlannedMeters()),
+                2
+            );
+        }
+
         if ($type === PurchaseOrderType::YARN) {
             $material = $detail?->material;
             $row['material_id'] = $detail?->material_id;
@@ -357,6 +367,8 @@ class PurchaseOrder extends Model
             $row['qty'] = $row['qty_meters'];
             $row['qty_tan'] = (float) ($line->qty_tan ?? 0);
             $row['meters_per_tan'] = $line->metersPerTanValue();
+            $row['remaining_tan'] = $line->remainingTan();
+            $row['remaining_planned_meters'] = $line->remainingPlannedMeters();
             $row['received'] = (float) ($line->received_qty_m ?? 0);
             $row['yarn_requirements'] = DemoData::greigeYarnRequirements($greigeSku, $row['qty_meters']);
             $row['manual_stage'] = PurchaseOrderStages::normalizeGreigeManualStage($line->stage);
@@ -377,6 +389,8 @@ class PurchaseOrder extends Model
                 $row['qty_meters'] = QtyHelper::metersFromTan($row['qty_tan'], $productId);
             }
             $row['qty'] = $row['qty_meters'];
+            $row['remaining_tan'] = $line->remainingTan();
+            $row['remaining_planned_meters'] = $line->remainingPlannedMeters();
             $row['received'] = (float) ($line->received_qty_m ?? 0);
             $row['finish_date'] = $line->finish_date?->toDateString();
             $row['contact_date'] = $line->contact_date?->toDateString();
