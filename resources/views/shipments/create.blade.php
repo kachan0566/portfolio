@@ -114,7 +114,7 @@
                         </div>
                         <div class="field">
                             <label class="label" for="date">出荷日<span class="req">*</span></label>
-                            <input class="input" type="date" id="date" name="date" value="2026-06-15">
+                            <input class="input" type="date" id="date" name="date">
                         </div>
                     </div>
                     <div class="field">

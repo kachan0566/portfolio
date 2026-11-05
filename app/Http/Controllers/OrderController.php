@@ -19,6 +19,7 @@ use App\Support\Inventory\StockAllocation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use App\Support\Core\BusinessDate;
 
 /**
  * 受注の一覧・詳細・登録・更新・引当・発注紐づけを処理する。
@@ -209,6 +210,7 @@ class OrderController extends Controller
         return view('orders.create', [
             'customers' => Customer::query()->orderBy('id')->get(),
             'products' => MasterCatalog::products(),
+            'defaultDate' => BusinessDate::today(),
         ]);
     }
 

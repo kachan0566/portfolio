@@ -65,8 +65,11 @@
                 <div class="breadcrumb">@yield('breadcrumb', 'ホーム')</div>
             </div>
             <div class="topbar__right">
-                <span class="topbar__date">2026年6月15日（月）</span>
-                <span class="pill-month">対象月: 2026-06</span>
+                @php
+                    $now = \App\Support\Core\BusinessDate::now();
+                    $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                @endphp
+                <span class="topbar__date">{{ $now->format('Y年n月j日') }}（{{ $weekdays[$now->dayOfWeek] }}）</span>                    <span class="pill-month">対象月: {{ $now->format('Y-m') }}</span>
             </div>
         </header>
 
