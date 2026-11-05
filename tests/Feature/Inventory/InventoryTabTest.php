@@ -59,7 +59,7 @@ class InventoryTabTest extends TestCase
     public function test_yarn_inventory_shows_base_stock(): void
     {
         $this->assertSame(800.0, YarnInventory::effectiveStockKg(1));
-        $this->assertSame(500.0, YarnInventory::effectiveStockKg(2));
+        $this->assertSame(650.0, YarnInventory::effectiveStockKg(2)); // 500 + 入荷150
     }
 
     /**

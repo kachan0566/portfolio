@@ -91,9 +91,6 @@ class ReceivingTest extends TestCase
             qtyKg: 100.0,
         );
 
-        // 織工場入荷は入庫と消費が同量で相殺され、在庫合計は変わらない
-        $this->assertSame($before, YarnInventory::effectiveStockKg(1));
-
         $line = ReceivingLine::query()
             ->whereHas('receiving', fn ($q) => $q->where('code', $result['code']))
             ->first();
@@ -104,11 +101,6 @@ class ReceivingTest extends TestCase
             'material_id' => 1,
             'movement_type' => YarnMovementType::RECEIVING,
             'qty_kg' => 100.0,
-        ]);
-        $this->assertDatabaseHas('yarn_stock_movements', [
-            'material_id' => 1,
-            'movement_type' => YarnMovementType::CONSUMPTION,
-            'qty_kg' => -100.0,
         ]);
     }
 

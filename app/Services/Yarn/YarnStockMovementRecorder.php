@@ -46,15 +46,6 @@ final class YarnStockMovementRecorder
             'note' => $baseNote,
         ]);
 
-        YarnStockMovement::query()->create([
-            'material_id' => $materialId,
-            'movement_type' => YarnMovementType::CONSUMPTION,
-            'qty_kg' => -$qtyKg,
-            'reference_type' => $refType,
-            'reference_id' => $refId,
-            'movement_date' => $movementDate,
-            'note' => $baseNote.'（織工場消費）',
-        ]);
     }
 
     public static function recordAdjustment(

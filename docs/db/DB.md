@@ -253,7 +253,7 @@
 
 `reference_type` はポリモーフィック風に `receiving_line` / `manual` などを文字列で保持。
 
-- 入荷由来の `receiving` / `consumption` … `receiving_line` + `reference_id = receiving_lines.id`（糸入荷時に同時記録）
+- 入荷由来の `receiving` … `receiving_line` + `reference_id = receiving_lines.id`
 - 初期在庫 … `manual` + `reference_id = null`（`adjustment`）
 
 ---
@@ -833,7 +833,7 @@ GROUP BY product_id;
 
 **インデックス:** `material_id`, `movement_date`, `(reference_type, reference_id)`
 
-**残高:** `SUM(qty_kg) WHERE material_id = ?`（入庫正・出庫負。糸入荷は `receiving` + `consumption` が同量で net 0）
+**残高:** `SUM(qty_kg) WHERE material_id = ?`（入庫正・出庫負。糸入荷の `receiving` は在庫を増やす）
 
 **移行元:** `DemoData::yarnStockBase()` を初期 `adjustment` 行として投入。糸入荷は `ReceivingSeeder` / `ReceivingRegistrar` 経由。
 
@@ -1329,7 +1329,7 @@ Schema::create('receiving_lines', function (Blueprint $table) {
 ### 段階9 完了条件（段階10 着手前）
 
 - [x] レシピ3 + `material_prices` + `yarn_stock_movements` + `yarn_allocations`
-- [x] 糸入荷で `receiving` + `consumption`（参照 `receiving_line`）が記録される
+- [x] 糸入荷で `receiving`（参照 `receiving_line`）が記録される
 - [x] `receiving_lines.qty_kg` は `ReceivingLineTotals::sync` のみ
 - [x] `yarn_allocations.json` / `yarn_stock_state.json` 参照廃止（DB 投入時）
 
