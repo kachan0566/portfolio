@@ -60,7 +60,7 @@
                 <div class="form-row">
                     <div class="field">
                         <label class="label" for="order_date">受注日<span class="req">*</span></label>
-                        <input class="input" type="date" id="order_date" name="order_date" value="2026-06-15">
+                        <input class="input" type="date" id="order_date" name="order_date" value="{{ old('order_date', $defaultDate) }}" required>
                     </div>
                     <div class="field">
                         <label class="label" for="due_date">納期<span class="req">*</span></label>

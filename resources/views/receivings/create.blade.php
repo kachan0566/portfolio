@@ -173,7 +173,7 @@
 
                         <div class="field">
                             <label class="label" for="date">入荷日<span class="req">*</span></label>
-                            <input class="input" type="date" id="date" name="date" value="2026-06-15">
+                            <input class="input" type="date" id="date" name="date">
                         </div>
 
                         <p class="field-hint">
