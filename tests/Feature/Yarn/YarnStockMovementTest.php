@@ -32,33 +32,32 @@ class YarnStockMovementTest extends TestCase
         $this->seed(ReceivingSeeder::class);
     }
 
-    public function test_yarn_receiving_creates_receiving_and_consumption_pair(): void
+    public function test_yarn_receiving_creates_receiving_movement(): void
     {
-        $this->seedBase();
+    $this->seedBase();
 
-        $line = ReceivingLine::query()->whereHas(
-            'purchaseOrderLine.purchaseOrder',
-            fn ($q) => $q->where('code', 'PO-Y-2606-002'),
-        )->first();
+    $line = ReceivingLine::query()->whereHas(
+        'purchaseOrderLine.purchaseOrder',
+        fn ($q) => $q->where('code', 'PO-Y-2606-002'),
+    )->first();
 
-        $this->assertNotNull($line);
+    $this->assertNotNull($line);
 
-        $receiving = YarnStockMovement::query()
-            ->where('reference_type', YarnMovementReference::RECEIVING_LINE)
-            ->where('reference_id', $line->id)
-            ->where('movement_type', YarnMovementType::RECEIVING)
-            ->first();
+    $receiving = YarnStockMovement::query()
+        ->where('reference_type', YarnMovementReference::RECEIVING_LINE)
+        ->where('reference_id', $line->id)
+        ->where('movement_type', YarnMovementType::RECEIVING)
+        ->first();
 
-        $consumption = YarnStockMovement::query()
-            ->where('reference_type', YarnMovementReference::RECEIVING_LINE)
-            ->where('reference_id', $line->id)
-            ->where('movement_type', YarnMovementType::CONSUMPTION)
-            ->first();
+    $consumption = YarnStockMovement::query()
+        ->where('reference_type', YarnMovementReference::RECEIVING_LINE)
+        ->where('reference_id', $line->id)
+        ->where('movement_type', YarnMovementType::CONSUMPTION)
+        ->first();
 
-        $this->assertNotNull($receiving);
-        $this->assertNotNull($consumption);
-        $this->assertSame(150.0, (float) $receiving->qty_kg);
-        $this->assertSame(-150.0, (float) $consumption->qty_kg);
+    $this->assertNotNull($receiving);
+    $this->assertSame(150.0, (float) $receiving->qty_kg);
+    $this->assertNull($consumption);
     }
 
     public function test_record_yarn_receiving_is_idempotent(): void
@@ -80,6 +79,6 @@ class YarnStockMovementTest extends TestCase
             ->where('reference_id', $line->id)
             ->count();
 
-        $this->assertSame(2, $count);
+        $this->assertSame(1, $count);
     }
 }

@@ -328,7 +328,12 @@
                                         <span class="badge badge-rose badge--plain">出庫</span>
                                     @endif
                                 </td>
-                                <td class="num mono">{{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty.qty', ['qty' => $m->qty, 'productId' => $product->id])</td>
+                                <td class="num mono">
+                                    {{ $m->type === '入庫' ? '+' : '-' }}@include('partials.qty.qty-roll-stock', [
+                                        'tan' => (float) ($m->qty_tan ?? 0),
+                                        'meters' => (float) ($m->qty ?? 0),
+                                    ])
+                                </td>
                                 <td class="t-muted" style="font-size:12px;">{{ $m->note }}</td>
                             </tr>
                         @empty

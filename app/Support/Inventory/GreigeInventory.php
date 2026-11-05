@@ -19,7 +19,8 @@ class GreigeInventory
      *     greige_sku: string,
      *     greige_name: string,
      *     qty_meters: float,
-     *     qty_tan_calc: float,
+     *     stock_tan: float,
+     *     roll_count: float,
      *     ship_to: string,
      *     due_date: string
      * }>
@@ -46,13 +47,15 @@ class GreigeInventory
 
                 if ($stockRolls->isNotEmpty()) {
                     $received = round((float) $stockRolls->sum(fn ($roll) => (float) $roll->actual_qty_m), 2);
-                    $rollCount = (float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty);
+                    $physicalTan = round((float) $stockRolls->sum(fn ($roll) => (float) $roll->tan_qty), 2);
+                    $stockTan = $physicalTan;
                 } else {
                     $received = PurchaseOrder::receivedQtyFor($poId, $po);
                     if ($received <= 0) {
                         return null;
                     }
-                    $rollCount = 0;
+                    $physicalTan = 0.0;
+                    $stockTan = \App\Support\Qty\QtyHelper::tanCount($received, null, true, $greigeSku);
                 }
 
                 $shipTo = \App\Support\Master\MasterCatalog::findShipTo((int) ($po->ship_to_id ?? 0));
@@ -63,10 +66,8 @@ class GreigeInventory
                     'greige_sku' => $greigeSku,
                     'greige_name' => $greige->name,
                     'qty_meters' => $received,
-                    'qty_tan_calc' => $rollCount > 0
-                        ? (float) $rollCount
-                        : \App\Support\Qty\QtyHelper::tanCount($received, null, true, $greigeSku),
-                    'roll_count' => $rollCount,
+                    'stock_tan' => $stockTan,
+                    'roll_count' => $physicalTan,
                     'ship_to' => $shipTo?->name ?? '—',
                     'due_date' => $po->due_date ?? '—',
                 ];
@@ -109,7 +110,6 @@ class GreigeInventory
             'greige_sku' => $greige->sku,
             'greige_name' => $greige->name,
             'qty_meters' => $meters,
-            'qty_tan_calc' => \App\Support\Qty\QtyHelper::tanCount($meters, null, true, $greige->sku),
         ];
     }
 

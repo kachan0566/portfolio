@@ -16,7 +16,6 @@ use App\Support\Master\MasterCatalog;
 use App\Support\Inventory\ProductStock;
 use App\Support\Purchase\PurchaseOrderStages;
 use App\Support\Purchase\PurchaseOrderType;
-use App\Support\Qty\QtyHelper;
 use App\Support\Inventory\StockAllocation;
 use App\Support\Yarn\YarnInventory;
 use Illuminate\Http\RedirectResponse;
@@ -182,7 +181,7 @@ class InventoryController extends Controller
             'inProduction' => $inProduction,
             'greigeEntries' => $greigeEntries,
             'greigeTotalMeters' => GreigeInventory::totalMeters(),
-            'greigeTotalTan' => $greigeEntries->sum(fn ($g) => QtyHelper::tanCount($g->qty_meters, null, true, $g->greige_sku)),
+            'greigeTotalTan' => round((float) $greigeEntries->sum('stock_tan'), 2),
             'yarnRows' => $yarnRows,
             'yarnMovements' => $yarnMovements,
             'yarnTotalKg' => $yarnRows->sum('stock_kg'),
