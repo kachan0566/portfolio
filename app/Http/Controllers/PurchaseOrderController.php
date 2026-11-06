@@ -88,9 +88,9 @@ class PurchaseOrderController extends Controller
         }
 
         if ($purchase->type === PurchaseOrderType::PRODUCT) {
-            $greigeShortage = GreigeSupply::shortageMessage(
+            $greigeShortage = GreigeSupply::shortageTan(
                 (int) $purchase->product_id,
-                (float) $purchase->qty_meters,
+                (float) ($purchase->qty_tan ?? 0),
                 (int) $purchase->id
             );
         }
@@ -223,13 +223,13 @@ class PurchaseOrderController extends Controller
 
         if ($type === PurchaseOrderType::PRODUCT) {
             foreach ($lines as $index => $line) {
-                $msg = GreigeSupply::shortageMessage(
+                $msg = GreigeSupply::shortageTan(
                     (int) $line['product_id'],
-                    (float) $line['qty_meters'],
+                    (float) $line['qty_tan'],
                     null
                 );
                 if ($msg !== null) {
-                    return back()->withInput()->withErrors(["lines.{$index}.qty_meters" => $msg]);
+                    return back()->withInput()->withErrors(["lines.{$index}.product_qty_tan" => $msg]);
                 }
             }
         }
@@ -392,9 +392,9 @@ class PurchaseOrderController extends Controller
 
         if ($type === PurchaseOrderType::PRODUCT
             && in_array($newStatus, [PurchaseOrderStatus::ORDERED, PurchaseOrderStatus::PARTIAL], true)) {
-            $msg = GreigeSupply::shortageMessage(
+            $msg = GreigeSupply::shortageTan(
                 (int) $target->product_id,
-                (float) ($target->qty_meters ?? $target->qty),
+                (float) ($target->qty_tan ?? 0),
                 $purchase
             );
             if ($msg !== null) {
@@ -563,9 +563,9 @@ class PurchaseOrderController extends Controller
                 $po->yarn_requirements ?? [],
                 (int) $po->id
             ),
-            PurchaseOrderType::PRODUCT => ! GreigeSupply::canFulfillProductMeters(
+            PurchaseOrderType::PRODUCT => ! GreigeSupply::canFulfillProductTan(
                 (int) ($po->product_id ?? 0),
-                (float) ($po->qty_meters ?? $po->qty ?? 0),
+                (float) ($po->qty_tan ?? 0),
                 (int) $po->id
             ),
             default => false,
@@ -587,9 +587,9 @@ class PurchaseOrderController extends Controller
                 $po->yarn_requirements ?? [],
                 (int) $po->id
             ),
-            PurchaseOrderType::PRODUCT => ! GreigeSupply::canFulfillProductMeters(
+            PurchaseOrderType::PRODUCT => ! GreigeSupply::canFulfillProductTan(
                 (int) ($po->product_id ?? 0),
-                (float) ($po->qty_meters ?? $po->qty ?? 0),
+                (float) ($po->qty_tan ?? 0),
                 (int) $po->id
             ),
             default => false,

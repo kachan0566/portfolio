@@ -191,6 +191,34 @@ class PurchaseOrderTest extends TestCase
         $this->assertSame($before, PurchaseOrder::query()->count());
     }
 
+    /**
+     * 生機反が足りない製品発注は保存せず、反数の不足エラーを発注反数欄へ返すことを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_store_product_rejects_when_greige_tan_is_short(): void
+    {
+        $before = PurchaseOrder::query()->count();
+
+        $response = $this->post(route('purchases.store'), [
+            'type' => PurchaseOrderType::PRODUCT,
+            'supplier_id' => 6,
+            'ship_to_id' => 4,
+            'order_date' => '2026-06-25',
+            'due_date' => '2026-07-01',
+            'save_action' => 'ordered',
+            'lines' => [
+                ['product_id' => 6, 'qty_meters' => 500000],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('lines.0.product_qty_tan');
+        $message = (string) session('errors')->first('lines.0.product_qty_tan');
+        $this->assertStringContainsString('反 不足しています', $message);
+        $this->assertStringNotContainsString('m 不足しています', $message);
+        $this->assertSame($before, PurchaseOrder::query()->count());
+    }
+
     public function test_update_greige_persists_finish_date_separately_from_due_date(): void
     {
         $po = PurchaseOrder::query()->where('code', 'PO-G-2606-003')->first();

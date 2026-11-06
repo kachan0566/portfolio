@@ -249,4 +249,38 @@ class PurchaseOrderShowTest extends TestCase
         $response->assertSee('G-SHOW-ROLL-01', false);
         $response->assertSee('98.5m', false);
     }
+
+    /**
+     * 生機が足りない製品発注の詳細が、m ではなく反数で不足を表示することを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_product_show_reports_greige_shortage_in_tan(): void
+    {
+        $po = PurchaseOrder::query()->create([
+            'code' => 'PO-P-SHOW-SHORT-001',
+            'type' => PurchaseOrderType::PRODUCT,
+            'status' => 'ordered',
+            'supplier_id' => 6,
+            'ship_to_id' => 4,
+            'order_date' => '2026-06-25',
+            'due_date' => '2026-07-01',
+        ]);
+        PurchaseOrderLine::query()->create([
+            'purchase_order_id' => $po->id,
+            'line_no' => 1,
+            'product_id' => 1,
+            'qty_tan' => 999,
+            'qty_meters' => 49950,
+            'received_qty_tan' => 0,
+            'received_qty_m' => 0,
+        ]);
+
+        $response = $this->get(route('purchases.show', $po->id));
+
+        $response->assertOk();
+        $response->assertSee('材料が不足しています', false);
+        $response->assertSee('反 不足しています', false);
+        $response->assertDontSee('m 不足しています', false);
+    }
 }
