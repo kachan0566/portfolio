@@ -53,6 +53,15 @@ class GreigeDyeInput
         return null;
     }
 
+    /**
+     * 製品発注明細の必要量ぶん、染工場の生機反を染色仕掛へ移す。
+     *
+     * 足りるかの判定では、この明細の親製品発注を予約合計から除外する。
+     * 自分が押さえている生機を「他の予約」として引かないため。
+     *
+     * @param  PurchaseOrderLine  $line  染機投入する製品発注明細
+     * @return string|null  不足などのエラー文。足りて移せたとき・必要量が 0 以下のときは null
+     */
     public static function commitLine(PurchaseOrderLine $line): ?string
     {
         $line->loadMissing(['product.greige', 'purchaseOrder']);
@@ -77,8 +86,9 @@ class GreigeDyeInput
 
         self::revertLine($line);
 
-        if (! GreigeSupply::canFulfillProductMeters($productId, $requiredMeters)) {
-            return GreigeSupply::shortageMessage($productId, $requiredMeters)
+        $productPoId = (int) ($line->purchase_order_id ?? 0);
+        if (! GreigeSupply::canFulfillProductMeters($productId, $requiredMeters, $productPoId)) {
+            return GreigeSupply::shortageMessage($productId, $requiredMeters, $productPoId)
                 ?? '生機在庫が不足しています。';
         }
 

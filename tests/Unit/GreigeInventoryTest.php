@@ -45,32 +45,44 @@ class GreigeInventoryTest extends TestCase
         );
     }
 
-    public function test_greige_supply_uses_physical_and_on_order(): void
+    /**
+     * 利用可能な生機mが、染工場在庫m + 生機発注残m − 製品発注予約m であることを確認する。
+     *
+     * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
+     */
+    public function test_greige_supply_uses_physical_on_order_minus_allocated(): void
     {
         $sku = 'KB-T';
         $physical = GreigeSupply::dyeFactoryMeters($sku);
         $onOrder = GreigeSupply::greigePoRemainingMeters($sku);
+        $allocated = GreigeSupply::allocatedGreigeMeters($sku);
 
         $this->assertSame(200.0, $physical);
         $this->assertGreaterThanOrEqual(0, $onOrder);
-        $this->assertSame($physical + $onOrder, GreigeSupply::availableMeters($sku));
+        $this->assertGreaterThanOrEqual(0, $allocated);
+        $this->assertSame(
+            max(0.0, round($physical + $onOrder - $allocated, 2)),
+            GreigeSupply::availableMeters($sku)
+        );
     }
 
     /**
-     * 利用可能な生機反が、染工場在庫反と生機発注残反の合計であることを確認する。
+     * 利用可能な生機反が、染工場在庫反 + 生機発注残反 − 製品発注予約反 であることを確認する。
      *
      * @return void PHPUnit が成功／失敗を判定するため戻り値は使わない
      */
-    public function test_greige_supply_available_tan_is_physical_plus_on_order(): void
+    public function test_greige_supply_available_tan_is_physical_plus_on_order_minus_allocated(): void
     {
         $sku = 'KB-T';
         $physical = GreigeSupply::dyeFactoryTan($sku);
         $onOrder = GreigeSupply::greigePoRemainingTan($sku);
+        $allocated = GreigeSupply::allocatedGreigeTan($sku);
 
         $this->assertGreaterThanOrEqual(0, $physical);
         $this->assertGreaterThanOrEqual(0, $onOrder);
+        $this->assertGreaterThanOrEqual(0, $allocated);
         $this->assertSame(
-            round($physical + $onOrder, QtyHelper::TAN_DECIMALS),
+            max(0.0, round($physical + $onOrder - $allocated, QtyHelper::TAN_DECIMALS)),
             GreigeSupply::availableTan($sku)
         );
     }
