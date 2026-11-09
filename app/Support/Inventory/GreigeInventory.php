@@ -88,6 +88,23 @@ class GreigeInventory
             ->sum('qty_meters'), 2);
     }
 
+    /**
+     * 指定生機品番の染工場在庫反数を合計して返す。
+     *
+     * 処理の流れ:
+     * 1. entries() で染工場の生機在庫行を集める（在庫中・一部消費の反）
+     * 2. $greigeSku と一致する行の stock_tan を足す
+     *
+     * @param  string  $greigeSku  生機 SKU（例: KB-A）。在庫行の greige_sku と完全一致で絞り込む
+     * @return float  在庫反数の合計。該当品番なしのときは 0.0
+     */
+    public static function totalTanForSku(string $greigeSku): float
+    {
+        return round((float) self::entries()
+            ->where('greige_sku', $greigeSku)
+            ->sum('stock_tan'), 2);
+    }
+
     /** 製品発注詳細用：紐づく生機品番の染工場在庫 */
     public static function forPurchase(int $productPoId): ?object
     {
